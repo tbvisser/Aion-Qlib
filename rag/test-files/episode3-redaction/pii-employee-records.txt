@@ -1,0 +1,147 @@
+CONFIDENTIAL - EMPLOYEE RECORDS
+Acme Technologies Inc. - Human Resources Department
+Last Updated: January 15, 2025
+
+=== EMPLOYEE #1 ===
+Full Name: Margaret Eleanor Thompson
+Preferred Name: Maggie Thompson
+Date of Birth: 03/14/1985
+Social Security Number: 287-54-3891
+Employee ID: EMP-2019-0442
+Department: Engineering
+Title: Senior Software Engineer
+Email: margaret.thompson@acmetech.com
+Personal Email: maggie.t85@gmail.com
+Work Phone: (415) 555-0187
+Mobile: +1-628-555-0234
+Home Address: 1847 Oak Valley Drive, Apt 12B, San Francisco, CA 94110
+Emergency Contact: Robert Thompson (Husband) - (415) 555-0923
+Bank Account (Direct Deposit): Chase Bank, Routing: 021000021, Account: 483291076524
+Passport Number: 542817396
+Driver's License: CA D4829103
+Salary: $165,000/year
+Health Insurance ID: BCBS-4829-3017-5543
+Start Date: March 4, 2019
+
+Performance Notes:
+Maggie has been an exceptional contributor to the platform team. Her work on the
+authentication microservice saved the company an estimated $200K in licensing costs.
+M. Thompson was nominated for the Q3 Engineering Excellence award. Contact her at
+maggie.t85@gmail.com or 628-555-0234 for the upcoming tech conference panel.
+
+---
+
+=== EMPLOYEE #2 ===
+Full Name: James Robert Chen
+Preferred Name: Jim Chen
+Date of Birth: 11/22/1990
+Social Security Number: 591-38-4720
+Employee ID: EMP-2021-0891
+Department: Data Science
+Title: Machine Learning Engineer
+Email: james.chen@acmetech.com
+Personal Email: jrchen90@yahoo.com
+Work Phone: (415) 555-0291
+Mobile: +1-510-555-0876
+Home Address: 3256 Sunset Boulevard, Unit 4A, Oakland, CA 94601
+Emergency Contact: Lisa Chen (Mother) - (510) 555-0344
+Bank Account (Direct Deposit): Wells Fargo, Routing: 121000248, Account: 7291038456
+Passport Number: 681234957
+Driver's License: CA D5918234
+Salary: $155,000/year
+Health Insurance ID: BCBS-5918-2034-7761
+Start Date: June 15, 2021
+
+Performance Notes:
+J. Chen has rapidly become the go-to ML expert. James led the fraud detection model
+that reduced chargebacks by 34%. He can be reached at his personal number 510-555-0876
+or via jrchen90@yahoo.com. His SSN on file (591-38-4720) needs verification for the
+updated W-4 form processing.
+
+---
+
+=== EMPLOYEE #3 ===
+Full Name: Sarah Patricia Williams
+Preferred Name: Sarah Williams
+Date of Birth: 07/08/1978
+Social Security Number: 134-72-9085
+Employee ID: EMP-2017-0223
+Department: Finance
+Title: VP of Financial Operations
+Email: sarah.williams@acmetech.com
+Personal Email: swilliams78@outlook.com
+Work Phone: (415) 555-0445
+Mobile: +1-415-555-0667
+Home Address: 920 Pacific Heights Lane, San Francisco, CA 94115
+Emergency Contact: David Williams (Brother) - (312) 555-0891
+Bank Account (Direct Deposit): Bank of America, Routing: 026009593, Account: 1928374650
+Passport Number: 423918567
+Driver's License: CA D1347290
+Salary: $210,000/year
+Health Insurance ID: BCBS-1347-9028-3345
+Start Date: January 9, 2017
+Company Credit Card: Visa ending in 4532, Full: 4532-8921-0045-6789, Exp: 09/27, CVV: 831
+
+Performance Notes:
+Sarah Williams has been instrumental in the Series C fundraising. S. Williams
+manages the company's financial compliance across 3 jurisdictions. Her corporate
+Amex card number is 3782-822463-10005 (exp 12/26). For reimbursements, contact
+swilliams78@outlook.com or call her mobile at 415-555-0667.
+
+---
+
+=== EMPLOYEE #4 ===
+Full Name: Michael David O'Brien
+Preferred Name: Mike O'Brien
+Date of Birth: 05/30/1992
+Social Security Number: 876-21-4539
+Employee ID: EMP-2022-1205
+Department: Sales
+Title: Regional Sales Director - West Coast
+Email: michael.obrien@acmetech.com
+Personal Email: mikeob92@icloud.com
+Work Phone: (415) 555-0712
+Mobile: +1-650-555-0198
+Home Address: 4501 El Camino Real, Suite 200, Palo Alto, CA 94306
+Emergency Contact: Katie O'Brien (Wife) - (650) 555-0377
+Bank Account (Direct Deposit): US Bank, Routing: 091000019, Account: 3847291056
+Passport Number: 789456123
+Driver's License: CA D8762145
+Salary: $145,000/year + Commission
+Health Insurance ID: AETNA-8762-1045-9923
+Start Date: December 1, 2022
+
+Performance Notes:
+Mike O'Brien closed the Meridian Global deal worth $2.4M ARR. Michael's personal
+cell is 650-555-0198 and his wife Katie can be reached at 650-555-0377 in emergencies.
+His IBAN for the London commission split is GB29 NWBK 6016 1331 9268 19.
+
+---
+
+=== EMPLOYEE #5 ===
+Full Name: Elena Rosario Vasquez
+Preferred Name: Elena Vasquez
+Date of Birth: 09/17/1987
+Social Security Number: 456-83-2197
+Employee ID: EMP-2020-0667
+Department: Legal
+Title: General Counsel
+Email: elena.vasquez@acmetech.com
+Personal Email: elenavasquez87@protonmail.com
+Work Phone: (415) 555-0534
+Mobile: +1-415-555-0891
+Home Address: 2710 Mission Street, Apt 8C, San Francisco, CA 94110
+Emergency Contact: Maria Vasquez (Mother) - (213) 555-0456
+Bank Account (Direct Deposit): Citibank, Routing: 021000089, Account: 5647382910
+Passport Number: 912345678
+Driver's License: CA D4568321
+Salary: $225,000/year
+Health Insurance ID: UNITED-4568-3021-8890
+Start Date: August 24, 2020
+Bar License: CA-SBN-298451
+
+Performance Notes:
+Elena Vasquez successfully defended the company in the patent infringement case.
+E. Vasquez's IP address for remote access is 192.168.1.47 (VPN: 10.0.0.234).
+She prefers contact via her encrypted email elenavasquez87@protonmail.com. Her
+medical license number for the benefits audit is ML-2298451-CA.

@@ -1,0 +1,152 @@
+CONFIDENTIAL - FINANCIAL TRANSACTION REPORT
+Acme Technologies Inc. - Finance Department
+Report Period: December 2024 - January 2025
+Prepared by: Sarah Williams, VP Financial Operations
+
+================================================================
+SECTION 1: EMPLOYEE REIMBURSEMENTS
+================================================================
+
+REF: REIMB-2024-0891
+Employee: Margaret Thompson (EMP-2019-0442)
+Submitted: December 18, 2024
+Amount: $3,247.50
+Category: Travel - AWS re:Invent Conference
+Payment Method: Direct deposit to Chase Bank
+  Routing: 021000021
+  Account: 483291076524
+  Account Holder: Margaret Eleanor Thompson
+Tax ID: 287-54-3891
+
+Itemized:
+- Flight SFO->LAS (United #UA1247): $487.00
+  Frequent Flyer: UA-7829143056
+- Hotel: The Venetian, 3 nights @ $389/night: $1,167.00
+  Reservation under: Maggie Thompson, maggie.t85@gmail.com
+- Meals & Incidentals: $593.50
+- Ground Transportation (Uber): $200.00
+  Uber account: maggie.t85@gmail.com
+- Conference Registration: $800.00
+  Paid with personal Visa 4539-1488-0343-6467
+
+Status: APPROVED - Paid 12/28/2024
+
+---
+
+REF: REIMB-2025-0023
+Employee: James Chen (EMP-2021-0891)
+Submitted: January 5, 2025
+Amount: $1,892.00
+Category: Equipment - Home Office Setup
+Payment Method: Direct deposit to Wells Fargo
+  Routing: 121000248
+  Account: 7291038456
+  Account Holder: James Robert Chen
+Tax ID: 591-38-4720
+
+Itemized:
+- Standing Desk (Uplift V2): $899.00
+  Shipped to: 3256 Sunset Boulevard, Unit 4A, Oakland, CA 94601
+- Monitor (LG 34" Ultrawide): $649.00
+  Order #: AMZ-2024-9912847
+- Keyboard + Mouse (Logitech MX): $249.00
+- Webcam (Logitech Brio): $95.00
+  Paid with personal Mastercard 5425-2334-9871-0044
+
+Status: APPROVED - Paid 01/12/2025
+
+================================================================
+SECTION 2: VENDOR PAYMENTS
+================================================================
+
+VENDOR: CloudScale Solutions LLC
+Contact: Patricia Donovan, patricia.d@cloudscale.io
+Phone: (212) 555-0934
+Tax ID (EIN): 82-4917356
+Address: 450 Park Avenue South, 10th Floor, New York, NY 10016
+
+Invoice #CS-2024-4521: $45,000.00 (Cloud infrastructure - December)
+Payment: Wire transfer
+  Bank: JPMorgan Chase
+  Routing: 021000021
+  Account: 829174635028
+  SWIFT: CHASUS33
+
+Approved by: Sarah Williams (SSN: 134-72-9085)
+Corporate Card Used: Visa 4532-8921-0045-6789
+
+---
+
+VENDOR: DataGuard Security Inc.
+Contact: Ahmad Hassan, a.hassan@dataguard.com
+Phone: (408) 555-0712
+Tax ID (EIN): 91-3847291
+Address: 2850 Stevens Creek Boulevard, San Jose, CA 95128
+
+Invoice #DG-2025-0012: $28,500.00 (Annual security audit)
+Payment: ACH Transfer
+  Bank: Silicon Valley Bank
+  Routing: 121140399
+  Account: 3918274650
+  SWIFT: SVBKUS6S
+
+Approved by: Elena Vasquez (Bar License: CA-SBN-298451)
+Authorization email: elenavasquez87@protonmail.com
+
+================================================================
+SECTION 3: CLIENT PAYMENTS RECEIVED
+================================================================
+
+CLIENT: Meridian Global Industries
+Contact: Richard Blackwell, r.blackwell@meridianglobal.com
+Phone: +44 20 7946 0958
+Address: 25 Canary Wharf, London E14 5AB, United Kingdom
+
+Contract Value: $2,400,000/year (ARR)
+Account Manager: Michael O'Brien (EMP-2022-1205)
+Commission Rate: 8% = $192,000
+  Commission paid to: Mike O'Brien
+  US Account: US Bank, Routing: 091000019, Account: 3847291056
+  UK IBAN: GB29 NWBK 6016 1331 9268 19
+  SWIFT: NWBKGB2L
+
+Payment Schedule:
+- Q4 2024 installment: $600,000 received 12/31/2024
+  Wire from: Barclays Bank UK, IBAN: GB82 WEST 1234 5698 7654 32
+- Q1 2025 installment: $600,000 due 03/31/2025
+
+---
+
+CLIENT: NovaTech Pharmaceuticals
+Contact: Dr. Yuki Tanaka, y.tanaka@novatech-pharma.com
+Phone: +81 3-5555-0847
+Address: 2-4-7 Marunouchi, Chiyoda-ku, Tokyo 100-0005, Japan
+
+Contract Value: $850,000/year
+Account Manager: Mike O'Brien
+Mike's contact for this account: mikeob92@icloud.com, (650) 555-0198
+
+Payment Schedule:
+- Annual payment: $850,000 received 01/15/2025
+  Wire from: MUFG Bank, SWIFT: BOTKJPJT
+  Reference: NT-ACME-2025-001
+
+================================================================
+SECTION 4: TAX DOCUMENTS SUMMARY
+================================================================
+
+W-2 Summary for Tax Year 2024:
+- Margaret Thompson, SSN: 287-54-3891, Wages: $165,000.00
+- James Chen, SSN: 591-38-4720, Wages: $155,000.00
+- Sarah Williams, SSN: 134-72-9085, Wages: $210,000.00
+- Michael O'Brien, SSN: 876-21-4539, Wages: $145,000.00 + $168,000 commission
+- Elena Vasquez, SSN: 456-83-2197, Wages: $225,000.00
+
+1099 Summary:
+- CloudScale Solutions, EIN: 82-4917356, Payments: $540,000.00
+- DataGuard Security, EIN: 91-3847291, Payments: $28,500.00
+
+================================================================
+NOTICE: This report contains sensitive financial information.
+Unauthorized access or distribution is strictly prohibited.
+================================================================

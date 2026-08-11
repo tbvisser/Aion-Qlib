@@ -1,0 +1,445 @@
+-- ================================================================
+-- SYNTHETIC PII TEST DATA - Database Setup
+-- For testing redaction in SQL agent responses
+-- ================================================================
+
+-- Create the test table
+CREATE TABLE IF NOT EXISTS public.test_employee_directory (
+    id SERIAL PRIMARY KEY,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    full_name TEXT GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
+    preferred_name TEXT,
+    email TEXT,
+    personal_email TEXT,
+    phone TEXT,
+    mobile TEXT,
+    date_of_birth DATE,
+    ssn TEXT,
+    passport_number TEXT,
+    drivers_license TEXT,
+    home_address TEXT,
+    city TEXT,
+    state TEXT,
+    zip_code TEXT,
+    country TEXT DEFAULT 'US',
+    department TEXT,
+    title TEXT,
+    salary NUMERIC(12,2),
+    bank_name TEXT,
+    bank_routing TEXT,
+    bank_account TEXT,
+    iban TEXT,
+    swift_code TEXT,
+    credit_card_number TEXT,
+    credit_card_expiry TEXT,
+    credit_card_cvv TEXT,
+    health_insurance_id TEXT,
+    blood_type TEXT,
+    emergency_contact_name TEXT,
+    emergency_contact_phone TEXT,
+    emergency_contact_relation TEXT,
+    ip_address TEXT,
+    mac_address TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create a related table for customer records
+CREATE TABLE IF NOT EXISTS public.test_customer_records (
+    id SERIAL PRIMARY KEY,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    full_name TEXT GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
+    email TEXT,
+    phone TEXT,
+    date_of_birth DATE,
+    ssn_last_four TEXT,
+    home_address TEXT,
+    city TEXT,
+    state TEXT,
+    zip_code TEXT,
+    country TEXT DEFAULT 'US',
+    account_number TEXT,
+    credit_card_number TEXT,
+    credit_card_expiry TEXT,
+    credit_card_type TEXT,
+    iban TEXT,
+    passport_number TEXT,
+    drivers_license TEXT,
+    ip_address TEXT,
+    last_login TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ================================================================
+-- INSERT EMPLOYEE DATA (matches document PII)
+-- ================================================================
+
+INSERT INTO public.test_employee_directory (
+    first_name, last_name, preferred_name, email, personal_email,
+    phone, mobile, date_of_birth, ssn, passport_number, drivers_license,
+    home_address, city, state, zip_code, department, title, salary,
+    bank_name, bank_routing, bank_account, iban, swift_code,
+    credit_card_number, credit_card_expiry, credit_card_cvv,
+    health_insurance_id, blood_type,
+    emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
+    ip_address, mac_address
+) VALUES
+-- Employee 1: Margaret Thompson (appears in all documents)
+(
+    'Margaret', 'Thompson', 'Maggie',
+    'margaret.thompson@acmetech.com', 'maggie.t85@gmail.com',
+    '(415) 555-0187', '+1-628-555-0234',
+    '1985-03-14', '287-54-3891', '542817396', 'CA D4829103',
+    '1847 Oak Valley Drive, Apt 12B', 'San Francisco', 'CA', '94110',
+    'Engineering', 'Senior Software Engineer', 165000.00,
+    'Chase Bank', '021000021', '483291076524', NULL, NULL,
+    '4539-1488-0343-6467', '08/2026', '315',
+    'BCBS-4829-3017-5543', 'O+',
+    'Robert Thompson', '(415) 555-0923', 'Husband',
+    '73.162.45.198', 'A4:83:E7:2B:91:F0'
+),
+-- Employee 2: James Chen (appears in all documents)
+(
+    'James', 'Chen', 'Jim',
+    'james.chen@acmetech.com', 'jrchen90@yahoo.com',
+    '(415) 555-0291', '+1-510-555-0876',
+    '1990-11-22', '591-38-4720', '681234957', 'CA D5918234',
+    '3256 Sunset Boulevard, Unit 4A', 'Oakland', 'CA', '94601',
+    'Data Science', 'Machine Learning Engineer', 155000.00,
+    'Wells Fargo', '121000248', '7291038456', NULL, NULL,
+    '5425-2334-9871-0044', '11/2027', '847',
+    'BCBS-5918-2034-7761', 'A-',
+    'Lisa Chen', '(510) 555-0344', 'Mother',
+    '98.42.176.55', 'B2:94:C8:3D:A1:E5'
+),
+-- Employee 3: Sarah Williams (appears in all documents)
+(
+    'Sarah', 'Williams', 'Sarah',
+    'sarah.williams@acmetech.com', 'swilliams78@outlook.com',
+    '(415) 555-0445', '+1-415-555-0667',
+    '1978-07-08', '134-72-9085', '423918567', 'CA D1347290',
+    '920 Pacific Heights Lane', 'San Francisco', 'CA', '94115',
+    'Finance', 'VP of Financial Operations', 210000.00,
+    'Bank of America', '026009593', '1928374650', NULL, NULL,
+    '4532-8921-0045-6789', '09/2027', '831',
+    'BCBS-1347-9028-3345', 'B+',
+    'David Williams', '(312) 555-0891', 'Brother',
+    '104.172.89.33', 'C7:28:D4:1E:B9:F3'
+),
+-- Employee 4: Michael O'Brien (appears in all documents)
+(
+    'Michael', 'O''Brien', 'Mike',
+    'michael.obrien@acmetech.com', 'mikeob92@icloud.com',
+    '(415) 555-0712', '+1-650-555-0198',
+    '1992-05-30', '876-21-4539', '789456123', 'CA D8762145',
+    '4501 El Camino Real, Suite 200', 'Palo Alto', 'CA', '94306',
+    'Sales', 'Regional Sales Director - West Coast', 145000.00,
+    'US Bank', '091000019', '3847291056',
+    'GB29 NWBK 6016 1331 9268 19', 'NWBKGB2L',
+    '4916-3389-0145-2678', '12/2028', '592',
+    'AETNA-8762-1045-9923', 'AB+',
+    'Katie O''Brien', '(650) 555-0377', 'Wife',
+    '76.218.33.142', 'D1:5A:E9:2F:C3:87'
+),
+-- Employee 5: Elena Vasquez (appears in all documents)
+(
+    'Elena', 'Vasquez', 'Elena',
+    'elena.vasquez@acmetech.com', 'elenavasquez87@protonmail.com',
+    '(415) 555-0534', '+1-415-555-0891',
+    '1987-09-17', '456-83-2197', '912345678', 'CA D4568321',
+    '2710 Mission Street, Apt 8C', 'San Francisco', 'CA', '94110',
+    'Legal', 'General Counsel', 225000.00,
+    'Citibank', '021000089', '5647382910', NULL, NULL,
+    '5287-1943-0067-8834', '05/2027', '219',
+    'UNITED-4568-3021-8890', 'O-',
+    'Maria Vasquez', '(213) 555-0456', 'Mother',
+    '192.168.1.47', 'E3:7B:F2:48:A6:D1'
+),
+-- Additional employees (database-only, for volume testing)
+(
+    'Robert', 'Thompson', 'Rob',
+    'robert.thompson@acmetech.com', 'robthompson83@gmail.com',
+    '(415) 555-0923', '+1-415-555-1234',
+    '1983-06-21', '312-45-6789', '234567891', 'CA D3124567',
+    '1847 Oak Valley Drive, Apt 12B', 'San Francisco', 'CA', '94110',
+    'Marketing', 'Marketing Manager', 125000.00,
+    'Chase Bank', '021000021', '293847561024', NULL, NULL,
+    '4716-8234-9012-3456', '03/2027', '441',
+    'BCBS-3124-5678-9900', 'A+',
+    'Margaret Thompson', '(628) 555-0234', 'Wife',
+    '73.162.45.199', 'F4:8C:A1:3D:B7:E2'
+),
+(
+    'Katherine', 'O''Brien', 'Katie',
+    'katie.obrien@acmetech.com', 'katieob93@outlook.com',
+    '(650) 555-0377', '+1-650-555-0488',
+    '1993-08-12', '654-32-1098', '345678912', 'CA D6543210',
+    '4501 El Camino Real, Suite 200', 'Palo Alto', 'CA', '94306',
+    'Product', 'Product Manager', 140000.00,
+    'US Bank', '091000019', '4928371065', NULL, NULL,
+    '4024-0071-8834-5629', '10/2026', '773',
+    'AETNA-6543-2109-8811', 'B-',
+    'Michael O''Brien', '(650) 555-0198', 'Husband',
+    '76.218.33.143', 'A8:2D:C5:7F:E1:B4'
+),
+(
+    'Patricia', 'Donovan', 'Pat',
+    'patricia.d@cloudscale.io', 'pat.donovan@gmail.com',
+    '(212) 555-0934', '+1-917-555-0412',
+    '1980-04-22', '223-45-6789', '456789123', 'NY D2234567',
+    '88 Greenwich Street, Apt 42F', 'New York', 'NY', '10006',
+    'External - Vendor', 'VP Enterprise Sales (CloudScale)', 195000.00,
+    'JPMorgan Chase', '021000021', '829174635028', NULL, 'CHASUS33',
+    '3782-822463-10005', '06/2027', '9281',
+    NULL, 'AB-',
+    'Thomas Donovan', '(212) 555-1847', 'Husband',
+    '72.134.89.201', 'B5:3E:D8:1A:C9:F7'
+),
+(
+    'Ahmad', 'Hassan', NULL,
+    'a.hassan@dataguard.com', 'ahmad.hassan.sec@protonmail.com',
+    '(408) 555-0712', '+1-408-555-0293',
+    '1975-12-03', '445-67-8901', 'A12345678', 'CA D4456789',
+    '5600 Almaden Expressway, Unit 7', 'San Jose', 'CA', '95118',
+    'External - Vendor', 'Director Professional Services (DataGuard)', 175000.00,
+    'Silicon Valley Bank', '121140399', '3918274650', NULL, 'SVBKUS6S',
+    '6011-4928-3371-0056', '09/2026', '884',
+    NULL, 'O+',
+    'Fatima Hassan', '(408) 555-0847', 'Wife',
+    '104.56.178.92', 'C2:7A:E4:8B:D3:F6'
+),
+(
+    'Jennifer', 'Martinez', 'Jenn',
+    'j.martinez@techtalent.com', 'jenn.martinez88@hotmail.com',
+    '(415) 555-0623', '+1-415-555-0847',
+    '1988-08-29', '556-78-9012', '567891234', 'CA D5567890',
+    '3400 California Street, Apt 6D', 'San Francisco', 'CA', '94118',
+    'External - Vendor', 'Sr Account Executive (TechTalent)', 130000.00,
+    'First Republic Bank', '321081669', '4827391056', NULL, NULL,
+    '5105-1051-0510-5100', '01/2028', '256',
+    NULL, 'A+',
+    'Carlos Martinez', '(415) 555-2938', 'Husband',
+    '50.184.72.113', 'D9:1B:F3:5C:A7:E8'
+),
+(
+    'Klaus', 'Weber', NULL,
+    'k.weber@meridian-supplies.de', NULL,
+    '+49 69 5555 1234', '+49 170 5555 6789',
+    '1968-02-14', NULL, 'T220001293', NULL,
+    'Hauptwache 12', 'Frankfurt am Main', NULL, '60313',
+    'External - Vendor', 'Intl Sales Manager (Meridian Supplies)', 95000.00,
+    'Deutsche Bank', NULL, NULL,
+    'DE89 3704 0044 0532 0130 00', 'COBADEFFXXX',
+    '4000-0012-3456-7899', '11/2027', '432',
+    NULL, 'B+',
+    'Helga Weber', '+49 69 5555 4321', 'Wife',
+    '91.23.145.67', NULL
+),
+(
+    'Richard', 'Blackwell', NULL,
+    'r.blackwell@meridianglobal.com', 'rich.blackwell@gmail.com',
+    '+44 20 7946 0958', '+44 7911 555 678',
+    '1970-11-05', NULL, '987654321', NULL,
+    '25 Canary Wharf', 'London', NULL, 'E14 5AB',
+    'External - Client', 'CEO (Meridian Global Industries)', 350000.00,
+    'Barclays Bank', NULL, NULL,
+    'GB82 WEST 1234 5698 7654 32', 'BARCGB22',
+    '4462-0012-3456-7890', '08/2027', '567',
+    NULL, 'O+',
+    'Victoria Blackwell', '+44 20 7946 1111', 'Wife',
+    '185.45.23.89', NULL
+),
+(
+    'Yuki', 'Tanaka', NULL,
+    'y.tanaka@novatech-pharma.com', NULL,
+    '+81 3-5555-0847', '+81 90-5555-1234',
+    '1982-03-28', NULL, 'TK1234567', NULL,
+    '2-4-7 Marunouchi, Chiyoda-ku', 'Tokyo', NULL, '100-0005',
+    'External - Client', 'VP Research (NovaTech Pharmaceuticals)', 280000.00,
+    'MUFG Bank', NULL, NULL, NULL, 'BOTKJPJT',
+    '3530-1113-3330-0000', '04/2028', '123',
+    NULL, 'A-',
+    'Kenji Tanaka', '+81 3-5555-0999', 'Husband',
+    '202.214.56.78', NULL
+),
+(
+    'Hannah', 'Fischer', NULL,
+    'h.fischer@bioventure.de', 'hannah.fischer.bio@gmail.com',
+    '+49 30 5555 7890', '+49 171 5555 4321',
+    '1979-07-12', NULL, 'C01234567', NULL,
+    'Friedrichstrasse 123', 'Berlin', NULL, '10117',
+    'External - Prospect', 'CTO (BioVenture Labs)', 220000.00,
+    'Commerzbank', NULL, NULL,
+    'DE44 5004 0000 0123 4567 89', 'COBADEFFXXX',
+    '5425-9012-3456-7890', '02/2028', '891',
+    NULL, 'AB+',
+    'Thomas Fischer', '+49 30 5555 1111', 'Husband',
+    '88.76.54.32', NULL
+),
+(
+    'David', 'Park', NULL,
+    'd.park@mofo.com', 'davidpark.esq@gmail.com',
+    '(415) 555-2000', '+1-415-555-2100',
+    '1974-01-30', '667-89-0123', '678912345', 'CA D6678901',
+    '425 Market Street, 32nd Floor', 'San Francisco', 'CA', '94105',
+    'External - Legal Counsel', 'Partner (Morrison & Foerster)', 450000.00,
+    'Wells Fargo', '121000248', '8192734650', NULL, NULL,
+    '4111-1111-1111-1111', '12/2027', '123',
+    NULL, 'A+',
+    'Susan Park', '(415) 555-2222', 'Wife',
+    '66.249.79.45', NULL
+);
+
+-- ================================================================
+-- INSERT CUSTOMER RECORDS (overlapping names from documents)
+-- ================================================================
+
+INSERT INTO public.test_customer_records (
+    first_name, last_name, email, phone, date_of_birth,
+    ssn_last_four, home_address, city, state, zip_code, country,
+    account_number, credit_card_number, credit_card_expiry, credit_card_type,
+    iban, passport_number, drivers_license, ip_address, last_login
+) VALUES
+(
+    'Margaret', 'Thompson',
+    'maggie.t85@gmail.com', '(628) 555-0234', '1985-03-14',
+    '3891', '1847 Oak Valley Drive, Apt 12B', 'San Francisco', 'CA', '94110', 'US',
+    'CUST-884729', '4539-1488-0343-6467', '08/2026', 'Visa',
+    NULL, '542817396', 'CA D4829103', '73.162.45.198',
+    '2025-01-20 09:15:00-08'
+),
+(
+    'James', 'Chen',
+    'jrchen90@yahoo.com', '(510) 555-0876', '1990-11-22',
+    '4720', '3256 Sunset Boulevard, Unit 4A', 'Oakland', 'CA', '94601', 'US',
+    'CUST-556391', '5425-2334-9871-0044', '11/2027', 'Mastercard',
+    NULL, '681234957', 'CA D5918234', '98.42.176.55',
+    '2025-01-19 14:32:00-08'
+),
+(
+    'Sarah', 'Williams',
+    'swilliams78@outlook.com', '(415) 555-0667', '1978-07-08',
+    '9085', '920 Pacific Heights Lane', 'San Francisco', 'CA', '94115', 'US',
+    'CUST-771024', '4532-8921-0045-6789', '09/2027', 'Visa',
+    NULL, '423918567', 'CA D1347290', '104.172.89.33',
+    '2025-01-20 11:45:00-08'
+),
+(
+    'Michael', 'O''Brien',
+    'mikeob92@icloud.com', '(650) 555-0198', '1992-05-30',
+    '4539', '4501 El Camino Real, Suite 200', 'Palo Alto', 'CA', '94306', 'US',
+    'CUST-339128', '4916-3389-0145-2678', '12/2028', 'Visa',
+    'GB29 NWBK 6016 1331 9268 19', '789456123', 'CA D8762145', '76.218.33.142',
+    '2025-01-18 16:20:00-08'
+),
+(
+    'Elena', 'Vasquez',
+    'elenavasquez87@protonmail.com', '(415) 555-0891', '1987-09-17',
+    '2197', '2710 Mission Street, Apt 8C', 'San Francisco', 'CA', '94110', 'US',
+    'CUST-445672', '5287-1943-0067-8834', '05/2027', 'Mastercard',
+    NULL, '912345678', 'CA D4568321', '192.168.1.47',
+    '2025-01-20 08:05:00-08'
+),
+-- Additional customers (database-only)
+(
+    'Robert', 'Thompson',
+    'robthompson83@gmail.com', '(415) 555-0923', '1983-06-21',
+    '6789', '1847 Oak Valley Drive, Apt 12B', 'San Francisco', 'CA', '94110', 'US',
+    'CUST-884730', '4716-8234-9012-3456', '03/2027', 'Visa',
+    NULL, '234567891', 'CA D3124567', '73.162.45.199',
+    '2025-01-17 10:30:00-08'
+),
+(
+    'Katherine', 'O''Brien',
+    'katieob93@outlook.com', '(650) 555-0488', '1993-08-12',
+    '1098', '4501 El Camino Real, Suite 200', 'Palo Alto', 'CA', '94306', 'US',
+    'CUST-339129', '4024-0071-8834-5629', '10/2026', 'Visa',
+    NULL, '345678912', 'CA D6543210', '76.218.33.143',
+    '2025-01-19 12:15:00-08'
+),
+(
+    'Patricia', 'Donovan',
+    'pat.donovan@gmail.com', '(917) 555-0412', '1980-04-22',
+    '6789', '88 Greenwich Street, Apt 42F', 'New York', 'NY', '10006', 'US',
+    'CUST-991234', '3782-822463-10005', '06/2027', 'Amex',
+    NULL, '456789123', 'NY D2234567', '72.134.89.201',
+    '2025-01-16 08:45:00-05'
+),
+(
+    'Ahmad', 'Hassan',
+    'ahmad.hassan.sec@protonmail.com', '(408) 555-0293', '1975-12-03',
+    '8901', '5600 Almaden Expressway, Unit 7', 'San Jose', 'CA', '95118', 'US',
+    'CUST-778456', '6011-4928-3371-0056', '09/2026', 'Discover',
+    NULL, 'A12345678', 'CA D4456789', '104.56.178.92',
+    '2025-01-15 14:00:00-08'
+),
+(
+    'Jennifer', 'Martinez',
+    'jenn.martinez88@hotmail.com', '(415) 555-0847', '1988-08-29',
+    '9012', '3400 California Street, Apt 6D', 'San Francisco', 'CA', '94118', 'US',
+    'CUST-665789', '5105-1051-0510-5100', '01/2028', 'Mastercard',
+    NULL, '567891234', 'CA D5567890', '50.184.72.113',
+    '2025-01-20 07:30:00-08'
+),
+(
+    'Richard', 'Blackwell',
+    'rich.blackwell@gmail.com', '+44 7911 555 678', '1970-11-05',
+    NULL, '25 Canary Wharf', 'London', NULL, 'E14 5AB', 'UK',
+    'CUST-112233', '4462-0012-3456-7890', '08/2027', 'Visa',
+    'GB82 WEST 1234 5698 7654 32', '987654321', NULL, '185.45.23.89',
+    '2025-01-14 09:00:00+00'
+),
+(
+    'Yuki', 'Tanaka',
+    'y.tanaka@novatech-pharma.com', '+81 90-5555-1234', '1982-03-28',
+    NULL, '2-4-7 Marunouchi, Chiyoda-ku', 'Tokyo', NULL, '100-0005', 'JP',
+    'CUST-445566', '3530-1113-3330-0000', '04/2028', 'JCB',
+    NULL, 'TK1234567', NULL, '202.214.56.78',
+    '2025-01-13 11:00:00+09'
+),
+(
+    'Hannah', 'Fischer',
+    'hannah.fischer.bio@gmail.com', '+49 171 5555 4321', '1979-07-12',
+    NULL, 'Friedrichstrasse 123', 'Berlin', NULL, '10117', 'DE',
+    'CUST-778899', '5425-9012-3456-7890', '02/2028', 'Mastercard',
+    'DE44 5004 0000 0123 4567 89', 'C01234567', NULL, '88.76.54.32',
+    '2025-01-12 15:30:00+01'
+),
+(
+    'Klaus', 'Weber',
+    'k.weber@meridian-supplies.de', '+49 170 5555 6789', '1968-02-14',
+    NULL, 'Hauptwache 12', 'Frankfurt am Main', NULL, '60313', 'DE',
+    'CUST-334455', '4000-0012-3456-7899', '11/2027', 'Visa',
+    'DE89 3704 0044 0532 0130 00', 'T220001293', NULL, '91.23.145.67',
+    '2025-01-11 10:15:00+01'
+),
+(
+    'David', 'Park',
+    'davidpark.esq@gmail.com', '(415) 555-2100', '1974-01-30',
+    '0123', '425 Market Street, 32nd Floor', 'San Francisco', 'CA', '94105', 'US',
+    'CUST-556677', '4111-1111-1111-1111', '12/2027', 'Visa',
+    NULL, '678912345', 'CA D6678901', '66.249.79.45',
+    '2025-01-10 16:45:00-08'
+);
+
+-- ================================================================
+-- USEFUL QUERIES FOR TESTING REDACTION
+-- ================================================================
+
+-- Query 1: Get all employee PII (tests bulk redaction)
+-- SELECT first_name, last_name, ssn, email, phone, credit_card_number FROM public.test_employee_directory;
+
+-- Query 2: Search by name (tests targeted redaction)
+-- SELECT * FROM public.test_employee_directory WHERE last_name = 'Thompson';
+
+-- Query 3: Cross-reference employee and customer data
+-- SELECT e.full_name, e.ssn, e.credit_card_number, c.account_number, c.credit_card_number as customer_card
+-- FROM public.test_employee_directory e
+-- JOIN public.test_customer_records c ON e.personal_email = c.email;
+
+-- Query 4: Financial data query (tests financial PII redaction)
+-- SELECT full_name, salary, bank_name, bank_routing, bank_account, iban FROM public.test_employee_directory WHERE salary > 150000;
+
+-- Query 5: International records (tests non-US PII formats)
+-- SELECT full_name, email, phone, iban, passport_number, country FROM public.test_customer_records WHERE country != 'US';

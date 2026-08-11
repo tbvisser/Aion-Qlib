@@ -1,0 +1,21 @@
+Quarterly Report - Q4 2025
+
+Executive Summary:
+Q4 saw significant progress on our core platform with the launch of
+the document management system and improved search capabilities.
+
+Key Metrics:
+- Active users: 1,247 (up 34% from Q3)
+- Documents processed: 45,892
+- Average response time: 1.2 seconds
+- User satisfaction: 4.6/5.0
+
+Highlights:
+- Launched folder organization feature
+- Improved embedding quality with new model
+- Reduced infrastructure costs by 22%
+
+Q1 2026 Goals:
+- Implement collaborative features
+- Add support for additional file formats
+- Expand to mobile platforms

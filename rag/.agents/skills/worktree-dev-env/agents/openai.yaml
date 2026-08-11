@@ -1,0 +1,4 @@
+interface:
+  display_name: "Worktree Dev Environment"
+  short_description: "Provision or verify this repo's dev environment inside a worktree."
+  default_prompt: "Provision or verify this worktree's dev environment before continuing."

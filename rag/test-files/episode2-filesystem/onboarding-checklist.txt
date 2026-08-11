@@ -1,0 +1,24 @@
+New Developer Onboarding Checklist
+
+Day 1:
+[ ] Set up development environment
+[ ] Clone repository and install dependencies
+[ ] Get access to Supabase dashboard
+[ ] Review project documentation
+
+Week 1:
+[ ] Complete codebase walkthrough with mentor
+[ ] Set up local testing environment
+[ ] Make first small contribution (bug fix or docs)
+[ ] Attend team standup meetings
+
+Month 1:
+[ ] Complete assigned onboarding tasks
+[ ] Participate in code reviews
+[ ] Take ownership of a small feature
+[ ] Schedule 1:1 with tech lead
+
+Resources:
+- Project wiki: /docs
+- Slack channel: #dev-team
+- Questions? Ask your assigned mentor

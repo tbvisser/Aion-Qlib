@@ -1,0 +1,98 @@
+# Dependencies
+node_modules/
+.tools/
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+.pytest_cache/
+
+# Plugins
+plugins/
+
+# Misc
+*.bak
+*.tmp
+
+# macOS service runtime
+logs/
+.pids/
+nul
+.playwright-mcp/
+_bmad/
+.bmad-*
+tmp/
+
+/supabase/data_export_20260128_170253
+supabase/schema_dump.sql
+# Generated full-schema snapshot — can embed role passwords/demo data, keep out of git
+supabase/schema.sql
+
+# Test results & Playwright artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/tests/support/.auth/
+
+# Debug artifacts
+debug-screenshot*.png
+video-thumbnail*.png
+
+# Brainstorming visual companion
+.superpowers/
+
+# Local scratch / machine-specific artifacts
+.codex/
+.codex-browser-screenshots/
+.claude/launch.json
+PULL-REQUESTS.md
+# Per-worktree port assignment (written by scripts/setup-worktree.ps1)
+.worktree-ports.json
+backend/scripts/bench_results/
+frontend/document-text-fixture.html
+
+# Phase-2 verifier transient secrets (live tokens) — never commit
+.agent/security-audit/probes/.tokens.json
+.agent/security-audit/probes/*.skill.zip
+
+# Dev-specific folders (not part of the distributable app)
+_bmad-output/
+archive/
+.github/
+# .claude/ is dev-only EXCEPT the shared worktree-dev-* slash commands, which
+# ship publicly alongside their Codex twins in .agents/ (intentionally not ignored).
+.claude/*
+!.claude/commands/
+.claude/commands/*
+!.claude/commands/worktree-dev-env.md
+!.claude/commands/worktree-dev-remove.md
+.agent/
+docs/superpowers/
+citation_mode_spec.md

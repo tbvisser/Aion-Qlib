@@ -1,0 +1,15 @@
+<svg width="320" height="40" viewBox="0 0 320 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Scales of justice icon -->
+  <g transform="translate(4, 2)">
+    <line x1="18" y1="4" x2="18" y2="32" stroke="#1a365d" stroke-width="2.5"/>
+    <line x1="6" y1="8" x2="30" y2="8" stroke="#1a365d" stroke-width="2.5"/>
+    <path d="M6 8 L2 22 Q2 28 8 28 Q14 28 14 22 L10 8" fill="none" stroke="#1a365d" stroke-width="1.8"/>
+    <path d="M26 8 L22 22 Q22 28 28 28 Q34 28 34 22 L30 8" fill="none" stroke="#1a365d" stroke-width="1.8"/>
+    <line x1="10" y1="32" x2="26" y2="32" stroke="#1a365d" stroke-width="2.5"/>
+  </g>
+  <!-- Firm name -->
+  <text x="44" y="22" font-family="Georgia, 'Times New Roman', serif" font-size="19" font-weight="bold" fill="#1a365d">MERCER</text>
+  <text x="126" y="22" font-family="Georgia, 'Times New Roman', serif" font-size="19" fill="#1a365d">&amp;</text>
+  <text x="144" y="22" font-family="Georgia, 'Times New Roman', serif" font-size="19" font-weight="bold" fill="#1a365d">HARTWELL</text>
+  <text x="44" y="36" font-family="Georgia, 'Times New Roman', serif" font-size="10" letter-spacing="3" fill="#8b6914">LLP</text>
+</svg>

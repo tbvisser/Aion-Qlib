@@ -1,0 +1,176 @@
+CONFIDENTIAL MEDICAL AND INSURANCE RECORDS
+Acme Technologies Inc. - Benefits Administration
+Generated: January 22, 2025
+
+================================================================
+BENEFITS ENROLLMENT SUMMARY - PLAN YEAR 2025
+================================================================
+
+--- ENROLLEE: Margaret Eleanor Thompson ---
+Employee ID: EMP-2019-0442
+SSN: 287-54-3891
+Date of Birth: 03/14/1985
+Gender: Female
+Blood Type: O+
+
+Primary Care Physician: Dr. Alan Richardson, MD
+PCP Phone: (415) 555-8832
+PCP NPI: 1234567890
+
+Insurance Carrier: Blue Cross Blue Shield
+Policy Number: BCBS-4829-3017-5543
+Group Number: ACME-GRP-2025-001
+Plan Type: PPO Gold
+
+Dependent Coverage:
+- Robert Michael Thompson (Spouse), DOB: 06/21/1983, SSN: 312-45-6789
+- Emma Grace Thompson (Child), DOB: 02/10/2018, SSN: 298-76-5432
+
+Prescription Drug Plan: OptumRx
+Rx Member ID: ORX-48293017
+Current Medications: Levothyroxine 50mcg, Sertraline 100mg
+
+Recent Claims:
+- 12/15/2024: Annual physical, Dr. Richardson - $350 (covered)
+- 12/20/2024: Lab work, Quest Diagnostics - $275 (patient owes $45)
+  Lab Order #: QD-2024-887421
+- 01/05/2025: Specialist referral, Dr. Patel (Endocrinology)
+  NPI: 9876543210, Phone: (415) 555-7743
+
+Emergency Contact: Robert Thompson, (415) 555-0923
+Pharmacy: CVS #4521, 1200 Market Street, San Francisco, CA 94102
+
+--- ENROLLEE: James Robert Chen ---
+Employee ID: EMP-2021-0891
+SSN: 591-38-4720
+Date of Birth: 11/22/1990
+Gender: Male
+Blood Type: A-
+
+Primary Care Physician: Dr. Michelle Huang, MD
+PCP Phone: (510) 555-9921
+PCP NPI: 2345678901
+
+Insurance Carrier: Blue Cross Blue Shield
+Policy Number: BCBS-5918-2034-7761
+Group Number: ACME-GRP-2025-001
+Plan Type: PPO Silver
+
+Dependent Coverage: None (Single)
+
+Prescription Drug Plan: OptumRx
+Rx Member ID: ORX-59182034
+Current Medications: Adderall XR 20mg
+
+Recent Claims:
+- 11/20/2024: Annual physical, Dr. Huang - $350 (covered)
+- 12/01/2024: MRI scan, UCSF Medical Center - $2,100 (patient owes $420)
+  Imaging Order #: UCSF-2024-334219
+- 12/15/2024: Follow-up orthopedics, Dr. Kim
+  NPI: 3456789012, Phone: (510) 555-3344
+
+Emergency Contact: Lisa Chen (Mother), (510) 555-0344
+Pharmacy: Walgreens #2891, 500 Broadway, Oakland, CA 94607
+
+--- ENROLLEE: Sarah Patricia Williams ---
+Employee ID: EMP-2017-0223
+SSN: 134-72-9085
+Date of Birth: 07/08/1978
+Gender: Female
+Blood Type: B+
+
+Primary Care Physician: Dr. Jonathan Park, MD
+PCP Phone: (415) 555-6618
+PCP NPI: 4567890123
+
+Insurance Carrier: Blue Cross Blue Shield
+Policy Number: BCBS-1347-9028-3345
+Group Number: ACME-GRP-2025-001
+Plan Type: PPO Platinum
+
+Dependent Coverage:
+- Thomas James Williams (Child), DOB: 09/03/2010, SSN: 445-12-8901
+- Sophia Rose Williams (Child), DOB: 04/17/2013, SSN: 445-12-8902
+
+Prescription Drug Plan: OptumRx
+Rx Member ID: ORX-13479028
+Current Medications: Lisinopril 10mg, Atorvastatin 20mg
+
+Recent Claims:
+- 01/10/2025: Cardiology consult, Dr. Maria Santos
+  NPI: 5678901234, Phone: (415) 555-2289
+  Diagnosis: Hypertension management (ICD-10: I10)
+- 01/12/2025: Echocardiogram, CPMC - $1,800 (patient owes $180)
+  Order #: CPMC-2025-001247
+
+Emergency Contact: David Williams (Brother), (312) 555-0891
+Pharmacy: Walgreens #1234, 800 Divisadero Street, San Francisco, CA 94117
+
+--- ENROLLEE: Michael David O'Brien ---
+Employee ID: EMP-2022-1205
+SSN: 876-21-4539
+Date of Birth: 05/30/1992
+Gender: Male
+Blood Type: AB+
+
+Primary Care Physician: Dr. Rebecca Foster, MD
+PCP Phone: (650) 555-4412
+PCP NPI: 6789012345
+
+Insurance Carrier: Aetna
+Policy Number: AETNA-8762-1045-9923
+Group Number: ACME-GRP-2025-002
+Plan Type: HMO Standard
+
+Dependent Coverage:
+- Katherine Marie O'Brien (Spouse), DOB: 08/12/1993, SSN: 654-32-1098
+- Liam Patrick O'Brien (Child), DOB: 03/25/2023, SSN: 876-21-5544
+
+Prescription Drug Plan: Aetna Rx
+Rx Member ID: ARX-87621045
+Current Medications: None
+
+Recent Claims:
+- 12/05/2024: Pediatric visit (Liam), Dr. Angela Torres
+  NPI: 7890123456, Phone: (650) 555-8891
+- 01/08/2025: Annual physical, Dr. Foster - $350 (covered)
+
+Emergency Contact: Katie O'Brien (Wife), (650) 555-0377
+Pharmacy: Rite Aid #3322, 2100 University Avenue, Palo Alto, CA 94301
+
+--- ENROLLEE: Elena Rosario Vasquez ---
+Employee ID: EMP-2020-0667
+SSN: 456-83-2197
+Date of Birth: 09/17/1987
+Gender: Female
+Blood Type: O-
+
+Primary Care Physician: Dr. Carlos Ramirez, MD
+PCP Phone: (415) 555-1178
+PCP NPI: 8901234567
+
+Insurance Carrier: United Healthcare
+Policy Number: UNITED-4568-3021-8890
+Group Number: ACME-GRP-2025-003
+Plan Type: PPO Premium
+
+Dependent Coverage: None (Single)
+
+Prescription Drug Plan: OptumRx
+Rx Member ID: ORX-45683021
+Current Medications: Escitalopram 10mg, Montelukast 10mg
+
+Recent Claims:
+- 11/15/2024: Dermatology, Dr. Karen Lewis
+  NPI: 9012345678, Phone: (415) 555-6632
+- 12/28/2024: Allergy testing, UCSF - $950 (patient owes $190)
+  Order #: UCSF-2024-998871
+- 01/15/2025: Follow-up allergy, Dr. Ramirez
+
+Emergency Contact: Maria Vasquez (Mother), (213) 555-0456
+Pharmacy: CVS #5567, 2800 Mission Street, San Francisco, CA 94110
+
+================================================================
+HIPAA NOTICE: This document contains Protected Health Information (PHI).
+Unauthorized disclosure is prohibited under 45 CFR Parts 160 and 164.
+================================================================
