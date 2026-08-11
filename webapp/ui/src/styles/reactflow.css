@@ -1,0 +1,98 @@
+/**
+ * React Flow's internals, bound to the app's design tokens.
+ *
+ * Handles, edge paths and the controls are rendered by the library and are
+ * reachable only by selector, so they cannot be styled with Tailwind classes
+ * from our own components. Every value here is `hsl(var(--…))`, which is what
+ * makes dark mode work with no JavaScript at all: the theme is a class on
+ * <html>, so the variables change underneath these rules. Same approach as the
+ * Recharts usage in FactorLabPage.
+ *
+ * We import `@xyflow/react/dist/base.css` rather than `style.css` -- base is
+ * only the layout-critical rules (transforms, pointer-events, handle
+ * positioning), with none of the default colours that would fight the tokens.
+ */
+
+.react-flow__handle {
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--surface-3));
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.react-flow__handle:hover,
+.react-flow__handle-connecting {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+}
+
+/* An unfilled series slot. Clay, not destructive: still building is not an
+   error, and the two must never look the same. */
+.react-flow__handle.aion-handle-empty {
+  border-style: dashed;
+  border-color: hsl(var(--clay) / 0.7);
+  background: transparent;
+}
+
+.react-flow__edge-path {
+  stroke: hsl(var(--border));
+  stroke-width: 1.5;
+}
+
+.react-flow__edge:hover .react-flow__edge-path,
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: hsl(var(--primary));
+  stroke-width: 2;
+}
+
+.react-flow__connectionline path {
+  stroke: hsl(var(--primary));
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+}
+
+.react-flow__controls {
+  box-shadow: none;
+  border: 1px solid hsl(var(--border) / 0.5);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  color: hsl(var(--foreground));
+  width: 26px;
+  height: 26px;
+}
+
+.react-flow__controls-button:hover {
+  background: hsl(var(--foreground) / 0.04);
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.react-flow__node {
+  /* Card typography is set per-node; stop the library imposing its own. */
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.react-flow__node.selected .aion-expr-card {
+  box-shadow: 0 0 0 1px hsl(var(--ring));
+}
+
+/* xyflow is MIT and asks that the attribution stays. Toned down to sit with the
+   rest of the chrome rather than removed. */
+.react-flow__attribution {
+  background: transparent;
+  font-size: 9px;
+}
+
+.react-flow__attribution a {
+  color: hsl(var(--muted-foreground) / 0.5);
+}

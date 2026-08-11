@@ -1,0 +1,271 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Font is loaded via index.html for better performance.
+
+   Design tokens below are copied VERBATIM from the Aion Platform frontend
+   (Aion-Platform/frontend/src/index.css) so the two apps render as one product.
+   That file is the source of truth — do not hand-tune values here, even to
+   bring them closer to the brand kit's named hexes. The kit documents the
+   palette; the platform decides how it is applied, and matching it is the
+   whole point.
+
+     light --background  45 30% 97%   warm off-white
+     dark  --background  40 3% 15%    warm charcoal (#272624), NOT kit Ink
+     --foreground        deep green on light, sand on dark
+     --primary/--ring    mint #7DDF9A, identical in both modes
+
+   App-specific layers from the platform (citation pages, SANA dock, voice
+   equalizer) are intentionally omitted. */
+
+@layer base {
+  :root {
+    /* Light mode ("light explains") — warm neutral off-white, deep green ink,
+       mint signal (#7DDF9A). */
+    --background: 45 30% 97%;
+    --foreground: 165 60% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 165 60% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 165 60% 8%;
+    --primary: 138 61% 68%;
+    --primary-foreground: 165 60% 8%;
+    --secondary: 45 22% 95%;
+    --secondary-foreground: 165 60% 8%;
+    --muted: 45 22% 95%;
+    --muted-foreground: 40 8% 45%;
+    --accent: 138 40% 92%;
+    --accent-foreground: 165 60% 12%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 44 16% 90%;
+    --input: 44 16% 90%;
+    --ring: 138 61% 68%;
+    /* Clay — negative/fail accent, deliberately distinct from --destructive:
+       clay marks a statistical verdict (a losing strategy), not an error. */
+    --clay: 17 47% 45%;
+    --radius: 0.625rem;
+
+    --surface-1: 0 0% 100%;
+    --surface-2: 48 30% 98%;
+    --surface-3: 44 18% 96%;
+
+    --shadow-color: 40 10% 20%;
+  }
+
+  .dark {
+    /* Dark mode ("dark operates") — warm charcoal, sand type, mint signal. */
+    --background: 40 3% 15%;
+    --foreground: 39 36% 88%;
+    --card: 40 3% 18%;
+    --card-foreground: 39 36% 88%;
+    --popover: 40 3% 18%;
+    --popover-foreground: 39 36% 88%;
+    --primary: 138 61% 68%;
+    --primary-foreground: 165 60% 8%;
+    --secondary: 40 3% 20%;
+    --secondary-foreground: 39 36% 88%;
+    --muted: 40 3% 20%;
+    --muted-foreground: 39 10% 62%;
+    --accent: 40 3% 22%;
+    --accent-foreground: 39 36% 88%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 3% 24%;
+    --input: 40 3% 24%;
+    --ring: 138 61% 68%;
+    --clay: 18 50% 52%;
+
+    --surface-1: 40 3% 18%;
+    --surface-2: 40 3% 21%;
+    --surface-3: 40 3% 25%;
+
+    --shadow-color: 40 6% 2%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'Hanken Grotesk', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Numbers are data: tabular figures keep columns of metrics aligned. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Refined scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+}
+
+@layer components {
+  .glass {
+    background: hsl(var(--card) / 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .focus-glow:focus-within {
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2), 0 0 20px -5px hsl(var(--ring) / 0.3);
+  }
+
+  .btn-press {
+    transition: transform 0.1s ease, box-shadow 0.15s ease;
+  }
+
+  .btn-press:active {
+    transform: scale(0.98);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(165 60% 20%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .surface-1 { background: hsl(var(--surface-1)); }
+  .surface-2 { background: hsl(var(--surface-2)); }
+  .surface-3 { background: hsl(var(--surface-3)); }
+}
+
+@layer utilities {
+  .delay-75 { animation-delay: 75ms; }
+  .delay-150 { animation-delay: 150ms; }
+  .delay-225 { animation-delay: 225ms; }
+  .delay-300 { animation-delay: 300ms; }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+
+  @keyframes subtle-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  .animate-subtle-pulse {
+    animation: subtle-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.4s ease-out forwards;
+  }
+}
+
+/* Markdown prose (chat answers) */
+.prose {
+  --tw-prose-body: hsl(var(--foreground));
+  --tw-prose-headings: hsl(var(--foreground));
+  --tw-prose-links: hsl(var(--primary));
+  --tw-prose-code: hsl(var(--primary));
+  --tw-prose-pre-bg: hsl(var(--surface-2));
+  overflow-wrap: anywhere;
+}
+
+.dark .prose {
+  --tw-prose-invert-body: hsl(var(--foreground));
+  --tw-prose-invert-headings: hsl(var(--foreground));
+  --tw-prose-invert-links: hsl(var(--primary));
+  /* Mint (--primary) reads cleanly on the dark code background (--muted). */
+  --tw-prose-invert-code: hsl(138 61% 68%);
+  --tw-prose-invert-pre-bg: hsl(var(--surface-2));
+}
+
+.prose pre {
+  @apply rounded-lg border border-border/50 overflow-x-auto;
+}
+
+.prose pre code {
+  @apply text-foreground;
+}
+
+.prose code:not(pre code) {
+  @apply px-1.5 py-0.5 rounded-md bg-muted text-sm font-medium;
+}
+
+.prose code:not(pre code)::before,
+.prose code:not(pre code)::after {
+  content: none;
+}
+
+/**
+ * Printing a run report.
+ *
+ * The report modal's "Diagnostic PDF" is the browser's own print dialog, which
+ * every platform can already save as a PDF. That only works if the page behind
+ * the dialog gets out of the way and the report itself stops being a scroll
+ * box, so both are handled here rather than by a second render path.
+ */
+@media print {
+  /* The app stays behind; the dialog is portaled to <body>, so it survives. */
+  #root {
+    display: none !important;
+  }
+
+  [role='dialog'] {
+    position: static !important;
+    max-height: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    transform: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  [data-print-root] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}

@@ -1,0 +1,166 @@
+import { describe, expect, it } from 'vitest'
+
+import type { Run, RunReport } from './api'
+import { best, changedSince, excessOf, metricRow, rankValue, runDiff } from './runMetrics'
+
+const run = (id: string, extra: Partial<Run> = {}): Run => ({
+  id,
+  name: 'Momentum',
+  kind: 'backtest',
+  status: 'succeeded',
+  phase: 'done',
+  created_at: '2026-08-01T10:00:00Z',
+  started_at: null,
+  finished_at: null,
+  exit_code: 0,
+  error: null,
+  experiment_name: `aion-${id}`,
+  model: 'lightgbm',
+  handler: 'Alpha158',
+  universe: 'top500',
+  benchmark: 'SPY',
+  data_store: 'us',
+  topk: 50,
+  n_drop: 5,
+  ...extra,
+})
+
+const report = (excess: Record<string, number | null>): RunReport => ({
+  recorder_id: 'r1',
+  experiment_name: 'aion-x',
+  metrics: {},
+  risk: { excess_return_with_cost: excess },
+  curves: {},
+  period: { start: '2022-01-03', end: '2023-12-29', days: 500 },
+  run: run('x'),
+})
+
+describe('metricRow', () => {
+  it('reads the net-of-cost block, not the gross one', () => {
+    // Gross of cost a high-turnover strategy can look excellent while losing
+    // money. The report leads with the net block for that reason.
+    const full: RunReport = {
+      ...report({ information_ratio: 0.4 }),
+      risk: {
+        excess_return_with_cost: { information_ratio: 0.4 },
+        excess_return_without_cost: { information_ratio: 1.9 },
+      },
+    }
+    expect(metricRow(run('a'), full).ir).toBe(0.4)
+  })
+
+  it('survives a report with no risk block at all', () => {
+    const row = metricRow(run('a'), null)
+    expect(row).toMatchObject({ ir: null, annualised: null, maxDrawdown: null })
+    expect(row.runId).toBe('a')
+  })
+
+  it('treats a non-finite metric as missing rather than as zero', () => {
+    // A zero IR ranks above a negative one; NaN masquerading as zero would
+    // promote a broken run over a merely bad one.
+    const row = metricRow(run('a'), report({ information_ratio: NaN }))
+    expect(row.ir).toBeNull()
+  })
+
+  it('carries the period through', () => {
+    expect(metricRow(run('a'), report({})).period)
+      .toMatchObject({ start: '2022-01-03', end: '2023-12-29' })
+  })
+})
+
+describe('excessOf', () => {
+  it('is an empty object rather than undefined', () => {
+    expect(excessOf(null)).toEqual({})
+    expect(excessOf(undefined)).toEqual({})
+  })
+})
+
+describe('rankValue', () => {
+  it('sinks a run with no metrics instead of ranking it as zero', () => {
+    const withIr = metricRow(run('a'), report({ information_ratio: -0.5 }))
+    const without = metricRow(run('b'), null)
+    expect(rankValue(withIr)).toBeGreaterThan(rankValue(without))
+  })
+})
+
+describe('best', () => {
+  const rows = [
+    metricRow(run('a'), report({
+      information_ratio: 0.9, annualized_return: 0.12, max_drawdown: -0.30, std: 0.02,
+    })),
+    metricRow(run('b'), report({
+      information_ratio: 0.4, annualized_return: 0.20, max_drawdown: -0.12, std: 0.05,
+    })),
+  ]
+
+  it('picks the largest for a return-like column', () => {
+    expect(best(rows, 'ir')).toBe('a')
+    expect(best(rows, 'annualised')).toBe('b')
+  })
+
+  it('picks the smallest drawdown, by magnitude', () => {
+    // Drawdown is negative, so a plain `>` would crown −0.30 — the worst run in
+    // the table — as the winner.
+    expect(best(rows, 'maxDrawdown')).toBe('b')
+    expect(best(rows, 'volatility')).toBe('a')
+  })
+
+  it('ignores runs with nothing recorded', () => {
+    expect(best([metricRow(run('a'), null), rows[0]], 'ir')).toBe('a')
+    expect(best([metricRow(run('z'), null)], 'ir')).toBeNull()
+    expect(best([], 'ir')).toBeNull()
+  })
+})
+
+describe('runDiff', () => {
+  it('lists only what changed', () => {
+    const rows = runDiff([run('a'), run('b', { model: 'xgboost', topk: 100 })])
+    expect(rows.map((r) => r.field)).toEqual(['Model', 'Top K'])
+    expect(rows[0].values).toEqual({ a: 'lightgbm', b: 'xgboost' })
+  })
+
+  it('is empty when the runs are identical in every recorded field', () => {
+    expect(runDiff([run('a'), run('b')])).toEqual([])
+  })
+
+  it('needs at least two runs to have an opinion', () => {
+    expect(runDiff([run('a')])).toEqual([])
+    expect(runDiff([])).toEqual([])
+  })
+
+  it('shows a field an older run never recorded as an em dash, not as unchanged', () => {
+    // "we did not record this" and "it was the same" are different claims, and
+    // collapsing them would report a config change as no change.
+    const old = run('a')
+    delete (old as Partial<Run>).topk
+    const rows = runDiff([old, run('b', { topk: 100 })])
+    expect(rows).toHaveLength(1)
+    expect(rows[0].values).toEqual({ a: '—', b: '100' })
+  })
+
+  it('compares more than two at once', () => {
+    const rows = runDiff([
+      run('a'), run('b', { model: 'xgboost' }), run('c', { model: 'catboost' }),
+    ])
+    expect(rows[0].values).toEqual({ a: 'lightgbm', b: 'xgboost', c: 'catboost' })
+  })
+})
+
+describe('changedSince', () => {
+  it('names the decisions that moved', () => {
+    expect(changedSince(run('a'), run('b', { model: 'xgboost', n_drop: 20 })))
+      .toBe('Model, Drop')
+  })
+
+  it('ignores identity and timing', () => {
+    // A second attempt at the same spec has a new id, a new name-stamp and new
+    // timestamps. None of those are a change to the strategy.
+    expect(changedSince(run('a'), run('b', {
+      created_at: '2026-08-02T10:00:00Z', status: 'failed', error: 'boom',
+    }))).toBeNull()
+  })
+
+  it('has nothing to say about the first run', () => {
+    expect(changedSince(undefined, run('a'))).toBeNull()
+  })
+})

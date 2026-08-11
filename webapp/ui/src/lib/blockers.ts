@@ -1,0 +1,55 @@
+/**
+ * The one list of reasons the Run button is off, with nothing said twice.
+ *
+ * Two sources describe overlapping problems:
+ *
+ *   the preview   `/strategies/preview` runs `validate_windows` and
+ *                 `validate_features` over the whole spec. Only it knows about
+ *                 window overlaps and the calendar clamp.
+ *   the canvas    name and completeness checks, plus — since the live
+ *                 `/factors/validate` wiring — the server's read of the active
+ *                 column's expression.
+ *
+ * The overlap is real and grew. Two rules, because the two kinds of duplicate
+ * look different:
+ *
+ * **By message.** Expression defects (lookahead, negative window, unbounded
+ * history, unknown field) come from the same `inspect_expression` on both paths,
+ * so the strings are byte-identical. These messages contain no backticks at all,
+ * which is why the name rule below cannot catch them.
+ *
+ * **By backticked name.** A column collision or a duplicate name is worded
+ * differently by the two sides — the client says one thing, `inspect_features`
+ * another — so identity does not help. What they share is the column, and the
+ * server always writes it in backticks. Matching a bare substring instead was a
+ * real bug: a column legally named `a` matched every warning containing the
+ * letter, so naming one column `a` silently hid "Test overlaps validation —
+ * results would be optimistic."
+ */
+
+/** Only what the merge needs, so callers are not forced to build a `FeatureIssue`. */
+export interface BlockerIssue {
+  message: string
+  /** The column's display name, when the issue is about one. */
+  columnName?: string | null
+}
+
+/**
+ * Client issues first in precedence, preview warnings second, in that order.
+ *
+ * The canvas's copy wins when both describe the same column, because it is the
+ * one attached to a card the reader can see and click.
+ */
+export function mergeBlockers(
+  warnings: readonly string[], issues: readonly BlockerIssue[],
+): string[] {
+  const said = new Set(issues.map((i) => i.message))
+  const flagged = issues
+    .map((i) => i.columnName)
+    .filter((name): name is string => Boolean(name))
+
+  const kept = warnings.filter((w) =>
+    !said.has(w) && !flagged.some((name) => w.includes(`\`${name}\``)))
+
+  return [...kept, ...issues.map((i) => i.message)]
+}
