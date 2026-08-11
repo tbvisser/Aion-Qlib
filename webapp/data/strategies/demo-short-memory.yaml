@@ -1,0 +1,24 @@
+name: Short memory
+model: lightgbm
+handler: Alpha158
+data_store: us
+universe: top500
+benchmark: SPY
+train_start: '2016-01-01'
+train_end: '2021-12-31'
+valid_start: '2022-01-01'
+valid_end: '2022-12-31'
+test_start: '2023-01-01'
+test_end: '2026-07-31'
+topk: 50
+n_drop: 5
+open_cost: 0.0005
+close_cost: 0.0015
+min_cost: 5.0
+account: 100000000.0
+limit_threshold: null
+features: null
+feature_mode: extend
+id: demo-short-memory
+created_at: '2026-08-10T15:12:08.560759+00:00'
+updated_at: '2026-08-10T15:49:02.735355+00:00'

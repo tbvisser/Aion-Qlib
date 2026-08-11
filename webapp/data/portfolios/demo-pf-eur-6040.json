@@ -1,0 +1,25 @@
+{
+  "name": "Classic 60/40 (EUR)",
+  "base_ccy": "EUR",
+  "benchmark": "SPY",
+  "holdings": [
+    {
+      "symbol": "SPY",
+      "asset_class": "etf",
+      "weight": 0.6
+    },
+    {
+      "symbol": "AGG",
+      "asset_class": "etf",
+      "weight": 0.4
+    }
+  ],
+  "strategy_ids": [],
+  "inception": "2021-01-04",
+  "rebalance": "monthly",
+  "cost_bps": 10.0,
+  "notes": "Same holdings as the USD 60/40, reported in euros \u2014 the difference is the currency, nothing else.",
+  "id": "demo-pf-eur-6040",
+  "created_at": "2026-08-10T15:12:08.565303+00:00",
+  "updated_at": "2026-08-10T15:49:02.750046+00:00"
+}
