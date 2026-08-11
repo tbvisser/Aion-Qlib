@@ -18,6 +18,7 @@ def _make_venv(root: Path) -> Path:
     python = root / ".venv" / "bin" / "python"
     python.parent.mkdir(parents=True)
     python.touch()
+    python.chmod(0o755)
     return python
 
 
@@ -47,6 +48,33 @@ def test_run_manager_uses_the_venv(tmp_path):
     expected = _make_venv(tmp_path)
     manager = RunManager(tmp_path / "runs", tmp_path)
     assert manager._python == expected
+
+
+def test_ignores_a_venv_pointing_at_a_missing_interpreter(tmp_path):
+    """The macOS-venv-seen-from-Linux case, which is what Docker actually hits.
+
+    .venv/bin/python is a symlink into the host's Homebrew prefix; inside the
+    container it resolves to nothing. Following it would exec a binary that isn't
+    there -- or worse, on a Linux host, one built for the wrong environment.
+    """
+    python = tmp_path / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    # Stands in for /opt/homebrew/... as seen from a Linux container. Pointed at a
+    # path under tmp_path so the test doesn't depend on what the host has installed.
+    python.symlink_to(tmp_path / "no" / "such" / "python3.11")
+
+    assert python.is_symlink() and not python.exists()
+    assert default_python(tmp_path) == Path(sys.executable)
+
+
+def test_ignores_a_non_executable_venv_interpreter(tmp_path):
+    """A file that is there but not runnable is not an interpreter."""
+    python = tmp_path / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.touch()
+    python.chmod(0o644)
+
+    assert default_python(tmp_path) == Path(sys.executable)
 
 
 def test_explicit_override_still_wins(tmp_path):

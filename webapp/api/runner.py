@@ -82,11 +82,19 @@ def default_python(repo_root: Path) -> Path:
     Prefers the repo's own virtualenv, which is what `webapp/dev.sh` sets up and
     what the API itself runs under bare-metal. Falls back to the interpreter
     currently executing, which is the case that matters in Docker: the container
-    bind-mounts the repo at /qlib, so <repo>/.venv/bin/python resolves to the
-    *host's* macOS binary and exec fails with an arch error on every run.
+    bind-mounts the repo at /qlib, so <repo>/.venv/bin/python is whatever the
+    *host* put there and exec fails with an arch error on every run.
+
+    The executable check is doing the work, not the existence check. A macOS venv
+    seen from a Linux container is a symlink into /opt/homebrew that resolves to
+    nothing, so it is skipped -- but relying on that would be relying on an
+    accident of how the venv was built. os.access says what we actually mean:
+    only hand qrun an interpreter we can really launch.
     """
     venv = repo_root / ".venv" / "bin" / "python"
-    return venv if venv.exists() else Path(sys.executable)
+    if venv.is_file() and os.access(venv, os.X_OK):
+        return venv
+    return Path(sys.executable)
 
 
 class RunManager:
