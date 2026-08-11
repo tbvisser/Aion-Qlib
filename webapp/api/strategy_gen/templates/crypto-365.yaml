@@ -1,0 +1,30 @@
+id: crypto-365
+title: Crypto on its own calendar
+family: universe
+tags: [crypto, crypto_365, weekends]
+
+rationale: >
+  The only template on the 365-day store. Crypto trades every calendar day, so
+  it cannot share a store with anything that stops at the weekend — and the
+  benchmark has to come from that store too, which is why this compares against
+  BTC-USD rather than SPY. Expect volatility and drawdowns unlike anything in
+  the equity templates.
+
+good_for:
+  - A universe that actually trades on the calendar it is stored under
+  - Testing whether a signal survives outside equity market structure
+
+bad_for:
+  - Comparison with the equity templates; different calendar, different
+    benchmark, different volatility regime entirely
+  - Cost realism — spreads and slippage here are far worse than a flat fee
+
+draft:
+  name: Crypto rotation
+  model: lightgbm
+  handler: Alpha158
+  data_store: crypto_365
+  universe: crypto_top100
+  benchmark: BTC-USD
+  topk: 20
+  n_drop: 3

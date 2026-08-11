@@ -1,0 +1,24 @@
+id: full-churn
+title: Full churn
+family: shape
+tags: [top500, high-turnover, ceiling]
+
+rationale: >
+  Fifty names, all fifty replaced every day. The book is rebuilt from scratch on
+  each bar, so the strategy holds exactly today's ranking and nothing carried
+  over. The turnover ceiling, and the mirror of buy-once.
+
+good_for:
+  - Measuring what the signal is worth if you always act on it immediately
+  - Bracketing turnover from above, with no-rebalance holding the floor
+
+bad_for:
+  - Anything cost-sensitive; this pays a full round trip on every name, daily
+  - A signal that needs days to play out, which is discarded before it can
+draft:
+  name: Full churn
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  topk: 50
+  n_drop: 50

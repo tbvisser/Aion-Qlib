@@ -1,0 +1,97 @@
+family: candle
+label: Candle & session shape
+description: >
+  The shape of a single bar, and how the overnight session compares with the
+  trading day. These are the shortest-memory factors in the library — most read
+  one or two bars — so they warm up immediately and carry no history risk. The
+  first seven overlap Alpha158's own candle group in spirit but are named
+  distinctly, because a curated factor that reused an Alpha158 column name would
+  silently replace it.
+
+factors:
+  - name: K_BODY
+    expression: "($close-$open)/($open+1e-12)"
+    summary: The candle's body — open to close, as a share of the open.
+    window: 1
+    tags: [candle, daily]
+
+  - name: K_RANGE
+    expression: "($high-$low)/($open+1e-12)"
+    summary: The full high-low range as a share of the open.
+    window: 1
+    tags: [candle, daily, range]
+
+  - name: K_BODY_SHARE
+    expression: "($close-$open)/($high-$low+1e-12)"
+    summary: How much of the day's range the body took up, -1 to 1. Near zero means indecision.
+    window: 1
+    tags: [candle, daily, bounded]
+
+  - name: K_UPPER_SHADOW
+    expression: "($high-Greater($open,$close))/($open+1e-12)"
+    summary: The upper wick as a share of the open — how far the rally was rejected.
+    window: 1
+    tags: [candle, daily, rejection]
+
+  - name: K_LOWER_SHADOW
+    expression: "(Less($open,$close)-$low)/($open+1e-12)"
+    summary: The lower wick as a share of the open — how far the sell-off was bought back.
+    window: 1
+    tags: [candle, daily, rejection]
+
+  - name: K_UPPER_SHARE
+    expression: "($high-Greater($open,$close))/($high-$low+1e-12)"
+    summary: Upper wick as a share of the day's range, 0 to 1.
+    window: 1
+    tags: [candle, daily, bounded]
+
+  - name: K_LOWER_SHARE
+    expression: "(Less($open,$close)-$low)/($high-$low+1e-12)"
+    summary: Lower wick as a share of the day's range, 0 to 1.
+    window: 1
+    tags: [candle, daily, bounded]
+
+  - name: CLV
+    expression: "(($close-$low)-($high-$close))/($high-$low+1e-12)"
+    summary: Close location value — where the close sat in the day's range, -1 at the low to 1 at the high.
+    window: 1
+    tags: [candle, daily, bounded]
+
+  - name: GAP
+    expression: "$open/(Ref($close,1)+1e-12) - 1"
+    summary: The overnight gap — today's open against yesterday's close.
+    window: 1
+    tags: [session, overnight]
+
+  - name: OVERNIGHT_MEAN_20
+    expression: "Mean($open/(Ref($close,1)+1e-12) - 1,20)"
+    summary: Average overnight return over the last month.
+    window: 20
+    tags: [session, overnight]
+
+  - name: INTRADAY_MEAN_20
+    expression: "Mean($close/($open+1e-12) - 1,20)"
+    summary: Average open-to-close return over the last month.
+    window: 20
+    tags: [session, intraday]
+
+  - name: ON_MINUS_ID_20
+    expression: "Mean($open/(Ref($close,1)+1e-12) - 1,20) - Mean($close/($open+1e-12) - 1,20)"
+    summary: Overnight return minus intraday return — which session the move has been coming from.
+    window: 20
+    tags: [session, overnight, intraday]
+
+  - name: RANGE_EXPANSION_20
+    expression: "($high-$low)/(Mean($high-$low,20)+1e-12)"
+    summary: Today's range against its own 20-day norm. Above 1 means an unusually wide bar.
+    window: 20
+    tags: [range, surprise]
+
+  - name: ADJ_FACTOR_EVENT
+    expression: "$factor/(Ref($factor,1)+1e-12) - 1"
+    summary: A change in the store's adjustment factor — a split or a dividend went ex today.
+    window: 1
+    tags: [corporate-action, event]
+    caveat: >
+      Zero on almost every row by design; it is an event flag, not a continuous
+      reading. The only factor in the library that reads $factor.

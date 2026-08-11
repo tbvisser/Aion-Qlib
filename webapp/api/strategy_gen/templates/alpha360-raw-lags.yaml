@@ -1,0 +1,26 @@
+id: alpha360-raw-lags
+title: Raw lags instead of engineered features
+family: model-comparison
+tags: [lightgbm, alpha360, features]
+
+rationale: >
+  Identical to the broad baseline in every respect except the feature set:
+  Alpha360 hands the model 360 raw price and volume lags rather than 158
+  engineered factors. Run it beside the baseline and the difference tells you
+  whether the feature engineering is doing the work, or whether the model would
+  have found the same structure on its own.
+
+good_for:
+  - Testing whether Alpha158's hand-built factors earn their place
+  - Giving a model room to find structure nobody encoded
+
+bad_for:
+  - Interpretation — a lag has no story attached, so you cannot explain a
+    position by naming the factor behind it
+  - Small training windows; 360 mostly-collinear columns need data to behave
+
+draft:
+  name: Raw lags
+  model: lightgbm
+  handler: Alpha360
+  universe: top500

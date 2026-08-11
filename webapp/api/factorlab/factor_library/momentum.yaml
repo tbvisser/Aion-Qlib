@@ -1,0 +1,180 @@
+family: momentum
+label: Momentum & oscillators
+description: >
+  How fast price is moving and whether that move is stretched. The bounded
+  oscillators (RSI, stochastic, Williams %R) are already comparable across
+  instruments; the rate-of-change family is a plain return over a fixed lookback.
+  Wilder-smoothed entries write their smoothing as a fractional window, because
+  qlib reads a window below 1 as an EWM alpha rather than a day count.
+
+factors:
+  - name: ROC_5
+    expression: "$close/(Ref($close,5)+1e-12) - 1"
+    summary: One-week return. Positive means the price rose.
+    window: 5
+    tags: [return, fast]
+    caveat: >
+      Alpha158's own ROC5 is the other way up — past over present — so a high
+      value there means the price fell. This one reads the way its name does.
+
+  - name: ROC_10
+    expression: "$close/(Ref($close,10)+1e-12) - 1"
+    summary: Two-week return.
+    window: 10
+    tags: [return]
+
+  - name: ROC_21
+    expression: "$close/(Ref($close,21)+1e-12) - 1"
+    summary: One-month return.
+    window: 21
+    tags: [return]
+
+  - name: ROC_63
+    expression: "$close/(Ref($close,63)+1e-12) - 1"
+    summary: One-quarter return.
+    window: 63
+    tags: [return]
+
+  - name: ROC_126
+    expression: "$close/(Ref($close,126)+1e-12) - 1"
+    summary: Six-month return.
+    window: 126
+    tags: [return, slow]
+
+  - name: ROC_252
+    expression: "$close/(Ref($close,252)+1e-12) - 1"
+    summary: One-year return.
+    window: 252
+    tags: [return, slow]
+    caveat: Blank for the first trading year of an instrument's history.
+
+  - name: RSI_14_WILDER
+    expression: "100 - 100/(1 + EMA(Greater($close-Ref($close,1),0),0.0714285714)/(EMA(Greater(Ref($close,1)-$close,0),0.0714285714)+1e-12))"
+    summary: Wilder's relative strength index over 14 days, 0 to 100. Above 70 is the classic overbought reading.
+    window: 14
+    tags: [oscillator, bounded, wilder]
+    caveat: >
+      Wilder smoothing is an EWM with alpha = 1/14, written here as the float
+      window 0.0714285714 — qlib reads a window below 1 as an alpha, not a day
+      count. Its true reach is far longer than 14 days.
+
+  - name: RSI_14_SIMPLE
+    expression: "Sum(Greater($change,0),14)/(Sum(Abs($change),14)+1e-12)"
+    summary: Up-move share of total movement over 14 days, 0 to 1. The unsmoothed cousin of RSI.
+    window: 14
+    tags: [oscillator, bounded]
+
+  - name: MACD_NORM
+    expression: "(EMA($close,12) - EMA($close,26))/($close+1e-12)"
+    summary: The MACD line divided by price, so it is comparable across instruments.
+    window: 26
+    tags: [oscillator, ema]
+
+  - name: MACD_SIGNAL_NORM
+    expression: "EMA((EMA($close,12) - EMA($close,26)),9)/($close+1e-12)"
+    summary: MACD's own 9-day signal line, divided by price.
+    window: 26
+    tags: [oscillator, ema, smoothed]
+
+  - name: MACD_HIST_NORM
+    expression: "((EMA($close,12) - EMA($close,26)) - EMA((EMA($close,12) - EMA($close,26)),9))/($close+1e-12)"
+    summary: MACD minus its signal line — the histogram, divided by price.
+    window: 26
+    tags: [oscillator, ema, crossover]
+
+  - name: STOCH_K_14
+    expression: "($close-Min($low,14))/(Max($high,14)-Min($low,14)+1e-12)"
+    summary: Where today's close sits inside the 14-day high-low range, 0 to 1.
+    window: 14
+    tags: [oscillator, bounded, range]
+
+  - name: STOCH_D_14
+    expression: "Mean(($close-Min($low,14))/(Max($high,14)-Min($low,14)+1e-12),3)"
+    summary: Three-day average of the stochastic %K — the slower signal line.
+    window: 14
+    tags: [oscillator, bounded, range, smoothed]
+
+  - name: WILLR_14
+    expression: "($close-Max($high,14))/(Max($high,14)-Min($low,14)+1e-12)"
+    summary: Williams %R over 14 days, from -1 at the range low to 0 at the high.
+    window: 14
+    tags: [oscillator, bounded, range]
+
+  - name: CCI_20
+    expression: "((($high+$low+$close)/3) - Mean((($high+$low+$close)/3),20))/(0.015*Mad((($high+$low+$close)/3),20)+1e-12)"
+    summary: Commodity channel index — typical price against its 20-day norm, scaled by mean deviation.
+    window: 20
+    tags: [oscillator, stretch]
+
+  - name: ULTOSC_7_14_28
+    expression: "(4*(Sum($close-Less($low,Ref($close,1)),7)/(Sum((Greater($high,Ref($close,1)) - Less($low,Ref($close,1))),7)+1e-12)) + 2*(Sum($close-Less($low,Ref($close,1)),14)/(Sum((Greater($high,Ref($close,1)) - Less($low,Ref($close,1))),14)+1e-12)) + (Sum($close-Less($low,Ref($close,1)),28)/(Sum((Greater($high,Ref($close,1)) - Less($low,Ref($close,1))),28)+1e-12)))/7"
+    summary: Ultimate oscillator — buying pressure over three horizons at once, weighted 4:2:1.
+    window: 28
+    tags: [oscillator, bounded, multi-horizon]
+
+  - name: AROON_UP_25
+    expression: "IdxMax($high,25)/25"
+    summary: How recently the 25-day high was made, from 0 (oldest bar) to 1 (today).
+    window: 25
+    tags: [oscillator, bounded, extremes]
+    caveat: >
+      qlib's IdxMax counts from the oldest end of the window, so 1 means the
+      high is today. That is the opposite of the classic Aroon convention and
+      the opposite of what the operator's own summary used to say.
+
+  - name: AROON_DOWN_25
+    expression: "IdxMin($low,25)/25"
+    summary: How recently the 25-day low was made, from 0 (oldest bar) to 1 (today).
+    window: 25
+    tags: [oscillator, bounded, extremes]
+
+  - name: AROON_OSC_25
+    expression: "(IdxMax($high,25) - IdxMin($low,25))/25"
+    summary: Aroon up minus down. Positive means the high is more recent than the low.
+    window: 25
+    tags: [oscillator, bounded, extremes]
+
+  - name: TSI_25_13
+    expression: "EMA(EMA($close-Ref($close,1),25),13)/(EMA(EMA(Abs($close-Ref($close,1)),25),13)+1e-12)"
+    summary: True strength index — doubly smoothed momentum over doubly smoothed absolute momentum, -1 to 1.
+    window: 25
+    tags: [oscillator, bounded, smoothed]
+
+  - name: PLUS_DI_14
+    expression: "100*EMA(If(And($high-Ref($high,1) > Ref($low,1)-$low, $high-Ref($high,1) > 0), $high-Ref($high,1), 0),0.0714285714)/(EMA((Greater($high,Ref($close,1)) - Less($low,Ref($close,1))),0.0714285714)+1e-12)"
+    summary: Wilder's positive directional indicator — upward range expansion as a share of true range.
+    window: 14
+    tags: [trend-strength, wilder, directional]
+
+  - name: MINUS_DI_14
+    expression: "100*EMA(If(And(Ref($low,1)-$low > $high-Ref($high,1), Ref($low,1)-$low > 0), Ref($low,1)-$low, 0),0.0714285714)/(EMA((Greater($high,Ref($close,1)) - Less($low,Ref($close,1))),0.0714285714)+1e-12)"
+    summary: Wilder's negative directional indicator — downward range expansion as a share of true range.
+    window: 14
+    tags: [trend-strength, wilder, directional]
+
+  - name: DX_14
+    expression: "Abs(EMA(If(And($high-Ref($high,1) > Ref($low,1)-$low, $high-Ref($high,1) > 0), $high-Ref($high,1), 0),0.0714285714) - EMA(If(And(Ref($low,1)-$low > $high-Ref($high,1), Ref($low,1)-$low > 0), Ref($low,1)-$low, 0),0.0714285714))/(EMA(If(And($high-Ref($high,1) > Ref($low,1)-$low, $high-Ref($high,1) > 0), $high-Ref($high,1), 0),0.0714285714) + EMA(If(And(Ref($low,1)-$low > $high-Ref($high,1), Ref($low,1)-$low > 0), Ref($low,1)-$low, 0),0.0714285714) + 1e-12)"
+    summary: Directional index — how one-sided the move is, 0 to 1, regardless of which way.
+    window: 14
+    tags: [trend-strength, wilder, bounded]
+    caveat: >
+      The shared true-range denominator cancels, so this is written directly
+      from the smoothed directional movements rather than from DI+ and DI-.
+
+  - name: ADX_14
+    expression: "EMA(Abs(EMA(If(And($high-Ref($high,1) > Ref($low,1)-$low, $high-Ref($high,1) > 0), $high-Ref($high,1), 0),0.0714285714) - EMA(If(And(Ref($low,1)-$low > $high-Ref($high,1), Ref($low,1)-$low > 0), Ref($low,1)-$low, 0),0.0714285714))/(EMA(If(And($high-Ref($high,1) > Ref($low,1)-$low, $high-Ref($high,1) > 0), $high-Ref($high,1), 0),0.0714285714) + EMA(If(And(Ref($low,1)-$low > $high-Ref($high,1), Ref($low,1)-$low > 0), Ref($low,1)-$low, 0),0.0714285714) + 1e-12),0.0714285714)"
+    summary: Average directional index — trend strength without direction. High means a strong move either way.
+    window: 14
+    tags: [trend-strength, wilder, bounded]
+
+  - name: MOM_ACCEL_21
+    expression: "($close/(Ref($close,21)+1e-12) - 1) - (Ref($close,21)/(Ref($close,42)+1e-12) - 1)"
+    summary: This month's return minus last month's — whether momentum is building or fading.
+    window: 42
+    tags: [return, acceleration]
+
+  - name: PSY_20
+    expression: "Mean(If($change > 0, 1, 0),20)"
+    summary: Share of the last 20 days that closed up, 0 to 1.
+    window: 20
+    tags: [oscillator, bounded, breadth]

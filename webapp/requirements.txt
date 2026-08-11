@@ -1,0 +1,33 @@
+# Runtime dependencies of the AION webapp, on top of what qlib itself installs.
+#
+# Install order matters — qlib first, then this file:
+#   pip install -e ".[dev,test,analysis]" -r webapp/requirements.txt
+#
+# Deliberately NOT repeated here (the root pyproject.toml already declares them,
+# and pinning them twice makes the two files fight): numpy, pandas, mlflow,
+# lightgbm, pyarrow, pyyaml, pydantic-settings.
+#
+# Versions are the ones this app was developed and tested against. See
+# requirements.lock.txt for the exact resolved environment.
+
+# --- Web layer -------------------------------------------------------------
+# None of these are declared by qlib; without them `uvicorn webapp.api.main:app`
+# fails on import, which is what made the dockerised api service unstartable.
+fastapi==0.141.1
+uvicorn==0.52.1
+sse-starlette==3.4.8
+httpx==0.28.1
+pydantic==2.13.4
+
+# --- Direct scientific imports ---------------------------------------------
+# qlib pulls scipy in transitively via cvxpy, but webapp/api imports it directly,
+# so declare it rather than depend on someone else's dependency graph.
+scipy==1.17.1
+
+# --- Model backends --------------------------------------------------------
+# Required by the shipped strategy templates catboost-baseline.yaml and
+# xgboost-baseline.yaml, which qrun loads by module path at runtime. qlib
+# declares only lightgbm, so without these two the templates fail mid-run
+# rather than at startup.
+catboost==1.2.10
+xgboost==3.2.0

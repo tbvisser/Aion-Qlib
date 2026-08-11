@@ -1,0 +1,27 @@
+id: concentrated-macro50
+title: Concentrated large-cap
+family: shape
+tags: [macro50, concentrated, high-conviction]
+
+rationale: >
+  Ten positions drawn from fifty mega-caps, replacing two a day. Almost no
+  breadth: with a book this small the outcome is decided by a handful of names,
+  so the result says more about those names than about the signal. Run it beside
+  the wide-and-slow template to see how much of any difference is the model and
+  how much is simply position count.
+
+good_for:
+  - Seeing how a signal behaves when it has to pick, not diversify
+  - A universe where every name is liquid enough that costs barely matter
+
+bad_for:
+  - Any conclusion about the signal itself; the sample is far too small
+  - Risk, which is dominated by single-name moves rather than the strategy
+
+draft:
+  name: Concentrated large-cap
+  model: lightgbm
+  handler: Alpha158
+  universe: macro50
+  topk: 10
+  n_drop: 2

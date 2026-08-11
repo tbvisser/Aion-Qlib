@@ -1,0 +1,130 @@
+family: anomaly
+label: Academic anomalies
+description: >
+  The cross-sectional effects the equity literature keeps returning to, written
+  with only the columns this store has. These are the longest-memory factors in
+  the library — several need a full trading year or more before they mean
+  anything, and qlib fills a short window from whatever rows exist rather than
+  returning blank, so read the warm-up figure before putting one in a feature set.
+
+  What is missing here is missing for a structural reason. Market beta, downside
+  beta and true idiosyncratic volatility all need a second instrument's series,
+  and a qlib expression is evaluated one instrument at a time — the operators
+  that would reach another symbol are refused. Anything requiring a rank across
+  the universe is out for the same reason: qlib's Rank is a rolling percentile
+  within one instrument's own window, not a cross-sectional rank.
+
+factors:
+  - name: MOM_12_1
+    expression: "Ref($close,21)/(Ref($close,252)+1e-12) - 1"
+    summary: Twelve-month return skipping the most recent month — the classic momentum factor.
+    window: 252
+    tags: [momentum, classic, slow]
+    caveat: >
+      Blank for the first trading year. The one-month skip is the point: it
+      leaves out the short-term reversal that would otherwise cancel the signal.
+
+  - name: MOM_6_1
+    expression: "Ref($close,21)/(Ref($close,126)+1e-12) - 1"
+    summary: Six-month return skipping the most recent month.
+    window: 126
+    tags: [momentum, classic]
+
+  - name: REV_1M
+    expression: "-1 * ($close/(Ref($close,21)+1e-12) - 1)"
+    summary: Short-term reversal — the last month's return, negated, so high means it fell.
+    window: 21
+    tags: [reversal, classic]
+
+  - name: REV_1W
+    expression: "-1 * ($close/(Ref($close,5)+1e-12) - 1)"
+    summary: One-week reversal — fade the last week's move.
+    window: 5
+    tags: [reversal, fast]
+
+  - name: REV_3Y_1Y
+    expression: "-1 * (Ref($close,252)/(Ref($close,756)+1e-12) - 1)"
+    summary: Long-term reversal — the two years ending a year ago, negated.
+    window: 756
+    tags: [reversal, classic, slow]
+    caveat: >
+      Needs three trading years of history — the longest warm-up in the library.
+      On a store starting in 2010 it costs the first three years of any training
+      window.
+
+  - name: HIGH_52W_PROX
+    expression: "$close/(Max($high,252)+1e-12)"
+    summary: Closeness to the 52-week high, where 1 means the instrument is at it.
+    window: 252
+    tags: [extremes, classic, bounded]
+    caveat: >
+      Needs a full trading year. Before that qlib takes the maximum of whatever
+      rows exist, so a young instrument reads as being at its high simply because
+      it has no older bars to have been higher in.
+
+  - name: LOW_52W_DIST
+    expression: "$close/(Min($low,252)+1e-12) - 1"
+    summary: How far above the 52-week low the instrument has travelled.
+    window: 252
+    tags: [extremes, classic]
+    caveat: >
+      Needs a full trading year, and understates the distance before that — the
+      minimum is taken over however few rows exist.
+
+  - name: MAX_RET_21
+    expression: "Max($change,21)"
+    summary: The single best daily return of the last month — the lottery-preference effect.
+    window: 21
+    tags: [extremes, classic, lottery]
+
+  - name: MIN_RET_21
+    expression: "Min($change,21)"
+    summary: The single worst daily return of the last month.
+    window: 21
+    tags: [extremes, downside]
+
+  - name: RESID_VOL_60
+    expression: "Std(Resi($close,60),60)/($close+1e-12)"
+    summary: Volatility of the residual around the instrument's own 60-day price trend.
+    window: 60
+    tags: [volatility, residual]
+    caveat: >
+      Residual against its own time trend, not against the market. True
+      idiosyncratic volatility needs a market series to regress on, and a qlib
+      expression cannot reach another instrument.
+
+  - name: RET_SKEW_60
+    expression: "Skew($change,60)"
+    summary: Skewness of daily returns over a quarter. Negative means occasional sharp falls.
+    window: 60
+    tags: [distribution, classic]
+
+  - name: RET_KURT_60
+    expression: "Kurt($change,60)"
+    summary: Kurtosis of daily returns over a quarter — how fat the tails have been.
+    window: 60
+    tags: [distribution, tails]
+
+  - name: VOL_ADJ_MOM_126
+    expression: "($close/(Ref($close,126)+1e-12) - 1)/(Std($change,126)+1e-12)"
+    summary: Six-month return per unit of its own volatility — momentum with the risk divided out.
+    window: 126
+    tags: [momentum, risk-adjusted]
+
+  - name: SHARPE_60
+    expression: "Mean($change,60)/(Std($change,60)+1e-12)"
+    summary: Mean daily return over its standard deviation, across a quarter. Not annualised.
+    window: 60
+    tags: [risk-adjusted]
+
+  - name: UP_SHARE_60
+    expression: "Sum(Greater($change,0),60)/(Sum(Abs($change),60)+1e-12)"
+    summary: Share of total movement over a quarter that was upward, 0 to 1.
+    window: 60
+    tags: [distribution, bounded]
+
+  - name: WIN_RATE_60
+    expression: "Mean(If($change > 0, 1, 0),60)"
+    summary: Share of the last quarter's days that closed up, 0 to 1.
+    window: 60
+    tags: [distribution, bounded, breadth]

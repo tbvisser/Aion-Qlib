@@ -1,0 +1,39 @@
+id: momentum-and-reversal
+title: Momentum against reversal
+family: factors
+tags: [features, replace, anomalies]
+
+rationale: >
+  Six columns and nothing else: momentum at two horizons, reversal at two, a
+  volatility control and distance from the 52-week high. The two effects point in
+  opposite directions at different speeds, and giving the model only these makes
+  it choose between them explicitly.
+
+good_for:
+  - Isolating the momentum-reversal trade-off with nothing else in the way
+  - A feature set small enough to reason about column by column
+
+bad_for:
+  - The first years of any training window. Two of these columns need a full
+    trading year before they mean anything, and qlib fills a short window from
+    whatever rows exist rather than leaving it blank
+  - Instruments with little history, where most of the set is warming up
+draft:
+  name: Momentum vs reversal
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  feature_mode: replace
+  features:
+    - name: MOM_12_1
+      expression: "Ref($close,21)/(Ref($close,252)+1e-12) - 1"
+    - name: MOM_6_1
+      expression: "Ref($close,21)/(Ref($close,126)+1e-12) - 1"
+    - name: REV_1M
+      expression: "-1 * ($close/(Ref($close,21)+1e-12) - 1)"
+    - name: REV_1W
+      expression: "-1 * ($close/(Ref($close,5)+1e-12) - 1)"
+    - name: VOL_20
+      expression: "Std($change,20)"
+    - name: HIGH_52W_PROX
+      expression: "$close/(Max($high,252)+1e-12)"

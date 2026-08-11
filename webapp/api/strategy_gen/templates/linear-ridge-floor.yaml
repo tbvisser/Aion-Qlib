@@ -1,0 +1,25 @@
+id: linear-ridge-floor
+title: Ridge floor
+family: model-comparison
+tags: [linear, alpha158, baseline]
+
+rationale: >
+  A ridge regression on exactly the features the baseline uses. It exists to be
+  beaten: if the gradient-boosted tree cannot clear a linear model on the same
+  data, the nonlinearity is not earning its keep and the extra training time is
+  buying nothing. It is also the fastest thing here to train, so it is a cheap
+  way to find out whether the data has any cross-sectional signal at all.
+
+good_for:
+  - A floor to measure every more complicated model against
+  - A fast first answer on a new universe or a new window
+
+bad_for:
+  - Interactions between factors, which it cannot represent
+  - Being the final answer; it is a control, not a candidate
+
+draft:
+  name: Ridge floor
+  model: linear
+  handler: Alpha158
+  universe: top500

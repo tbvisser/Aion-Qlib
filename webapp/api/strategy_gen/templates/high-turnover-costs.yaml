@@ -1,0 +1,27 @@
+id: high-turnover-costs
+title: High turnover meeting real costs
+family: cost
+tags: [costs, turnover, stress]
+
+rationale: >
+  Replaces half the book every day and charges a stressed fee for doing it. The
+  two choices are combined on purpose: turnover and cost only matter together,
+  and a template that varied one without the other would understate both.
+
+good_for:
+  - Showing where a fast signal stops paying for its own trading
+  - A deliberately unflattering run to put beside the zero-cost ceiling
+
+bad_for:
+  - Judging the signal itself, which this is designed to bury
+  - Slow strategies, where nothing here is binding
+draft:
+  name: High turnover, real costs
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  topk: 50
+  n_drop: 25
+  open_cost: 0.0015
+  close_cost: 0.0025
+  min_cost: 25

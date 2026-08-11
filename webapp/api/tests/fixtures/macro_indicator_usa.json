@@ -1,0 +1,50 @@
+[
+  {
+    "CountryCode": "USA",
+    "CountryName": "United States",
+    "Indicator": "Inflation, consumer prices (annual %)",
+    "Date": "2024-12-31",
+    "Period": "Annual",
+    "Value": 2.9495
+  },
+  {
+    "CountryCode": "USA",
+    "CountryName": "United States",
+    "Indicator": "Inflation, consumer prices (annual %)",
+    "Date": "2023-12-31",
+    "Period": "Annual",
+    "Value": 4.1163
+  },
+  {
+    "CountryCode": "USA",
+    "CountryName": "United States",
+    "Indicator": "Inflation, consumer prices (annual %)",
+    "Date": "2022-12-31",
+    "Period": "Annual",
+    "Value": 8.0028
+  },
+  {
+    "CountryCode": "USA",
+    "CountryName": "United States",
+    "Indicator": "Inflation, consumer prices (annual %)",
+    "Date": "2021-12-31",
+    "Period": "Annual",
+    "Value": 4.6979
+  },
+  {
+    "CountryCode": "USA",
+    "CountryName": "United States",
+    "Indicator": "Inflation, consumer prices (annual %)",
+    "Date": "2020-12-31",
+    "Period": "Annual",
+    "Value": 1.2336
+  },
+  {
+    "CountryCode": "USA",
+    "CountryName": "United States",
+    "Indicator": "Inflation, consumer prices (annual %)",
+    "Date": "2019-12-31",
+    "Period": "Annual",
+    "Value": 1.8122
+  }
+]

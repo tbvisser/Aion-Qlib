@@ -1,0 +1,28 @@
+id: cost-stressed
+title: Cost-stressed
+family: cost
+tags: [costs, stress-test, top500]
+
+rationale: >
+  The broad baseline with trading costs roughly tripled and a floor of 25 per
+  trade, and nothing else changed. That is the point: run it against the
+  baseline and the gap between the two is the strategy's cost sensitivity,
+  measured rather than assumed. A result that survives here is one you can
+  believe at a worse fill than you hope for.
+
+good_for:
+  - Finding out how much of a result is really a cost assumption
+  - Sanity-checking a high-turnover strategy before trusting it
+
+bad_for:
+  - Being read on its own; the number only means something next to the baseline
+  - Modelling real execution, which is not a flat percentage of notional
+
+draft:
+  name: Cost-stressed
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  open_cost: 0.0015
+  close_cost: 0.0025
+  min_cost: 25

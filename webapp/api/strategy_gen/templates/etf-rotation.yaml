@@ -1,0 +1,28 @@
+id: etf-rotation
+title: ETF rotation
+family: universe
+tags: [xgboost, etf_top100, sector-rotation]
+
+rationale: >
+  XGBoost ranking a hundred ETFs, holding fifteen. Funds move together far more
+  than single stocks do, so the cross-section is much thinner than the instrument
+  count suggests and an information coefficient here is not comparable to one on
+  top500. Read it as rotation between exposures rather than as stock selection.
+
+good_for:
+  - Expressing a view about sectors or asset classes rather than companies
+  - A universe where single-name blowups cannot dominate the result
+
+bad_for:
+  - Cross-sectional breadth; correlated instruments give the model little to
+    separate, and the IC will look weak even when the rotation is right
+  - Comparing IC against an equity run — the denominators are not the same
+
+draft:
+  name: ETF rotation
+  model: xgboost
+  handler: Alpha158
+  universe: etf_top100
+  benchmark: SPY
+  topk: 15
+  n_drop: 3

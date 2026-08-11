@@ -1,0 +1,24 @@
+id: no-rebalance
+title: Buy once, never rebalance
+family: shape
+tags: [top500, low-turnover, floor]
+
+rationale: >
+  Fifty names and nothing dropped, ever. The portfolio is whatever the model
+  ranked highest on the first day of the backtest and stays that way. It is the
+  turnover floor, and the run every active strategy has to justify itself against.
+
+good_for:
+  - The lower bound on trading cost, since there is almost none
+  - Testing whether the ranking has any staying power at all
+
+bad_for:
+  - Any signal meant to decay in days; it will be held for years
+  - Risk control, because nothing is ever sold no matter what it does
+draft:
+  name: Buy and hold the ranking
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  topk: 50
+  n_drop: 0

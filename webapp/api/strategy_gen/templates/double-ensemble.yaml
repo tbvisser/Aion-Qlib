@@ -1,0 +1,25 @@
+id: double-ensemble
+title: Sample reweighting and feature selection
+family: model-comparison
+tags: [double_ensemble, alpha158]
+
+rationale: >
+  DoubleEnsemble trains a sequence of models, reweighting the samples each one
+  found hard and reselecting features as it goes. It is by far the slowest thing
+  here to train. The question it answers is whether that machinery survives
+  trading costs, or whether it is fitting the training window more precisely
+  without predicting the test window any better.
+
+good_for:
+  - Noisy data where a single fit chases outliers
+  - Seeing whether added model complexity shows up after costs
+
+bad_for:
+  - Quick iteration — expect a long wait per run
+  - Diagnosis; when it underperforms, the reason is buried in six sub-models
+
+draft:
+  name: Double ensemble
+  model: double_ensemble
+  handler: Alpha158
+  universe: top500

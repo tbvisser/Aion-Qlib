@@ -1,0 +1,25 @@
+id: zero-cost-ceiling
+title: Zero-cost ceiling
+family: cost
+tags: [costs, upper-bound, top500]
+
+rationale: >
+  Every cost set to zero. Not a strategy — a ceiling. Whatever this run produces
+  is the most the signal could ever be worth, and the gap between it and the
+  baseline is exactly what the trading is costing you.
+
+good_for:
+  - Separating a weak signal from a signal eaten by turnover
+  - The numerator of any cost-sensitivity comparison
+
+bad_for:
+  - Any claim about what the strategy would actually do; nobody trades for free
+  - Comparison against another platform's result, which will include costs
+draft:
+  name: Zero-cost ceiling
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  open_cost: 0
+  close_cost: 0
+  min_cost: 0

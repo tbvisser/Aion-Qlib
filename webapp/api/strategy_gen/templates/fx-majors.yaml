@@ -1,0 +1,28 @@
+id: fx-majors
+title: FX pairs on the equity calendar
+family: universe
+tags: [fx, fx_top50, cross-asset]
+
+rationale: >
+  Currency pairs held in the same 252-day store as the equities, so they stop at
+  the weekend along with everything else. The benchmark is another pair rather
+  than an index, because comparing a currency book against SPY measures the
+  equity market, not the strategy.
+
+good_for:
+  - Seeing whether a signal built on equities survives on a different asset class
+  - A universe where the instruments genuinely move against each other
+
+bad_for:
+  - Any factor that divides by volume. FX bars here carry stretches of zero and
+    blank volume, Alpha158 divides by volume in six of its rolling families, and
+    the handler ships with no processor to clean an infinity out again
+  - Realistic cost modelling; a flat fee is nothing like an FX spread
+draft:
+  name: FX majors
+  model: lightgbm
+  handler: Alpha158
+  universe: fx_top50
+  benchmark: EURUSD
+  topk: 10
+  n_drop: 2

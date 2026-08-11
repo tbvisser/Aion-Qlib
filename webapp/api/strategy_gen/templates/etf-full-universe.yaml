@@ -1,0 +1,28 @@
+id: etf-full-universe
+title: Every ETF in the store
+family: universe
+tags: [etf, breadth, slow]
+
+rationale: >
+  The full ETF list rather than the top hundred, so leveraged, inverse, sector
+  and single-country funds are all in scope together. The book is widened to
+  fifty names because the universe contains many near-duplicates and a narrow
+  book would simply hold several versions of one bet.
+
+good_for:
+  - Breadth, when you want the model to find a corner you would not have listed
+  - Testing whether a signal needs liquid names or works on thin ones too
+
+bad_for:
+  - A quick iteration loop. This is the longest-running template in the set by a
+    wide margin, with thousands of instruments across every stored year
+  - Anyone reading the holdings expecting distinct bets; leveraged and unlevered
+    versions of one index can be picked side by side
+draft:
+  name: ETF breadth
+  model: lightgbm
+  handler: Alpha158
+  universe: etf
+  benchmark: SPY
+  topk: 50
+  n_drop: 5

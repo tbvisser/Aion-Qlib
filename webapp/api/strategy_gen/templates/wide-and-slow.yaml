@@ -1,0 +1,27 @@
+id: wide-and-slow
+title: Wide and slow
+family: shape
+tags: [top500, low-turnover, diversified]
+
+rationale: >
+  A hundred positions replacing two a day — twice the book of the baseline at
+  well under half its turnover. Costs scale with how often you trade, not with
+  how much you hold, so this is the cheap end of the same signal. If a strategy
+  only works at high turnover, comparing these two is how you find that out
+  before the costs do it for you.
+
+good_for:
+  - Isolating turnover as a variable while everything else stays fixed
+  - A signal that decays slowly and does not need daily rebalancing
+
+bad_for:
+  - Fast-decaying signals, which this holds long past their useful life
+  - Conviction; a hundred equal-weighted names dilutes the top of the ranking
+
+draft:
+  name: Wide and slow
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  topk: 100
+  n_drop: 2

@@ -1,0 +1,29 @@
+id: crypto-broad-365
+title: Broad crypto, every calendar day
+family: universe
+tags: [crypto, crypto_365, breadth]
+
+rationale: >
+  The whole crypto list on the 365-day store rather than the top hundred, with a
+  wider book to match. Most of these instruments are small, thinly traded and
+  short-lived, so this is the template that shows what a signal does when the
+  universe is mostly noise.
+
+good_for:
+  - Finding out whether a signal needs a liquid universe to work at all
+  - A book wide enough that no single instrument decides the outcome
+
+bad_for:
+  - Anything resembling an executable strategy; much of this universe cannot be
+    traded in size
+  - Factors with a long warm-up. Many of these instruments have less history
+    than the lookback, and qlib fills a short window rather than leaving it blank
+draft:
+  name: Broad crypto
+  model: lightgbm
+  handler: Alpha158
+  data_store: crypto_365
+  universe: crypto
+  benchmark: BTC-USD
+  topk: 30
+  n_drop: 5

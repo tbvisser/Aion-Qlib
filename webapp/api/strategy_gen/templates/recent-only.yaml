@@ -1,0 +1,28 @@
+id: recent-only
+title: Recent data only
+family: horizon
+tags: [top500, short-training, regimes]
+
+rationale: >
+  Four years of training and a single validation year, ending as late as the
+  store allows. Deliberately starved of history so that whatever it learns comes
+  from the current regime and nothing else.
+
+good_for:
+  - Checking whether a signal exists in today's market rather than in 2012's
+  - A quick loop; there is far less data to read and fit
+
+bad_for:
+  - Anything with a long warm-up. A factor needing a trading year of history
+    spends a quarter of this training window producing nothing
+  - Models that need many rows; four years of daily bars is not many
+draft:
+  name: Recent only
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  train_start: '2020-01-02'
+  train_end: '2023-12-29'
+  valid_start: '2024-01-02'
+  valid_end: '2024-12-31'
+  test_start: '2025-01-02'

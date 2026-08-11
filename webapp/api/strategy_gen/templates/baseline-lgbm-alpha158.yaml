@@ -1,0 +1,25 @@
+id: baseline-lgbm-alpha158
+title: Broad baseline
+family: baseline
+tags: [lightgbm, alpha158, top500]
+
+rationale: >
+  LightGBM on Alpha158 across the 500 largest names. This is the configuration
+  qlib's own published numbers come from, and it is the sensible thing to run
+  first: every other template here is a deliberate deviation from it, so this is
+  what you compare them against. Nothing about it is tuned to this data.
+
+good_for:
+  - A first run, and the reference every later run is measured against
+  - Seeing what the engine does end to end before changing anything
+
+bad_for:
+  - Telling you anything specific to your idea — it encodes no view at all
+  - Small or illiquid names; top500 is chosen by today's size, so it is
+    survivorship-flattered by construction
+
+draft:
+  name: Broad baseline
+  model: lightgbm
+  handler: Alpha158
+  universe: top500

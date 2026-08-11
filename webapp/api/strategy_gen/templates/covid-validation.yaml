@@ -1,0 +1,27 @@
+id: covid-validation
+title: Validated on the break
+family: horizon
+tags: [top500, regime-break, stress]
+
+rationale: >
+  Trains on the decade to the end of 2019 and validates on 2020 alone — the one
+  year in the store where market behaviour changed overnight. Model selection
+  therefore happens against the hardest year available rather than a calm one.
+
+good_for:
+  - Choosing a model that does not fall apart when conditions change
+  - Making the usual quiet validation window an explicit choice rather than a default
+
+bad_for:
+  - A representative estimate of ordinary conditions; 2020 was not ordinary
+  - Model families that need a stable validation signal to stop training sensibly
+draft:
+  name: Validated on the break
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  train_start: '2010-01-04'
+  train_end: '2019-12-31'
+  valid_start: '2020-01-02'
+  valid_end: '2020-12-31'
+  test_start: '2021-01-04'

@@ -1,0 +1,30 @@
+id: short-memory
+title: Short memory
+family: horizon
+tags: [regime, recent-data, top500]
+
+rationale: >
+  Trains on 2016-2021 instead of 2010-2021, deliberately forgetting the earlier
+  regime. The bet is that market structure changed and older data teaches the
+  model habits that no longer pay; the cost is a much shorter history to fit on
+  and a shorter validation year to judge it by. Run it against the baseline and
+  the difference is what a decade of extra history was worth.
+
+good_for:
+  - Testing whether old data helps or hurts on this universe
+  - A signal you believe is regime-dependent rather than structural
+
+bad_for:
+  - Statistical confidence; six training years and one validation year is thin
+  - Rare events, which mostly sit in the window this template throws away
+
+draft:
+  name: Short memory
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  train_start: '2016-01-01'
+  train_end: '2021-12-31'
+  valid_start: '2022-01-01'
+  valid_end: '2022-12-31'
+  test_start: '2023-01-01'

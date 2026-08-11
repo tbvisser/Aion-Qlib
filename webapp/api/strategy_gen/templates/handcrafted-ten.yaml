@@ -1,0 +1,45 @@
+id: handcrafted-ten
+title: Ten columns, hand-picked
+family: factors
+tags: [features, replace, interpretable]
+
+rationale: >
+  Replaces the handler entirely with ten columns chosen to cover trend, stretch,
+  momentum, volatility, money flow, volume surprise, candle shape and both sides
+  of the momentum-reversal pair. The model sees ten numbers instead of 158, so
+  every position it takes can be explained by naming a column.
+
+good_for:
+  - Understanding why a strategy holds what it holds
+  - A fast loop; ten columns train in a fraction of the handler's time
+
+bad_for:
+  - Raw predictive power, which is what those other 148 columns are for
+  - Anyone expecting the baseline's result from a tenth of its inputs
+draft:
+  name: Handcrafted ten
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  feature_mode: replace
+  features:
+    - name: PX_TO_SMA20
+      expression: "$close/(Mean($close,20)+1e-12) - 1"
+    - name: RSI_14_WILDER
+      expression: "100 - 100/(1 + EMA(Greater($close-Ref($close,1),0),0.0714285714)/(EMA(Greater(Ref($close,1)-$close,0),0.0714285714)+1e-12))"
+    - name: MACD_HIST_NORM
+      expression: "((EMA($close,12) - EMA($close,26)) - EMA((EMA($close,12) - EMA($close,26)),9))/($close+1e-12)"
+    - name: ATR_14_NORM
+      expression: "EMA((Greater($high,Ref($close,1)) - Less($low,Ref($close,1))),0.0714285714)/($close+1e-12)"
+    - name: BB_PCTB_20
+      expression: "($close - (Mean($close,20)-2*Std($close,20)))/(4*Std($close,20)+1e-12)"
+    - name: CMF_20
+      expression: "Sum(((($close-$low)-($high-$close))/($high-$low+1e-12)*$volume),20)/(Sum($volume,20)+1e-12)"
+    - name: VOL_Z_20
+      expression: "($volume - Mean($volume,20))/(Std($volume,20)+1e-12)"
+    - name: CLV
+      expression: "(($close-$low)-($high-$close))/($high-$low+1e-12)"
+    - name: MOM_12_1
+      expression: "Ref($close,21)/(Ref($close,252)+1e-12) - 1"
+    - name: REV_1M
+      expression: "-1 * ($close/(Ref($close,21)+1e-12) - 1)"

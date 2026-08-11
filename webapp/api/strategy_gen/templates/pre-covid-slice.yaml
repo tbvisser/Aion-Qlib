@@ -1,0 +1,28 @@
+id: pre-covid-slice
+title: Pre-2020 slice
+family: horizon
+tags: [top500, clean-period, comparison]
+
+rationale: >
+  Everything — train, validate and backtest — finishes before 2020. A clean
+  two-year test period with no pandemic in it, which makes it the control run for
+  any template whose window includes one.
+
+good_for:
+  - A comparison run that isolates the effect of the 2020 break
+  - Reading a backtest without one enormous event dominating the chart
+
+bad_for:
+  - Saying anything about how a strategy behaves now; it never sees recent data
+  - Robustness claims, since the period was chosen for being calm
+draft:
+  name: Pre-2020 slice
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  train_start: '2010-01-04'
+  train_end: '2016-12-30'
+  valid_start: '2017-01-03'
+  valid_end: '2017-12-29'
+  test_start: '2018-01-02'
+  test_end: '2019-12-31'

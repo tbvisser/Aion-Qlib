@@ -1,0 +1,27 @@
+id: crypto-us-calendar
+title: Crypto on the equity calendar
+family: universe
+tags: [crypto, calendar, comparison]
+
+rationale: >
+  The same hundred crypto instruments as the 365-day template, held in the
+  252-day store instead. Weekends are dropped rather than traded, and the
+  benchmark is SPY. Run it beside crypto-365 and the only thing that differs is
+  the calendar, which makes the calendar itself measurable.
+
+good_for:
+  - Isolating what the trading calendar alone does to a result
+  - Comparing crypto against an equity benchmark on equal footing
+
+bad_for:
+  - Describing how crypto actually trades; two days of every week are discarded
+  - Any read on weekend behaviour, which is exactly what this store cannot see
+draft:
+  name: Crypto on equity days
+  model: lightgbm
+  handler: Alpha158
+  data_store: us
+  universe: crypto_top100
+  benchmark: SPY
+  topk: 20
+  n_drop: 3

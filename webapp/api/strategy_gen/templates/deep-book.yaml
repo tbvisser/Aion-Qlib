@@ -1,0 +1,24 @@
+id: deep-book
+title: Deep book
+family: shape
+tags: [top500, diversified, low-conviction]
+
+rationale: >
+  Two hundred names out of five hundred, turning over ten a day. At that width
+  the portfolio is close to holding the universe, so most of the result comes
+  from what is excluded rather than from what is picked.
+
+good_for:
+  - A signal that is weak but broad, where concentration would just add variance
+  - Reducing the chance that one instrument decides the backtest
+
+bad_for:
+  - Demonstrating conviction; holding two fifths of the universe hides it
+  - Small accounts, where two hundred positions makes each one trivially small
+draft:
+  name: Deep book
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  topk: 200
+  n_drop: 10

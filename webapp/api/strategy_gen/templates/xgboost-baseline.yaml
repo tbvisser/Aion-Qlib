@@ -1,0 +1,23 @@
+id: xgboost-baseline
+title: XGBoost, same everything else
+family: model-comparison
+tags: [xgboost, alpha158, top500]
+
+rationale: >
+  XGBoost on the broad baseline's exact configuration, so the model is the only
+  thing that differs. XGBoost already appeared in the ETF template, but there the
+  universe changed too — which made it impossible to say which choice moved the
+  result.
+
+good_for:
+  - A clean one-variable comparison against the LightGBM baseline
+  - Completing the set, so every installed learner has a like-for-like run
+
+bad_for:
+  - Tuning conclusions; both models use the shipped parameters, not searched ones
+  - Any difference small enough to be seed noise between two boosted-tree fits
+draft:
+  name: XGBoost baseline
+  model: xgboost
+  handler: Alpha158
+  universe: top500

@@ -1,0 +1,27 @@
+id: index-rotation
+title: Index rotation
+family: universe
+tags: [index, index_top50, xgboost]
+
+rationale: >
+  World equity indices rather than single names. Each instrument is already a
+  diversified basket, so the model is choosing between markets instead of
+  between companies, and the usual single-stock noise is mostly gone.
+
+good_for:
+  - Asking which market to be in rather than which company
+  - A universe small enough to read every holding by name
+
+bad_for:
+  - Volume-based factors. Index bars carry long stretches of zero volume, which
+    reaches the model as an infinity because Alpha158 ships without a processor
+    that would remove one
+  - Any conclusion about single-stock selection; nothing here is a company
+draft:
+  name: Index rotation
+  model: xgboost
+  handler: Alpha158
+  universe: index_top50
+  benchmark: GSPC
+  topk: 10
+  n_drop: 2

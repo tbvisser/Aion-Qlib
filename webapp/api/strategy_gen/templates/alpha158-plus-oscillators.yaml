@@ -1,0 +1,32 @@
+id: alpha158-plus-oscillators
+title: Alpha158 plus three oscillators
+family: factors
+tags: [features, extend, alpha158]
+
+rationale: >
+  The baseline handler with three columns bolted on: a momentum oscillator, a
+  volatility measure and a money-flow reading. Extend rather than replace, so the
+  model still sees all 158 and the only question is whether these three add
+  anything the handler was missing.
+
+good_for:
+  - A first look at the feature canvas without giving up the baseline
+  - Testing a small idea where the comparison stays honest
+
+bad_for:
+  - Attribution. Three columns among 161 rarely move a result visibly, and when
+    they do it is hard to prove it was them
+  - Anyone hoping for a fast run; the handler still computes all 158
+draft:
+  name: Alpha158 plus oscillators
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  feature_mode: extend
+  features:
+    - name: RSI_14_WILDER
+      expression: "100 - 100/(1 + EMA(Greater($close-Ref($close,1),0),0.0714285714)/(EMA(Greater(Ref($close,1)-$close,0),0.0714285714)+1e-12))"
+    - name: ATR_14_NORM
+      expression: "EMA((Greater($high,Ref($close,1)) - Less($low,Ref($close,1))),0.0714285714)/($close+1e-12)"
+    - name: CMF_20
+      expression: "Sum(((($close-$low)-($high-$close))/($high-$low+1e-12)*$volume),20)/(Sum($volume,20)+1e-12)"

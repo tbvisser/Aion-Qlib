@@ -1,0 +1,24 @@
+id: catboost-baseline
+title: CatBoost, same everything else
+family: model-comparison
+tags: [catboost, alpha158]
+
+rationale: >
+  A third gradient-boosting implementation on identical data, features and
+  windows. Any gap between this and the LightGBM baseline is implementation and
+  hyperparameters, not signal — which is worth knowing before you read a small
+  difference between two models as a finding about the market.
+
+good_for:
+  - Calibrating how much of a result is the library rather than the idea
+  - A second opinion when a LightGBM run looks surprisingly good or bad
+
+bad_for:
+  - Adding anything new; it sees exactly what the baseline sees
+  - Training time, which is materially longer than LightGBM's
+
+draft:
+  name: CatBoost baseline
+  model: catboost
+  handler: Alpha158
+  universe: top500

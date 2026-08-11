@@ -1,0 +1,28 @@
+id: long-memory
+title: Long memory
+family: horizon
+tags: [top500, long-training, regimes]
+
+rationale: >
+  Trains on everything the store holds up to the end of 2021 — twelve years
+  spanning two crashes, a zero-rate decade and a pandemic. The opposite bet to
+  short-memory: that the market repeats itself often enough for old data to
+  still be worth something.
+
+good_for:
+  - Models with many parameters, which need the rows
+  - Asking whether a pattern is durable rather than recent
+
+bad_for:
+  - A market whose structure has genuinely changed; old regimes then act as noise
+  - Fast iteration, because every run reads the full history
+draft:
+  name: Long memory
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  train_start: '2010-01-04'
+  train_end: '2021-12-31'
+  valid_start: '2022-01-03'
+  valid_end: '2022-12-30'
+  test_start: '2023-01-03'

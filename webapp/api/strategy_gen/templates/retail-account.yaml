@@ -1,0 +1,28 @@
+id: retail-account
+title: Retail-sized account
+family: cost
+tags: [costs, account, small]
+
+rationale: >
+  The only template that changes the account size. Every other one trades a
+  hundred million, where the per-order floor is a rounding error; on a hundred
+  thousand spread across fifty names, that same floor is charged against
+  positions of a couple of thousand each and starts deciding the outcome.
+
+good_for:
+  - Finding out whether a strategy survives at a size a person could actually fund
+  - Seeing the per-order minimum do something instead of nothing
+
+bad_for:
+  - A wide book. Splitting a small account across many names makes every position
+    small enough for the floor to dominate
+  - Institutional conclusions; capacity and market impact work the other way around
+draft:
+  name: Retail account
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  account: 100000
+  open_cost: 0.001
+  close_cost: 0.001
+  min_cost: 1

@@ -1,0 +1,12 @@
+# Test-only dependencies for the AION webapp.
+#   pip install -r webapp/requirements.txt -r webapp/requirements-dev.txt
+#
+# statsmodels is intentionally not a runtime dependency. webapp/api/macro_analytics.py
+# implements HAC/Newey-West in ~40 lines of numpy precisely so the API does not need
+# it; test_macro_analytics.py then pins that implementation against the real thing.
+# Runtime code must never import it.
+statsmodels==0.14.6
+
+# pytest also arrives via the root pyproject's [test] extra; pinned here so the
+# webapp suite is runnable from this file alone.
+pytest==9.1.1

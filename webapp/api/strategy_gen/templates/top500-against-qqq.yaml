@@ -1,0 +1,24 @@
+id: top500-against-qqq
+title: The same book, a harder benchmark
+family: universe
+tags: [top500, benchmark, comparison]
+
+rationale: >
+  Identical to the broad baseline except that returns are compared against QQQ
+  instead of SPY. Nothing about the strategy changes; only the bar it is measured
+  against does. Excess return is a subtraction, and this template exists to make
+  that visible.
+
+good_for:
+  - Seeing how much of an excess return was really the choice of benchmark
+  - A fair comparison for any book that leans technology-heavy
+
+bad_for:
+  - Being read as a different strategy. The holdings are the same as the baseline
+  - Broad-market attribution; QQQ is one sector wearing an index's clothes
+draft:
+  name: Top 500 vs QQQ
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  benchmark: QQQ

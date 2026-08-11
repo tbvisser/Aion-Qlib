@@ -1,0 +1,94 @@
+family: trend
+label: Trend & moving averages
+description: >
+  Where price sits relative to its own smoothed history, and how straight the
+  recent path has been. Every entry is a ratio or a normalised slope rather than
+  a raw average, because a moving average in dollars is not comparable across
+  instruments and a cross-sectional model needs it to be.
+
+factors:
+  - name: SMA_RATIO_5_20
+    expression: "Mean($close,5)/(Mean($close,20)+1e-12) - 1"
+    summary: Fast simple average against the slow one. Positive means the short trend leads.
+    window: 20
+    tags: [trend, ratio, fast]
+
+  - name: SMA_RATIO_10_50
+    expression: "Mean($close,10)/(Mean($close,50)+1e-12) - 1"
+    summary: Two-week average against ten-week. The medium-horizon version of the same crossover.
+    window: 50
+    tags: [trend, ratio]
+
+  - name: SMA_RATIO_50_200
+    expression: "Mean($close,50)/(Mean($close,200)+1e-12) - 1"
+    summary: The golden-cross ratio, as a number instead of a yes/no.
+    window: 200
+    tags: [trend, ratio, slow]
+    caveat: >
+      Needs 200 trading days before it means anything. qlib fills a short window
+      from whatever rows exist, so on a young instrument this returns a confident
+      number computed from a handful of bars.
+
+  - name: PX_TO_SMA20
+    expression: "$close/(Mean($close,20)+1e-12) - 1"
+    summary: How far today closed above or below its own 20-day average.
+    window: 20
+    tags: [trend, stretch]
+
+  - name: PX_TO_SMA200
+    expression: "$close/(Mean($close,200)+1e-12) - 1"
+    summary: Distance from the 200-day average — the long-horizon stretch.
+    window: 200
+    tags: [trend, stretch, slow]
+    caveat: Needs 200 trading days of history before it settles.
+
+  - name: EMA_RATIO_12_26
+    expression: "EMA($close,12)/(EMA($close,26)+1e-12) - 1"
+    summary: MACD's two exponential averages as a scale-free ratio.
+    window: 26
+    tags: [trend, ratio, ema]
+
+  - name: PX_TO_WMA10
+    expression: "$close/(WMA($close,10)+1e-12) - 1"
+    summary: Close against a linearly weighted 10-day average, which leans on recent days.
+    window: 10
+    tags: [trend, stretch, weighted]
+
+  - name: TREND_SLOPE_20
+    expression: "Slope($close,20)/($close+1e-12)"
+    summary: Slope of a straight line fitted to the last 20 closes, as a share of price.
+    window: 20
+    tags: [trend, regression]
+
+  - name: TREND_R2_20
+    expression: "Rsquare($close,20)"
+    summary: How straight that 20-day line is, from 0 to 1. High means an orderly move.
+    window: 20
+    tags: [trend, regression, quality]
+
+  - name: TREND_RESI_20
+    expression: "Resi($close,20)/($close+1e-12)"
+    summary: Today's distance from the fitted 20-day trend line, as a share of price.
+    window: 20
+    tags: [trend, regression, stretch]
+
+  - name: MA20_TURN_5
+    expression: "Delta(Mean($close,20),5)/(Mean($close,20)+1e-12)"
+    summary: How much the 20-day average itself moved over the last week — trend acceleration.
+    window: 20
+    tags: [trend, acceleration]
+
+  - name: TRIX_15
+    expression: "Delta(EMA(EMA(EMA($close,15),15),15),1)/(EMA(EMA(EMA($close,15),15),15)+1e-12)"
+    summary: One-day rate of change of a triple-smoothed 15-day average. Filters noise hard.
+    window: 15
+    tags: [trend, oscillator, smoothed]
+    caveat: >
+      Three nested EMAs reach much further back than the 15 in the name. Read
+      the warm-up figure, not the window.
+
+  - name: PPO_12_26
+    expression: "(EMA($close,12) - EMA($close,26))/(EMA($close,26)+1e-12)"
+    summary: Percentage price oscillator — MACD divided by the slow average, so it compares across instruments.
+    window: 26
+    tags: [trend, oscillator, ema]

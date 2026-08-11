@@ -1,0 +1,121 @@
+family: volume
+label: Volume & liquidity
+description: >
+  Where the traded volume went, and how much it costs to move the price. The
+  accumulation family (OBV, PVT, money flow) is written as a bounded window
+  normalised by traded volume rather than as the running total a chart would
+  show — a cumulative sum needs unbounded history, whose value depends on where
+  the query starts, and the library refuses those. The `$vwap` column these
+  stores carry is typical price, (high+low+close)/3, written at ingest because
+  no source here has an intraday volume-weighted price — so the weighting by
+  volume is done in the expression below rather than trusted to the column.
+
+factors:
+  - name: OBV_20
+    expression: "Sum(Sign($change)*$volume,20)/(Sum($volume,20)+1e-12)"
+    summary: On-balance volume over 20 days, as a share of volume traded. From -1 (all down days) to 1.
+    window: 20
+    tags: [accumulation, bounded]
+    caveat: >
+      A 20-day window normalised by traded volume, not the running total you
+      would see on a chart. The cumulative form needs unbounded history.
+
+  - name: CMF_20
+    expression: "Sum(((($close-$low)-($high-$close))/($high-$low+1e-12)*$volume),20)/(Sum($volume,20)+1e-12)"
+    summary: Chaikin money flow — volume weighted by where each day closed in its own range, -1 to 1.
+    window: 20
+    tags: [accumulation, bounded, money-flow]
+
+  - name: CHAIKIN_OSC_3_10
+    expression: "(EMA(((($close-$low)-($high-$close))/($high-$low+1e-12)*$volume),3) - EMA(((($close-$low)-($high-$close))/($high-$low+1e-12)*$volume),10))/(Mean($volume,20)+1e-12)"
+    summary: Fast minus slow money-flow volume, normalised by typical volume — accumulation turning.
+    window: 20
+    tags: [accumulation, money-flow, crossover]
+
+  - name: MFI_14
+    expression: "Sum(If((($high+$low+$close)/3) > Ref((($high+$low+$close)/3),1), (($high+$low+$close)/3)*$volume, 0),14)/(Sum((($high+$low+$close)/3)*$volume,14)+1e-12)"
+    summary: Money flow index — the share of dollar volume that traded on up days, 0 to 1.
+    window: 14
+    tags: [money-flow, bounded]
+
+  - name: VWAP_PROXY_20
+    expression: "Sum((($high+$low+$close)/3)*$volume,20)/(Sum($volume,20)+1e-12)"
+    summary: Volume-weighted typical price over 20 days. A stand-in for VWAP, which no source here carries.
+    window: 20
+    tags: [price, volume-weighted, proxy]
+    caveat: >
+      Built from ($high+$low+$close)/3 weighted by daily volume, not from a real
+      intraday VWAP. This is deliberately not `$vwap`: that column is typical
+      price with no volume weighting at all, so this expression is the closer of
+      the two approximations.
+
+  - name: PX_TO_VWAP_20
+    expression: "$close/(Sum((($high+$low+$close)/3)*$volume,20)/(Sum($volume,20)+1e-12)+1e-12) - 1"
+    summary: How far the close sits above or below where the volume actually traded.
+    window: 20
+    tags: [stretch, volume-weighted, proxy]
+
+  - name: VOL_Z_20
+    expression: "($volume - Mean($volume,20))/(Std($volume,20)+1e-12)"
+    summary: Today's volume in standard deviations from its own 20-day norm.
+    window: 20
+    tags: [volume, surprise]
+
+  - name: VOL_TREND_5_60
+    expression: "Mean($volume,5)/(Mean($volume,60)+1e-12)"
+    summary: This week's volume against the quarterly norm. Above 1 means interest is picking up.
+    window: 60
+    tags: [volume, ratio, regime]
+
+  - name: LOG_DOLLAR_VOL_20
+    expression: "Log(Mean($close*$volume,20)+1)"
+    summary: Log of average daily dollar volume — a plain size and liquidity proxy.
+    window: 20
+    tags: [liquidity, size]
+
+  - name: AMIHUD_20
+    expression: "Log(Mean(Abs($change)/($close*$volume+1e-12),20) + 1e-12)"
+    summary: Amihud illiquidity — how much price moves per dollar traded, logged. High means thin.
+    window: 20
+    tags: [liquidity, illiquidity]
+    caveat: >
+      The raw ratio spans many orders of magnitude, so it is served logged. On
+      an instrument with zero-volume bars the guarded denominator makes this very
+      large rather than infinite.
+
+  - name: PVT_20
+    expression: "Sum($change*$volume,20)/(Sum($volume,20)+1e-12)"
+    summary: Price-volume trend over 20 days, normalised by volume traded.
+    window: 20
+    tags: [accumulation, money-flow]
+    caveat: A bounded window, not the running total the classic indicator uses.
+
+  - name: PX_VOL_CORR_20
+    expression: "Corr($close,Log($volume+1),20)"
+    summary: Correlation of price and log volume over 20 days. Positive means rallies come with volume.
+    window: 20
+    tags: [volume, correlation]
+
+  - name: RET_VOL_CORR_20
+    expression: "Corr($change,Log($volume+1),20)"
+    summary: Correlation of daily return and log volume — whether volume confirms direction.
+    window: 20
+    tags: [volume, correlation]
+
+  - name: DOWN_VOLUME_SHARE_20
+    expression: "Sum(If($change < 0, $volume, 0),20)/(Sum($volume,20)+1e-12)"
+    summary: Share of the last month's volume that traded on down days, 0 to 1.
+    window: 20
+    tags: [volume, bounded, distribution]
+
+  - name: VOL_SKEW_20
+    expression: "Skew($volume,20)"
+    summary: Skewness of daily volume — high means a few enormous days among quiet ones.
+    window: 20
+    tags: [volume, distribution]
+
+  - name: EOM_14
+    expression: "Mean((($high+$low)/2 - (Ref($high,1)+Ref($low,1))/2)/(($high-$low)+1e-12)*(Mean($volume,14)/($volume+1e-12)),14)"
+    summary: Ease of movement — how far the midpoint travelled per unit of volume.
+    window: 14
+    tags: [volume, efficiency]

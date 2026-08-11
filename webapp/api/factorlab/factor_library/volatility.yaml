@@ -1,0 +1,130 @@
+family: volatility
+label: Volatility & range
+description: >
+  How much the instrument moves, measured from returns, from the daily bar, or
+  from the distance to a recent extreme. Every entry is normalised by price or is
+  already unitless, so a $10 stock and a $1,000 one are comparable. Return
+  statistics read `$change`, the store's adjusted return, rather than
+  reconstructing it from closes — the two differ around blanked bars.
+
+factors:
+  - name: ATR_14_NORM
+    expression: "EMA((Greater($high,Ref($close,1)) - Less($low,Ref($close,1))),0.0714285714)/($close+1e-12)"
+    summary: Wilder's average true range over 14 days, as a share of price.
+    window: 14
+    tags: [range, wilder, normalised]
+    caveat: >
+      Wilder smoothing is an EWM with alpha = 1/14, written as the float window
+      0.0714285714 — qlib reads a window below 1 as an alpha. Its reach is far
+      longer than 14 days.
+
+  - name: TR_PCT
+    expression: "(Greater($high,Ref($close,1)) - Less($low,Ref($close,1)))/($close+1e-12)"
+    summary: Today's true range as a share of price, including any overnight gap.
+    window: 1
+    tags: [range, normalised, daily]
+
+  - name: VOL_5
+    expression: "Std($change,5)"
+    summary: One-week realised volatility of daily returns.
+    window: 5
+    tags: [volatility, fast]
+
+  - name: VOL_20
+    expression: "Std($change,20)"
+    summary: One-month realised volatility of daily returns.
+    window: 20
+    tags: [volatility]
+
+  - name: VOL_60
+    expression: "Std($change,60)"
+    summary: One-quarter realised volatility of daily returns.
+    window: 60
+    tags: [volatility, slow]
+
+  - name: VOL_RATIO_5_60
+    expression: "Std($change,5)/(Std($change,60)+1e-12)"
+    summary: Short volatility against long. Above 1 means the instrument is unusually active right now.
+    window: 60
+    tags: [volatility, ratio, regime]
+
+  - name: VOL_OF_VOL_60
+    expression: "Std(Std($change,20),60)"
+    summary: How unstable the volatility itself has been over the last quarter.
+    window: 60
+    tags: [volatility, regime]
+
+  - name: BB_PCTB_20
+    expression: "($close - (Mean($close,20)-2*Std($close,20)))/(4*Std($close,20)+1e-12)"
+    summary: Bollinger %B — where the close sits between the bands, 0 at the lower and 1 at the upper.
+    window: 20
+    tags: [bands, bounded, stretch]
+
+  - name: BB_WIDTH_20
+    expression: "4*Std($close,20)/(Mean($close,20)+1e-12)"
+    summary: Bollinger bandwidth — how wide the two-sigma channel is, as a share of the average.
+    window: 20
+    tags: [bands, volatility]
+
+  - name: KELTNER_POS_20
+    expression: "($close - EMA($close,20))/(2*EMA((Greater($high,Ref($close,1)) - Less($low,Ref($close,1))),0.05)+1e-12)"
+    summary: Position inside a Keltner channel — distance from the 20-day EMA in units of average true range.
+    window: 20
+    tags: [bands, stretch, range]
+    caveat: >
+      The range leg is Wilder-smoothed with alpha = 1/20, written as the float
+      window 0.05. That reaches back much further than the 20 in the name — read
+      the warm-up figure, which is over a trading year.
+
+  - name: DONCHIAN_WIDTH_20
+    expression: "(Max($high,20)-Min($low,20))/($close+1e-12)"
+    summary: Width of the 20-day high-low channel, as a share of price.
+    window: 20
+    tags: [range, bands]
+
+  - name: ULCER_14
+    expression: "Power(Mean(Power($close/(Max($close,14)+1e-12)-1,2),14),0.5)"
+    summary: Ulcer index — root-mean-square drawdown from the running 14-day high. Only downside counts.
+    window: 14
+    tags: [drawdown, downside]
+
+  - name: DOWNSIDE_VOL_20
+    expression: "Power(Mean(Power(Less($change,0),2),20),0.5)"
+    summary: Volatility of down days only, over one month.
+    window: 20
+    tags: [volatility, downside]
+
+  - name: UPSIDE_VOL_20
+    expression: "Power(Mean(Power(Greater($change,0),2),20),0.5)"
+    summary: Volatility of up days only, over one month.
+    window: 20
+    tags: [volatility, upside]
+
+  - name: VOL_SKEW_RATIO_20
+    expression: "Power(Mean(Power(Greater($change,0),2),20),0.5)/(Power(Mean(Power(Less($change,0),2),20),0.5)+1e-12)"
+    summary: Upside volatility over downside. Above 1 means the big moves have been upward.
+    window: 20
+    tags: [volatility, asymmetry]
+
+  - name: PARKINSON_20
+    expression: "Power(Mean(Power(Log($high/($low+1e-12)),2),20)/2.7725887222,0.5)"
+    summary: Parkinson volatility — estimated from the daily high-low range rather than from closes.
+    window: 20
+    tags: [volatility, range, estimator]
+    caveat: The 2.7725887222 divisor is 4·ln2, the Parkinson scaling constant.
+
+  - name: GK_VAR_20
+    expression: "Mean(0.5*Power(Log($high/($low+1e-12)),2) - 0.3862943611*Power(Log($close/($open+1e-12)),2),20)"
+    summary: Garman-Klass variance — a range-and-open estimator, served as a variance.
+    window: 20
+    tags: [volatility, range, estimator]
+    caveat: >
+      Deliberately not square-rooted. The Garman-Klass estimator can come out
+      negative on a short or quiet sample, and a square root of a negative is
+      NaN with nothing downstream to catch it.
+
+  - name: DD_FROM_60D_HIGH
+    expression: "$close/(Max($close,60)+1e-12) - 1"
+    summary: How far below the 60-day closing high the instrument is. Zero means it is at the high.
+    window: 60
+    tags: [drawdown, downside, extremes]
