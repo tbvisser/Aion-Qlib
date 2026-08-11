@@ -30,7 +30,7 @@ describe('nav shape', () => {
     // blurb is the spec, so an unbuilt item without one is a bug.
     const soon = items.filter((i) => !i.built)
     expect(soon.map((i) => i.key)).toEqual([
-      'inbox', 'documents', 'explorer', 'corpus',
+      'inbox', 'explorer', 'corpus',
       'investors', 'tl-shadow',
     ])
     for (const item of soon) {

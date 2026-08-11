@@ -69,7 +69,7 @@ export const mainNavSections: NavSection[] = [
     heading: 'Knowledge',
     items: [
       {
-        key: 'documents', label: 'Documents', icon: Folder, route: '/documents',
+        key: 'documents', label: 'Documents', icon: Folder, route: '/documents', built: true,
         blurb:
           'Research notes and filings, uploaded and attached to a strategy, portfolio or instrument. ' +
           'No backend for this yet.',
