@@ -31,7 +31,7 @@ describe('nav shape', () => {
     const soon = items.filter((i) => !i.built)
     expect(soon.map((i) => i.key)).toEqual([
       'inbox', 'documents', 'explorer', 'corpus',
-      'investors', 'tl-shadow', 'tl-roster',
+      'investors', 'tl-shadow',
     ])
     for (const item of soon) {
       expect(item.blurb, `${item.key} has no blurb`).toBeTruthy()

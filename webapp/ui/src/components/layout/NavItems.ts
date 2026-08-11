@@ -123,7 +123,7 @@ export const mainNavSections: NavSection[] = [
           'between the two. Needs a scheduler; no backend for this yet.',
       },
       {
-        key: 'tl-roster', label: 'Agents & Skills', icon: Bot, route: '/lab/roster',
+        key: 'tl-roster', label: 'Agents & Skills', icon: Bot, route: '/lab/roster', built: true,
         blurb:
           "The assistant's tool roster, made manageable. Eight tools across the general and builder " +
           'profiles already exist and are already reported by the chat config endpoint; this page ' +
