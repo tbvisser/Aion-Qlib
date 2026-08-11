@@ -16,6 +16,7 @@ import { PortfoliosPage } from '@/pages/PortfoliosPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { SkillsPage } from '@/features/rag/pages/SkillsPage'
 import { DocumentsPage } from '@/features/rag/pages/DocumentsPage'
+import { CorpusPage } from '@/features/rag/pages/CorpusPage'
 
 // Every nav destination that isn't built here still gets a route, so the
 // sidebar can carry the platform's full navigation without dead links.
@@ -57,6 +58,8 @@ export default function App() {
           <Route path="/lab/roster/:skillId" element={<SkillsPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/documents/:folderId" element={<DocumentsPage />} />
+          <Route path="/corpus" element={<CorpusPage />} />
+          <Route path="/corpus/:documentId" element={<CorpusPage />} />
           <Route path="/markets" element={<MarketsPage />} />
           <Route path="/macro" element={<MacroDeskPage />} />
           <Route path="/book" element={<PortfoliosPage />} />

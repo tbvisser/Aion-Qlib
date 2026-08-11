@@ -82,7 +82,7 @@ export const mainNavSections: NavSection[] = [
           'behaviour and event studies for one subject at a time.',
       },
       {
-        key: 'corpus', label: 'Corpus', icon: Library, route: '/corpus',
+        key: 'corpus', label: 'Corpus', icon: Library, route: '/corpus', built: true,
         blurb:
           'The indexed text behind the assistant: sources, chunks, embeddings, and which of them a ' +
           'given answer was drawn from. No backend for this yet.',
