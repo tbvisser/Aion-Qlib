@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { MessageSquarePlus, Trash2, Pencil, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,6 +18,7 @@ import { supabase } from '@/lib/supabase'
 import type { Thread } from '@/features/rag/types'
 import { cn } from '@/lib/utils'
 import { useDebouncedValue } from '@/features/rag/hooks/useDebouncedValue'
+import { formatRelativeDay } from '@/features/rag/lib/dates'
 
 const PAGE_SIZE = 50
 
@@ -26,13 +27,7 @@ interface ThreadListProps {
   onSelectThread: (threadId: string) => void
 }
 
-export interface ThreadListRef {
-  updateThreadTitle: (threadId: string, title: string) => void
-  addThread: (thread: Thread) => void
-}
-
-export const ThreadList = forwardRef<ThreadListRef, ThreadListProps>(
-  function ThreadList({ selectedThreadId, onSelectThread }, ref) {
+export function ThreadList({ selectedThreadId, onSelectThread }: ThreadListProps) {
   const [threads, setThreads] = useState<Thread[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -53,17 +48,6 @@ export const ThreadList = forwardRef<ThreadListRef, ThreadListProps>(
   // Synchronous re-entrancy guard — state-based loadingMore can be bypassed by
   // back-to-back IntersectionObserver firings before React commits the update.
   const isLoadingMoreRef = useRef(false)
-
-  useImperativeHandle(ref, () => ({
-    updateThreadTitle: (threadId: string, title: string) => {
-      setThreads(prev => prev.map(t =>
-        t.id === threadId ? { ...t, title } : t
-      ))
-    },
-    addThread: (thread: Thread) => {
-      setThreads(prev => [thread, ...prev])
-    }
-  }))
 
   // Initial load + reload whenever the debounced search term changes
   useEffect(() => {
@@ -200,6 +184,96 @@ export const ThreadList = forwardRef<ThreadListRef, ThreadListProps>(
 
   const deletingSelectedThread = Boolean(threadToDelete && deletingThreadId === threadToDelete.id)
 
+  // Day buckets over the pages loaded so far. The server returns threads in
+  // recency order, so walking the list and starting a bucket whenever the day
+  // label changes is enough â€” a page appended at the bottom either extends the
+  // last bucket or opens a new one, and never has to reorder what's above it.
+  const threadsByDay = useMemo(() => {
+    const groups: { label: string; threads: Thread[] }[] = []
+    for (const thread of threads) {
+      const label = formatRelativeDay(thread.updated_at)
+      const current = groups[groups.length - 1]
+      if (current && current.label === label) current.threads.push(thread)
+      else groups.push({ label, threads: [thread] })
+    }
+    return groups
+  }, [threads])
+
+  const renderThreadRow = (thread: Thread) => {
+    const isEditing = editingThreadId === thread.id
+    return (
+      <a
+        key={thread.id}
+        href={isEditing ? undefined : `/dashboard/${thread.id}`}
+        onClick={(e) => {
+          if (isEditing) {
+            e.preventDefault()
+            return
+          }
+          if (e.ctrlKey || e.metaKey || e.shiftKey) return
+          e.preventDefault()
+          onSelectThread(thread.id)
+        }}
+        className={cn(
+          "group flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors no-underline text-foreground",
+          selectedThreadId === thread.id
+            ? "bg-accent/80 shadow-sm"
+            : "hover:bg-accent/50"
+        )}
+      >
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          {isEditing ? (
+            <InlineEdit
+              value={thread.title}
+              onSave={(newTitle) => handleRenameThread(thread.id, newTitle)}
+              onCancel={() => setEditingThreadId(null)}
+            />
+          ) : (
+            <>
+              <span className="truncate">{thread.title}</span>
+              {/* Grouped rows already sit under a day header; the per-row
+                  date only earns its place in the flat search list. */}
+              {isSearching && (
+                <span className="truncate text-xs text-muted-foreground">
+                  {formatRelativeDay(thread.updated_at)}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+        {!isEditing && (
+          // Collapsed to zero width at rest so the title can use the
+          // full row; expands (and fades in) on hover/focus, letting
+          // the title truncate to make room for the actions.
+          <div className="flex shrink-0 items-center gap-0.5 overflow-hidden max-w-0 pl-1 opacity-0 transition-all duration-200 group-hover:max-w-[4.5rem] group-hover:opacity-100 focus-within:max-w-[4.5rem] focus-within:opacity-100">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 rounded-lg hover:bg-accent transition-colors duration-200"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setEditingThreadId(thread.id)
+              }}
+              aria-label="Rename thread"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors duration-200"
+              onClick={(e) => handleRequestDeleteThread(e, thread)}
+              aria-label="Delete thread"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+      </a>
+    )
+  }
+
   return (
     <>
     <div className="flex h-full flex-col">
@@ -249,73 +323,25 @@ export const ThreadList = forwardRef<ThreadListRef, ThreadListProps>(
           </div>
         ) : (
           <>
-            <div className="space-y-0.5">
-              {threads.map((thread) => {
-                const isEditing = editingThreadId === thread.id
-                return (
-                <a
-                  key={thread.id}
-                  href={isEditing ? undefined : `/chats/${thread.id}`}
-                  onClick={(e) => {
-                    if (isEditing) {
-                      e.preventDefault()
-                      return
-                    }
-                    if (e.ctrlKey || e.metaKey || e.shiftKey) return
-                    e.preventDefault()
-                    onSelectThread(thread.id)
-                  }}
-                  className={cn(
-                    "group flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-colors no-underline text-foreground",
-                    selectedThreadId === thread.id
-                      ? "bg-accent/80 shadow-sm"
-                      : "hover:bg-accent/50"
-                  )}
-                >
-                  <div className="flex min-w-0 items-center gap-2.5 flex-1">
-                    {isEditing ? (
-                      <InlineEdit
-                        value={thread.title}
-                        onSave={(newTitle) => handleRenameThread(thread.id, newTitle)}
-                        onCancel={() => setEditingThreadId(null)}
-                      />
-                    ) : (
-                      <span className="truncate">{thread.title}</span>
-                    )}
-                  </div>
-                  {!isEditing && (
-                    // Collapsed to zero width at rest so the title can use the
-                    // full row; expands (and fades in) on hover/focus, letting
-                    // the title truncate to make room for the actions.
-                    <div className="flex shrink-0 items-center gap-0.5 overflow-hidden max-w-0 pl-1 opacity-0 transition-all duration-200 group-hover:max-w-[4.5rem] group-hover:opacity-100 focus-within:max-w-[4.5rem] focus-within:opacity-100">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0 rounded-lg hover:bg-accent transition-colors duration-200"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          setEditingThreadId(thread.id)
-                        }}
-                        aria-label="Rename thread"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors duration-200"
-                        onClick={(e) => handleRequestDeleteThread(e, thread)}
-                        aria-label="Delete thread"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+            {/* Search results are a relevance list, not a timeline: day
+                headers over an arbitrary slice of history would imply the
+                matches are consecutive. Flat while searching. */}
+            {isSearching ? (
+              <div className="space-y-0.5">
+                {threads.map(renderThreadRow)}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {threadsByDay.map((group) => (
+                  <div key={group.label} className="space-y-0.5">
+                    <div className="px-4 pb-0.5 text-xs font-medium text-muted-foreground/80">
+                      {group.label}
                     </div>
-                  )}
-                </a>
-                )
-              })}
-            </div>
+                    {group.threads.map(renderThreadRow)}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {hasMore && (
               <div ref={sentinelRef} className="flex justify-center py-3">
@@ -376,4 +402,4 @@ export const ThreadList = forwardRef<ThreadListRef, ThreadListProps>(
     </AlertDialog>
     </>
   )
-})
+}
