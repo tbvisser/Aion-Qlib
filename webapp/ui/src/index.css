@@ -269,3 +269,94 @@
     overflow: visible !important;
   }
 }
+
+/* ---- Ported from Aion-RAG (the vendored rag/ frontend) ---- */
+
+/* Light theme "island": redeclares the light tokens so a subtree renders
+   dark-on-light even while the app is in dark mode. CSS custom properties
+   resolve by proximity, so descendants pick these up over the .dark values
+   set higher up. Used by the web citation snapshot's white "page". Token
+   values are THIS app's light palette, not upstream's. */
+.citation-web-page {
+  --background: 45 30% 97%;
+  --foreground: 165 60% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 165 60% 8%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 165 60% 8%;
+  --primary: 138 61% 68%;
+  --primary-foreground: 165 60% 8%;
+  --secondary: 45 22% 95%;
+  --secondary-foreground: 165 60% 8%;
+  --muted: 45 22% 95%;
+  --muted-foreground: 40 8% 45%;
+  --accent: 138 40% 92%;
+  --accent-foreground: 165 60% 12%;
+  --border: 44 16% 90%;
+  --input: 44 16% 90%;
+  color: hsl(var(--foreground));
+}
+.citation-web-page .prose {
+  --tw-prose-body: hsl(var(--foreground));
+  --tw-prose-headings: hsl(var(--foreground));
+  --tw-prose-bold: hsl(var(--foreground));
+  --tw-prose-links: hsl(var(--primary));
+  --tw-prose-bullets: hsl(var(--muted-foreground));
+  --tw-prose-counters: hsl(var(--muted-foreground));
+}
+/* Highlighter-yellow cited passage on the white page. */
+.citation-web-page mark[data-citation-target="active"] {
+  background-color: rgb(253 230 138 / 0.85); /* amber-200 */
+  color: hsl(var(--foreground));
+}
+
+/* Markdown rendered on a white "page" sheet (Documents -> Text tab, and the
+   PDF citation -> Text tab). The sheet stays white even in dark mode like a
+   PDF page render, so the ink is pinned to dark values regardless of theme.
+   Placed after the .prose rules above so it wins on source order. */
+.prose-page {
+  --tw-prose-body: hsl(0 0% 13%);
+  --tw-prose-headings: hsl(0 0% 9%);
+  --tw-prose-lead: hsl(0 0% 25%);
+  --tw-prose-links: hsl(var(--primary));
+  --tw-prose-bold: hsl(0 0% 9%);
+  --tw-prose-counters: hsl(0 0% 35%);
+  --tw-prose-bullets: hsl(0 0% 55%);
+  --tw-prose-hr: hsl(0 0% 88%);
+  --tw-prose-quotes: hsl(0 0% 20%);
+  --tw-prose-quote-borders: hsl(0 0% 88%);
+  --tw-prose-captions: hsl(0 0% 40%);
+  --tw-prose-code: hsl(0 0% 13%);
+  --tw-prose-pre-bg: hsl(0 0% 96%);
+  --tw-prose-pre-code: hsl(0 0% 13%);
+  --tw-prose-th-borders: hsl(0 0% 80%);
+  --tw-prose-td-borders: hsl(0 0% 88%);
+}
+
+.prose-page pre code {
+  color: hsl(0 0% 13%);
+}
+
+.prose-page code:not(pre code) {
+  background-color: hsl(0 0% 93%);
+  color: hsl(0 0% 13%);
+}
+
+/* A4-shaped markdown sheets used in citation document previews. The frame is a
+   container so the sheet can keep A4 proportions at the actual panel width,
+   while still growing taller if the rendered markdown needs more space. */
+.document-a4-frame {
+  container-type: inline-size;
+  width: min(100%, 794px);
+}
+
+.document-a4-sheet {
+  box-sizing: border-box;
+  min-height: calc(100cqw * 297 / 210);
+  padding: clamp(1.5rem, 6cqw, 3rem) clamp(1.25rem, 5cqw, 2.5rem);
+}
+
+/* Safe-area insets for notched / home-indicator devices (viewport-fit=cover).
+   Resolve to 0 on desktops, so they never affect the desktop layout. */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.pt-safe { padding-top: env(safe-area-inset-top); }

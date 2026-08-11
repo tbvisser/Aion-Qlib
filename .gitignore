@@ -67,3 +67,4 @@ examples/catboost_info/
 # docker compose reads this for AION_IMAGE / DOCKER_UID. See .env.example.
 # (The bare `.env` rule above is upstream's; repeated here for the same reason.)
 .env
+.env.local

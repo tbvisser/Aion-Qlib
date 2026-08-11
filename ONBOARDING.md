@@ -132,11 +132,20 @@ echo "$GHCR_PAT" | docker login ghcr.io -u tbvisser --password-stdin
 The app needs a qlib binary store. Until one exists, every data endpoint answers
 `503 No qlib data store found` (`webapp/api/qlib_session.py`, `resolve_store`).
 
+The ingest is two passes: equities first (`--universe-size`), then the other
+asset classes (`--classes`). The second pass is not optional — it is the only
+thing that writes `webapp/data/catalog.json`, and `build_stores` refuses to run
+without it. Never put `equity` in `--classes`: that path ignores the dollar-volume
+ranking and fetches the entire US exchange.
+
 Do a small run first to prove the pipeline and your key work — a few minutes:
 
 ```bash
 docker compose run --rm qlib python -m webapp.ingest \
     --universe-size 25 --limit 25 --start 2020-01-01
+docker compose run --rm qlib python -m webapp.ingest \
+    --classes etf,crypto,fx,index --limit 25 --start 2020-01-01
+docker compose run --rm qlib python -m webapp.ingest.build_stores --all
 ```
 
 If that lands, do the real one:
@@ -144,6 +153,8 @@ If that lands, do the real one:
 ```bash
 docker compose run --rm qlib python -m webapp.ingest \
     --universe-size 500 --start 2010-01-01
+docker compose run --rm qlib python -m webapp.ingest \
+    --classes etf,crypto,fx,index --start 2010-01-01
 docker compose run --rm qlib python -m webapp.ingest.build_stores --all
 ```
 
@@ -151,7 +162,7 @@ What you get, and where:
 
 | Path | Size | What |
 |---|---|---|
-| `~/.qlib/qlib_data/us_eodhd` | ~875 MB | primary store: top-500 US names by dollar volume, plus SPY/QQQ |
+| `~/.qlib/qlib_data/us_eodhd` | ~875 MB | primary store: top-500 US names by dollar volume, plus every US ETF and the promoted crypto/FX/index symbols |
 | `~/.qlib/qlib_data/crypto_365` | ~150 MB | crypto, on a 365-day calendar |
 | `webapp/ingest/.cache/` | ~4.4 GB | raw + normalised CSV scratch; keep it, `--mode update` reuses it |
 | `webapp/data/market/` | ~540 MB | index/FX/crypto parquet that qlib itself never reads |
@@ -161,7 +172,11 @@ What you get, and where:
 `${HOME}/.qlib` mount, so a host-side venv and the containers use one dataset.
 
 EODHD rate-limits; the client backs off on 429 (`webapp/ingest/eodhd.py`). A
-partial ingest is resumable — rerun with `--skip-existing`.
+partial `--classes` ingest is resumable — rerun with `--skip-existing`. But only
+resume with the **same `--start`**: `--skip-existing` keeps any CSV already on
+disk, so a symbol fetched during a shallower run (say the smoke test's 2020
+start) silently keeps its truncated history. After changing `--start`, rerun
+without `--skip-existing`.
 
 `build_stores` is offline: it rebuilds both qlib stores, the universe files, and
 `store_manifest.json` from the cached CSVs, so you can re-run it after a schema

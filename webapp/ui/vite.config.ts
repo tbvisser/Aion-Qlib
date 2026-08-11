@@ -21,6 +21,14 @@ export default defineConfig({
         target: process.env.VITE_API_PROXY || 'http://127.0.0.1:8770',
         changeOrigin: true,
       },
+      // The vendored RAG backend (rag-api container). Its routers mount at
+      // bare paths (/auth, /documents, /threads, ...), so the prefix is
+      // stripped before forwarding.
+      '/rag-api': {
+        target: process.env.VITE_RAG_API_PROXY || 'http://127.0.0.1:8001',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/rag-api/, ''),
+      },
     },
   },
 })

@@ -1,7 +1,9 @@
 import type { MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Moon, Sun } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
+import { UserMenu } from '@/components/UserMenu'
 import { allNavSections, type NavItem, type NavSection, type SectionKey } from './NavItems'
 import { cn } from '@/lib/utils'
 
@@ -21,6 +23,15 @@ interface SidebarPanelProps {
 export function SidebarPanel({ activeSection, onCollapse }: SidebarPanelProps) {
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
+  const { user, signOut, isAdmin } = useAuth()
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+    } catch (err) {
+      console.error('Sign out failed:', err)
+    }
+  }
 
   const handleNavClick = (event: MouseEvent<HTMLAnchorElement>, route: string) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
@@ -110,17 +121,22 @@ export function SidebarPanel({ activeSection, onCollapse }: SidebarPanelProps) {
         {allNavSections.map(renderSection)}
       </div>
 
-      {/* Theme toggle pinned at the bottom, in the container the platform's
-          UserMenu occupies. */}
+      {/* Bottom container: the platform's UserMenu, restored now that the app
+          has auth. The menu carries the theme toggle in its popover; the bare
+          toggle remains as a fallback for the (gated-away) signed-out state. */}
       <div className="border-t border-border/50 p-2">
-        <button
-          data-testid="theme-toggle"
-          onClick={toggleTheme}
-          className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
-        >
-          {theme === 'dark' ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
-          <span className="truncate">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
-        </button>
+        {user?.email ? (
+          <UserMenu email={user.email} onSignOut={handleSignOut} isAdmin={isAdmin} />
+        ) : (
+          <button
+            data-testid="theme-toggle"
+            onClick={toggleTheme}
+            className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
+            <span className="truncate">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+          </button>
+        )}
       </div>
     </div>
   )

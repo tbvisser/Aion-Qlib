@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { allNavSections, sectionForPath } from '@/components/layout/NavItems'
+import { useAuth } from '@/hooks/useAuth'
+import { LoginPage } from '@/components/auth/LoginPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { MarketsPage } from '@/pages/MarketsPage'
 import { DatabankPage } from '@/pages/DatabankPage'
@@ -22,6 +24,21 @@ const placeholderRoutes = allNavSections
 
 export default function App() {
   const { pathname } = useLocation()
+  const { user, loading } = useAuth()
+
+  // Auth gate rendered around the shell rather than as an /auth route: deep
+  // links survive login (the requested URL is untouched while the gate shows),
+  // and there is no extra route to keep in sync with the nav test.
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="animate-subtle-pulse text-sm text-muted-foreground">Loading…</div>
+      </div>
+    )
+  }
+  if (!user) {
+    return <LoginPage />
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">

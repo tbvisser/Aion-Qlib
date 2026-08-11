@@ -2,6 +2,8 @@ import type { MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PanelLeftOpen, Moon, Sun } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useAuth } from '@/hooks/useAuth'
+import { UserMenu } from '@/components/UserMenu'
 import { useTheme } from '@/hooks/useTheme'
 import { allNavSections, type NavItem, type SectionKey } from './NavItems'
 import { cn } from '@/lib/utils'
@@ -17,6 +19,15 @@ interface SidebarRailProps {
 export function SidebarRail({ activeSection, onExpand }: SidebarRailProps) {
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
+  const { user, signOut, isAdmin } = useAuth()
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+    } catch (err) {
+      console.error('Sign out failed:', err)
+    }
+  }
 
   const handleNavClick = (event: MouseEvent<HTMLAnchorElement>, key: SectionKey, route: string) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
@@ -107,8 +118,17 @@ export function SidebarRail({ activeSection, onExpand }: SidebarRailProps) {
           ))}
         </div>
 
-        {/* Theme toggle — same bottom container as SidebarPanel. */}
+        {/* Bottom container — same contents as SidebarPanel's: the UserMenu
+            (compact, avatar-only) above the theme toggle. */}
         <div className="mt-auto border-t border-border/50 p-2">
+          {user?.email && (
+            <UserMenu
+              email={user.email}
+              onSignOut={handleSignOut}
+              isAdmin={isAdmin}
+              compact
+            />
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <button

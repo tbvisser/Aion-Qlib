@@ -90,6 +90,7 @@ services:
       - ./webapp/ui:/app
     environment:
       VITE_API_PROXY: http://api:8770
+      VITE_RAG_API_PROXY: http://rag-api:8001
       # node:22-alpine defaults HOME to /root, which a non-root DOCKER_UID cannot
       # write; without these npm install fails on its cache before it starts.
       HOME: /tmp
@@ -131,6 +132,34 @@ services:
       - --allow-root
       - --ServerApp.root_dir=/qlib
 
+  # Vendored Aion-RAG backend (documents/RAG/chat engine behind the Knowledge
+  # tabs). Deliberately its own image: its fastapi/uvicorn pins conflict with
+  # the qlib API's, and docling's native parsers stay isolated from backtests.
+  # Talks to the supabase-aq stack (external compose project at
+  # C:\Users\TBVis\Supabase\supabase-project, Kong on host :8010) via
+  # host.docker.internal, and to host Ollama (:11434) for embeddings.
+  # Config: rag/backend/.env (gitignored). Rebuild only when
+  # rag/backend/requirements.txt changes.
+  rag-api:
+    build:
+      context: ./rag/backend
+    image: ${AION_RAG_IMAGE:-aion-rag:dev}
+    container_name: qlib-rag-api
+    working_dir: /rag/backend
+    environment:
+      HOME: /home/rag
+      # docling layout/table + OCR models download here on first ingest; the
+      # named volume makes that a one-time cost.
+      HF_HOME: /home/rag/.cache/huggingface
+    env_file:
+      - path: rag/backend/.env
+        required: false
+    volumes:
+      - ./rag:/rag
+      - rag-model-cache:/home/rag/.cache
+    ports:
+      - "127.0.0.1:8001:8001"
+
   mlflow-ui:
     image: ${AION_IMAGE:-ghcr.io/tbvisser/aion-qlib:dev}
     container_name: qlib-mlflow-ui
@@ -154,3 +183,6 @@ services:
       - 0.0.0.0
       - --port
       - "5000"
+
+volumes:
+  rag-model-cache:
