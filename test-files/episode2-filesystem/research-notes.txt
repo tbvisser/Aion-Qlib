@@ -1,0 +1,15 @@
+Research Notes: Vector Embeddings
+
+Overview:
+Vector embeddings convert text into numerical representations that capture
+semantic meaning. Similar concepts have similar vector representations.
+
+Key Findings:
+- OpenAI's text-embedding-3-small provides good balance of quality and cost
+- Chunk size of 512 tokens works well for most documents
+- Overlap of 50 tokens helps maintain context across chunks
+
+Considerations:
+- Larger embedding dimensions capture more nuance but increase storage costs
+- Hybrid search (vector + keyword) often outperforms pure vector search
+- Re-ranking can significantly improve result relevance

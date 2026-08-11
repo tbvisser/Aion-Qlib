@@ -1,0 +1,17 @@
+Meeting Notes - Q1 Planning Session
+
+Date: January 15, 2026
+Attendees: Alice, Bob, Charlie, Diana
+
+Agenda:
+1. Review Q4 performance
+2. Set Q1 objectives
+3. Resource allocation
+
+Action Items:
+- Alice to prepare budget proposal by Jan 20
+- Bob to finalize technical roadmap
+- Charlie to schedule follow-up meetings
+- Diana to coordinate with marketing team
+
+Next meeting scheduled for January 22, 2026.

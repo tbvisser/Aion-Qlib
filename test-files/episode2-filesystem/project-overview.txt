@@ -1,0 +1,12 @@
+Project Overview Document
+
+This document provides a high-level overview of our Full Stack AI Agent Platform.
+
+Key Features:
+- Document ingestion and processing
+- Vector-based semantic search
+- AI-powered chat interface
+- Folder organization system
+
+The application uses React for the frontend and FastAPI for the backend,
+with Supabase providing database, authentication, and storage services.

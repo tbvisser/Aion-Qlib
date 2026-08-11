@@ -1,0 +1,23 @@
+Coding Standards
+
+General Principles:
+- Write clear, self-documenting code
+- Prefer simplicity over cleverness
+- Follow existing patterns in the codebase
+
+TypeScript/React:
+- Use functional components with hooks
+- Define explicit types (avoid 'any')
+- Use meaningful variable and function names
+- Keep components focused and small
+
+Python/FastAPI:
+- Follow PEP 8 style guidelines
+- Use type hints for function parameters and returns
+- Use Pydantic models for request/response validation
+- Handle errors explicitly with appropriate HTTP status codes
+
+Git Workflow:
+- Write descriptive commit messages
+- Keep commits atomic and focused
+- Create feature branches for new work
