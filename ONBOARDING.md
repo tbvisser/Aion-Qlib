@@ -37,6 +37,7 @@ git remote add upstream https://github.com/microsoft/qlib
 | git | any recent version |
 | Docker Engine | with the **compose v2 plugin, ≥ 2.24** (`docker compose version`) — the optional `env_file` syntax below needs it |
 | disk | **~15 GB** free: ~3 GB image, ~1.4 GB qlib stores, ~4.4 GB ingest cache, ~500 MB derived parquet, plus room for run output |
+| RAM | **~12 GB available to the container** for a full `top500` Alpha158 backtest. On a 7.8 GB Docker VM that run is SIGKILLed part-way (exit `-9`); smaller universes are fine. Native Linux Docker uses host memory directly, so this is mostly a Docker Desktop concern — but do check `docker info --format '{{.MemTotal}}'` before blaming the code. |
 
 Docker Desktop is not required on Linux; Engine + the compose plugin is enough.
 Make sure your user is in the `docker` group so you are not running compose under
@@ -231,13 +232,24 @@ in a hand-rolled venv will fail without the `.pth` that `setup-venv.sh` writes.
 
 **503 from every data endpoint.** `~/.qlib/qlib_data` is empty — see §7.
 
-**Backtests fail with an exec error.** `RunManager` prefers `<repo>/.venv/bin/python`
-and falls back to `sys.executable` (`webapp/api/runner.py`, `default_python`). If a
-Linux-incompatible `.venv` exists on the mount, the container picks it and dies.
-Delete it or set `AION_IMAGE` and run without a host venv.
+**Backtests fail with an exec error.** `RunManager` runs `qrun` as a subprocess and
+picks the interpreter via `default_python` (`webapp/api/runner.py`): the repo's
+`.venv/bin/python` if it is present *and* executable, otherwise `sys.executable`.
+Containers therefore use their own Python, since a host venv on the bind mount is
+either a dangling symlink or a foreign binary. If you are running Docker on Linux
+*and* keep a working Linux `.venv` in the repo, the container will prefer it — set
+`AION_IMAGE` and remove the host venv if that mixes environments badly.
 
 **Port already in use.** 5274 is `strictPort` in `vite.config.ts` — Vite fails
-rather than silently moving.
+rather than silently moving. Note that a host-side `./webapp/dev.sh` already
+holding 8770 will make `docker compose up api` fail to bind while
+`curl localhost:8770` still answers — from the *host* process. Stop one or the
+other before concluding the container is healthy.
+
+**A run fails with exit code `-9` and no traceback.** That is SIGKILL, i.e. the
+container hit its memory ceiling — not a missing dependency, whatever the run's
+`error_hint` says (the hint is a log-scraping heuristic and will happily blame
+PyTorch for an OOM). Raise Docker's memory or use a smaller universe.
 
 **Linear models produce empty results.** A known pre-existing issue: custom factor
 expressions can emit infinities, and `scipy.linalg.solve` rejects them. Alpha158's
