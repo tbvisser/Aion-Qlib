@@ -75,7 +75,9 @@ export function CorpusPage() {
       })
 
     return () => controller.abort()
-  }, [user])
+    // user?.id, not user: the session object gets a fresh identity on every
+    // token refresh, which would otherwise blank the sidebar once an hour.
+  }, [user?.id])
 
   const selectedDocument = useMemo(
     () => (urlDocumentId ? documents.find(doc => doc.id === urlDocumentId) ?? null : null),
@@ -149,6 +151,7 @@ export function CorpusPage() {
         ) : visibleDocuments.length === 0 ? (
           <div className="px-3 py-3 text-center text-xs text-muted-foreground">
             No document matches "{debouncedFilter.trim()}".
+            {hasMore && <> Only the first {LIMIT} documents were searched.</>}
           </div>
         ) : (
           <div className="space-y-0.5 pb-3">
@@ -190,15 +193,25 @@ export function CorpusPage() {
       </aside>
 
       <div className="min-w-0 flex-1 overflow-auto">
-        {!selectedDocument ? (
+        {loading && !selectedDocument ? (
+          // Deep links land here before the list resolves; without this gate
+          // they would flash the "nothing ingested" copy while loading.
+          <div className="flex h-full items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : !selectedDocument ? (
           <div className="flex h-full items-center justify-center p-8">
             <div className="max-w-sm text-center">
               <Layers3 className="mx-auto h-8 w-8 text-muted-foreground/60" />
               <h1 className="mt-3 text-lg font-semibold">Corpus inspector</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                {documents.length === 0
-                  ? 'No documents have been ingested yet. Upload files on /documents and they will appear here once chunked.'
-                  : 'Pick a document to see how it was chunked for retrieval.'}
+                {urlDocumentId
+                  ? hasMore
+                    ? `This document is not among the first ${LIMIT} loaded. Open it from /documents instead.`
+                    : 'This document is not in the corpus — it may have been deleted.'
+                  : documents.length === 0
+                    ? 'No documents have been ingested yet. Upload files on /documents and they will appear here once chunked.'
+                    : 'Pick a document to see how it was chunked for retrieval.'}
               </p>
             </div>
           </div>

@@ -68,12 +68,7 @@ export const mainNavSections: NavSection[] = [
   {
     heading: 'Knowledge',
     items: [
-      {
-        key: 'documents', label: 'Documents', icon: Folder, route: '/documents', built: true,
-        blurb:
-          'Research notes and filings, uploaded and attached to a strategy, portfolio or instrument. ' +
-          'No backend for this yet.',
-      },
+      { key: 'documents', label: 'Documents', icon: Folder, route: '/documents', built: true },
       {
         key: 'explorer', label: 'Graph', icon: Network, route: '/explorer',
         blurb:
@@ -81,12 +76,7 @@ export const mainNavSections: NavSection[] = [
           'Generalises the Macro Desk linkage panel, which already computes drivers, betas, regime ' +
           'behaviour and event studies for one subject at a time.',
       },
-      {
-        key: 'corpus', label: 'Corpus', icon: Library, route: '/corpus', built: true,
-        blurb:
-          'The indexed text behind the assistant: sources, chunks, embeddings, and which of them a ' +
-          'given answer was drawn from. No backend for this yet.',
-      },
+      { key: 'corpus', label: 'Corpus', icon: Library, route: '/corpus', built: true },
     ],
   },
   {
@@ -122,13 +112,7 @@ export const mainNavSections: NavSection[] = [
           'Paper-traded forward tracking of a strategy once its backtest is done, and the divergence ' +
           'between the two. Needs a scheduler; no backend for this yet.',
       },
-      {
-        key: 'tl-roster', label: 'Agents & Skills', icon: Bot, route: '/lab/roster', built: true,
-        blurb:
-          "The assistant's tool roster, made manageable. Eight tools across the general and builder " +
-          'profiles already exist and are already reported by the chat config endpoint; this page ' +
-          'turns that into enable/disable and per-profile configuration.',
-      },
+      { key: 'tl-roster', label: 'Agents & Skills', icon: Bot, route: '/lab/roster', built: true },
     ],
   },
 ]

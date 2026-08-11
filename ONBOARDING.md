@@ -192,11 +192,40 @@ docker compose up -d api ui
 |---|---|---|
 | UI | <http://localhost:5274> | 5173/5273 were taken on the original machine; the port is `strictPort` |
 | API | <http://localhost:8770> | `/api/health`, OpenAPI at `/docs` |
+| RAG API | <http://localhost:8001> | `docker compose up -d rag-api`; needs the Supabase stack below |
+| Supabase (Kong) | <http://localhost:8010> | separate compose project, see "The RAG stack" |
 | JupyterLab | <http://localhost:8888/lab?token=qlib> | `docker compose up -d jupyter` |
 | MLflow | <http://localhost:5500> | `docker compose up -d mlflow-ui` |
 
-Everything except MLflow binds `127.0.0.1` only. There is no auth — the API keys
-stay server-side and never reach the browser.
+Everything except MLflow binds `127.0.0.1` only. The UI sits behind a Supabase
+login (see below); the EODHD/OpenRouter API keys stay server-side either way and
+never reach the browser.
+
+### The RAG stack
+
+The document/chat assistant (routes `/chats`, `/documents`, `/corpus`,
+`/lab/roster`) is the vendored `rag/` subtree running as the `rag-api` service,
+backed by an **isolated Supabase instance** that lives outside this repo:
+
+- Compose project `supabase-aq` at `C:\Users\TBVis\Supabase\supabase-project`
+  (`docker compose -p supabase-aq up -d` from that directory). Kong publishes it
+  on host `:8010` (REST, auth, storage) with the pooler on `:5442`. It is
+  deliberately separate from any other Supabase install on the machine.
+- `rag/backend/.env` (gitignored) configures `rag-api`: Supabase URL/keys,
+  embedding backend, and the test-user credentials (`TEST_USER1_PASSWORD`).
+- `webapp/ui/.env.local` (gitignored) gives the browser `VITE_SUPABASE_URL`
+  (the Kong URL) and `VITE_SUPABASE_ANON_KEY`.
+
+Start order: Supabase first, then `docker compose up -d rag-api ui`. The UI's
+auth gate wraps the whole shell — sign in as `test@test.com` with the password
+from `rag/backend/.env`. The Vite dev server proxies `/rag-api/*` to the
+`rag-api` container with the prefix stripped, so the app stays same-origin.
+
+Only `src/features/rag/**` attaches the Supabase JWT to requests; the original
+qlib `/api` endpoints remain keyless and server-side. A quick end-to-end check:
+upload a small markdown file on `/documents`, watch it reach `completed`,
+inspect its chunks on `/corpus`, then ask a question about it on `/chats` — the
+answer should carry a citation back to the uploaded file.
 
 MLflow is published on 5500 because macOS ControlCenter owns 5000. On Linux 5000
 is usually free, but the mapping is kept so both machines match.
