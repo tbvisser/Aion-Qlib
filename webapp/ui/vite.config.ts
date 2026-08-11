@@ -13,6 +13,10 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5274,
     strictPort: true,
+    // In the compose stack the server runs in a Linux container over a Windows
+    // bind mount, where inotify never sees host-side edits — without polling,
+    // HMR goes quiet and vite serves stale transforms until a restart.
+    watch: { usePolling: true, interval: 300 },
     // Same-origin /api in dev, so the app never needs to know the API's port
     // and CORS stays irrelevant. In the compose stack the API is reachable by
     // service name instead of on localhost, hence the override.

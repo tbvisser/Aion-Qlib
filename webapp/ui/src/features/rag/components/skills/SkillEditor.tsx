@@ -171,7 +171,7 @@ export function SkillEditor({ skill, onSkillUpdated, onSkillDeleted }: SkillEdit
   }
 
   const handleTryInChat = () => {
-    navigate('/chats', {
+    navigate('/dashboard', {
       state: {
         initialMessage: `Let's kick off my "${skill.name}" skill?`,
       },

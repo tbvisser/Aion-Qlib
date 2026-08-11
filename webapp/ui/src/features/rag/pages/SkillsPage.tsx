@@ -75,7 +75,7 @@ export function SkillsPage() {
   // skill, prompting the assistant to activate it (mirrors the editor's
   // "Try in Chat" action).
   const handleUseSkill = (skill: Skill) => {
-    navigate('/chats', {
+    navigate('/dashboard', {
       state: {
         initialMessage: `Let's kick off my "${skill.name}" skill?`,
       },
@@ -83,7 +83,7 @@ export function SkillsPage() {
   }
 
   const handleCreateWithAI = () => {
-    navigate('/chats', {
+    navigate('/dashboard', {
       state: {
         initialMessage: "Let's create a skill together. First ask me what the skill should do."
       }
