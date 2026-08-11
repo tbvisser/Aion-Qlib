@@ -1,0 +1,62 @@
+# Build-context exclusions for Dockerfile.dev (BuildKit reads <dockerfile>.dockerignore).
+# Kept separate so the upstream .dockerignore, which serves ./Dockerfile, stays as-is.
+
+# Local virtualenv (~1 GB) — the image installs its own dependencies.
+.venv/
+
+# Version comes from the SETUPTOOLS_SCM_PRETEND_VERSION build arg instead.
+.git/
+.github/
+
+# Host-built artifacts. The macOS *.so files cannot load on Linux and the image
+# recompiles the extensions anyway.
+*.so
+*.cpp
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+
+# Experiment output and downloaded test fixtures.
+mlruns/
+examples/mlruns/
+tests/.data/
+tests/test_pit_data/
+tests/test_get_data/
+
+docs/_build/
+public/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+
+# Secrets. Never in an image layer — the api/jupyter services read this file at
+# runtime via `env_file`, off the bind mount. Without these two lines the `COPY . .`
+# below bakes live EODHD/OpenRouter keys into a layer that gets pushed to GHCR.
+webapp/.env
+.env
+
+# Local state and caches, ~5 GB combined. All of it is regenerated on a new
+# machine by `python -m webapp.ingest` (see ONBOARDING.md), and none of it belongs
+# in the image, which reads these paths through the bind mount instead.
+webapp/data/
+webapp/ingest/.cache/
+webapp/ui/node_modules/
+webapp/ui/dist/
+webapp/ui/.vite/
+webapp/ui/test-results/
+webapp/ui/playwright-report/
+examples/catboost_info/
+
+# Docker matches these patterns against the path from the context root, so the
+# bare `dist/`, `__pycache__/`, `*.pyc` and `*.so` entries above only catch
+# top-level hits. Repeat them with **/ to reach nested copies.
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.so
+**/.pytest_cache/
+**/.DS_Store

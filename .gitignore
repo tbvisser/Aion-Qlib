@@ -51,3 +51,19 @@ tags
 ./pretrain
 .idea/
 .aider*
+
+# --- AION fork additions ---------------------------------------------------
+
+# Local virtualenv. uv happens to write .venv/.gitignore containing "*", which
+# hides this today, but a venv created any other way would stage ~1.2 GB.
+.venv/
+venv/
+
+# CatBoost writes these next to the working directory on every fit; they are run
+# artifacts, not source.
+catboost_info/
+examples/catboost_info/
+
+# docker compose reads this for AION_IMAGE / DOCKER_UID. See .env.example.
+# (The bare `.env` rule above is upstream's; repeated here for the same reason.)
+.env

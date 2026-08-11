@@ -1,0 +1,63 @@
+# Development image for THIS qlib checkout.
+#
+# Distinct from the upstream ./Dockerfile, which installs the released `pyqlib`
+# wheel from PyPI onto Python 3.8 in order to publish an image to Docker Hub.
+# This one builds the working tree and mirrors the validated local setup:
+# Python 3.11, Cython extensions compiled from source, editable install.
+#
+# Build context exclusions live in Dockerfile.dev.dockerignore (BuildKit reads
+# the per-Dockerfile ignore file), so the upstream .dockerignore is untouched.
+
+FROM python:3.11-slim-bookworm
+
+# build-essential/g++ compile the Cython C++ extensions; libgomp1 is LightGBM's
+# OpenMP runtime (the Linux counterpart of `brew install libomp` on macOS).
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        g++ \
+        libgomp1 && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /qlib
+
+# .git is kept out of the build context, but pyproject.toml configures
+# setuptools-scm, which derives the version from git history. Pretend instead.
+ARG QLIB_VERSION=0.9.8.dev32
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${QLIB_VERSION}
+
+# mlflow >= 3.14 refuses to open its filesystem tracking backend unless this is
+# set, and qlib's default MLflowExpManager (qlib/workflow/expm.py) writes to
+# exactly that ./mlruns store, so every qrun would fail at startup without it.
+ENV MLFLOW_ALLOW_FILE_STORE=true
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1
+
+COPY . .
+
+RUN python -m pip install --upgrade pip setuptools wheel && \
+    python -m pip install cython numpy
+
+# Same compilation step as `make prerequisite` (Makefile), kept in sync with it.
+RUN python -c "from setuptools import setup, Extension; from Cython.Build import cythonize; import numpy; extensions = [Extension('qlib.data._libs.rolling', ['qlib/data/_libs/rolling.pyx'], language='c++', include_dirs=[numpy.get_include()]), Extension('qlib.data._libs.expanding', ['qlib/data/_libs/expanding.pyx'], language='c++', include_dirs=[numpy.get_include()])]; setup(ext_modules=cythonize(extensions, language_level='3'), script_args=['build_ext', '--inplace'])"
+
+# pandas is pinned below 3 because qlib predates it and is unvalidated against
+# the 3.x API; numba matches what CI installs before running the benchmarks.
+RUN python -m pip install -e ".[dev,test,analysis]" "pandas>=2.2,<3" numba
+
+# The webapp's own dependencies. qlib declares none of fastapi/uvicorn/httpx/
+# sse-starlette, so without this step the api service starts and immediately dies
+# on ImportError, and the catboost/xgboost templates fail mid-run.
+RUN python -m pip install -r webapp/requirements.txt -r webapp/requirements-dev.txt
+
+# HOME is /home/qlib in compose so that a non-root DOCKER_UID can still resolve
+# ~/.qlib (see docker-compose.yml). Create it here, world-writable, so the mount
+# point and anything else landing in HOME works for any uid the user picks.
+RUN mkdir -p /home/qlib && chmod 777 /home/qlib
+
+COPY docker/qlib-entrypoint.sh /usr/local/bin/qlib-entrypoint.sh
+RUN chmod +x /usr/local/bin/qlib-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/qlib-entrypoint.sh"]
+CMD ["bash"]

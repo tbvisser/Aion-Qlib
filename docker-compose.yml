@@ -1,0 +1,156 @@
+# Local development stack for this qlib checkout (compose project: qlib).
+# Separate from the upstream Dockerfile / build_docker_image.sh, which exist to
+# publish a PyPI-based image to Docker Hub.
+#
+#   docker compose pull                # fetch the published image (fast path)
+#   docker compose build qlib          # ...or build it yourself, ~5-8 min
+#   docker compose up -d               # qlib-dev + qlib-mlflow-ui appear in `docker ps`
+#   docker compose exec qlib bash      # shell in the container
+#   docker compose exec -w /qlib/examples qlib \
+#       qrun benchmarks/LightGBM/workflow_config_lightgbm_Alpha158.yaml
+#   open http://localhost:5500         # MLflow UI over the runs qrun produced
+#   open http://localhost:8888/lab?token=qlib   # JupyterLab for strategy analysis
+#   open http://localhost:5274         # AION (the web app)
+#
+# The repo is bind-mounted, so host edits are live inside the container via the
+# editable install. ~/.qlib is shared, so host and container use one dataset.
+#
+# First run on a new machine: see ONBOARDING.md. Requires Compose v2.24+ for the
+# optional `env_file` form used below.
+#
+# AION_IMAGE selects which image the four python services run. The default is the
+# one CI publishes to GHCR; `AION_IMAGE=qlib-dev:local` pins to your own build.
+# DOCKER_UID/DOCKER_GID matter on Linux only — see .env.example.
+#
+# The data mount lands on /home/qlib/.qlib rather than /root/.qlib, and HOME is
+# set to match, so that `~/.qlib` still resolves when DOCKER_UID makes these
+# services run as a non-root user (/root is mode 700 and unreadable to them).
+
+services:
+  qlib:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: ${AION_IMAGE:-ghcr.io/tbvisser/aion-qlib:dev}
+    container_name: qlib-dev
+    working_dir: /qlib
+    user: "${DOCKER_UID:-0}:${DOCKER_GID:-0}"
+    environment:
+      HOME: /home/qlib
+    volumes:
+      - .:/qlib
+      - ${HOME}/.qlib:/home/qlib/.qlib
+    # Keep the container alive so it is usable via `docker compose exec`.
+    stdin_open: true
+    tty: true
+    command: bash
+
+  # AION API. Same image as qlib-dev; it needs the repo (editable
+  # install), ~/.qlib (market data) and webapp/.env (EODHD + OpenRouter keys,
+  # which stay server-side and never reach the browser).
+  api:
+    image: ${AION_IMAGE:-ghcr.io/tbvisser/aion-qlib:dev}
+    container_name: qlib-api
+    depends_on:
+      - qlib
+    working_dir: /qlib
+    user: "${DOCKER_UID:-0}:${DOCKER_GID:-0}"
+    environment:
+      HOME: /home/qlib
+    # The keys are read at runtime, never baked into the image — see the secrets
+    # block in Dockerfile.dev.dockerignore. Optional so that `compose up` still
+    # works on a fresh clone before you have written webapp/.env.
+    env_file:
+      - path: webapp/.env
+        required: false
+    volumes:
+      - .:/qlib
+      - ${HOME}/.qlib:/home/qlib/.qlib
+    ports:
+      - "127.0.0.1:8770:8770"
+    command:
+      - uvicorn
+      - webapp.api.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8770"
+
+  # Vite dev server. Proxies /api to the api service (VITE_API_PROXY overrides
+  # the localhost default from vite.config.ts, since inside the network the API
+  # is reachable by service name rather than on 127.0.0.1).
+  ui:
+    image: node:22-alpine
+    container_name: qlib-ui
+    depends_on:
+      - api
+    working_dir: /app
+    user: "${DOCKER_UID:-0}:${DOCKER_GID:-0}"
+    volumes:
+      - ./webapp/ui:/app
+    environment:
+      VITE_API_PROXY: http://api:8770
+      # node:22-alpine defaults HOME to /root, which a non-root DOCKER_UID cannot
+      # write; without these npm install fails on its cache before it starts.
+      HOME: /tmp
+      npm_config_cache: /tmp/.npm
+    ports:
+      - "127.0.0.1:5274:5274"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+
+  # Interactive frontend for strategy work: run a backtest, then chart it with
+  # qlib.contrib.report (cumulative return, risk analysis, IC, positions).
+  # Start from examples/workflow_by_code.ipynb.
+  jupyter:
+    image: ${AION_IMAGE:-ghcr.io/tbvisser/aion-qlib:dev}
+    container_name: qlib-jupyter
+    depends_on:
+      - qlib
+    working_dir: /qlib
+    user: "${DOCKER_UID:-0}:${DOCKER_GID:-0}"
+    env_file:
+      - path: webapp/.env
+        required: false
+    volumes:
+      - .:/qlib
+      - ${HOME}/.qlib:/home/qlib/.qlib
+    environment:
+      HOME: /home/qlib
+      # Fixed token so the URL stays stable across restarts. Safe here only
+      # because the port below is bound to 127.0.0.1 and is not reachable
+      # from the network; change it if you ever publish this on 0.0.0.0.
+      JUPYTER_TOKEN: qlib
+    ports:
+      - "127.0.0.1:8888:8888"
+    command:
+      - jupyter
+      - lab
+      - --ip=0.0.0.0
+      - --port=8888
+      - --no-browser
+      - --allow-root
+      - --ServerApp.root_dir=/qlib
+
+  mlflow-ui:
+    image: ${AION_IMAGE:-ghcr.io/tbvisser/aion-qlib:dev}
+    container_name: qlib-mlflow-ui
+    depends_on:
+      - qlib
+    working_dir: /qlib
+    user: "${DOCKER_UID:-0}:${DOCKER_GID:-0}"
+    environment:
+      HOME: /home/qlib
+    volumes:
+      - .:/qlib
+    # Host 5000 is occupied by macOS ControlCenter (AirPlay), hence 5500.
+    ports:
+      - "5500:5000"
+    command:
+      - mlflow
+      - ui
+      - --backend-store-uri
+      - file:///qlib/examples/mlruns
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
