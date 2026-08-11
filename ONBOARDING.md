@@ -20,8 +20,14 @@ The fork keeps upstream's full history, so pulling qlib changes still works:
 
 ```bash
 git remote -v
-# origin    https://github.com/tbvisser/Aion-Qlib.git   (this fork)
-# upstream  https://github.com/microsoft/qlib.git       (for merges)
+# origin    git@github.com:tbvisser/Aion-Qlib.git     (this fork)
+# upstream  https://github.com/microsoft/qlib         (for merges)
+```
+
+`upstream` is not configured by a fresh clone — add it if you want it:
+
+```bash
+git remote add upstream https://github.com/microsoft/qlib
 ```
 
 ## 2. Prerequisites
@@ -38,10 +44,20 @@ Make sure your user is in the `docker` group so you are not running compose unde
 
 ## 3. Clone — to a path with no spaces
 
+The repo is **private**, so the clone needs credentials. SSH is the path of least
+resistance: add the new machine's public key at
+<https://github.com/settings/keys>, then
+
 ```bash
-git clone https://github.com/tbvisser/Aion-Qlib.git aion-qlib
+git clone git@github.com:tbvisser/Aion-Qlib.git aion-qlib
 cd aion-qlib
 ```
+
+HTTPS works too, but note that a `gh auth login` token needs the **`workflow`**
+scope or the first `git push` is rejected outright — the history contains
+upstream qlib's own `.github/workflows/`, so this bites on push even if you never
+touch a workflow file. Fix with `gh auth refresh -s workflow`, or just use SSH,
+which is not subject to the OAuth scope check.
 
 The original checkout lives in a directory containing a space, and that space is
 now baked into 116 MLflow `meta.yaml` artifact URIs there. Nothing is known to be
