@@ -17,6 +17,7 @@ import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { SkillsPage } from '@/features/rag/pages/SkillsPage'
 import { DocumentsPage } from '@/features/rag/pages/DocumentsPage'
 import { CorpusPage } from '@/features/rag/pages/CorpusPage'
+import { RagChatPage } from '@/features/rag/pages/RagChatPage'
 
 // Every nav destination that isn't built here still gets a route, so the
 // sidebar can carry the platform's full navigation without dead links.
@@ -50,7 +51,9 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/chats" element={<ChatPage />} />
+          <Route path="/chats" element={<RagChatPage />} />
+          <Route path="/chats/quick" element={<ChatPage />} />
+          <Route path="/chats/:threadId" element={<RagChatPage />} />
           <Route path="/lab/builder" element={<StrategyBuilderPage />} />
           <Route path="/lab/ml-studio" element={<MLStudioPage />} />
           <Route path="/lab/databank" element={<DatabankPage />} />
