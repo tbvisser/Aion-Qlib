@@ -2,10 +2,13 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { allNavSections, sectionForPath } from '@/components/layout/NavItems'
 import { useAuth } from '@/hooks/useAuth'
+import { InboxProvider } from '@/hooks/useInbox'
 import { LoginPage } from '@/components/auth/LoginPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { MarketsPage } from '@/pages/MarketsPage'
 import { DatabankPage } from '@/pages/DatabankPage'
+import { AlphaZooPage } from '@/pages/AlphaZooPage'
+import { ShadowAccountsPage } from '@/pages/ShadowAccountsPage'
 import { IndicatorsPage } from '@/pages/IndicatorsPage'
 import { StrategyBuilderPage } from '@/pages/StrategyBuilderPage'
 import { RunsPage } from '@/pages/RunsPage'
@@ -13,11 +16,14 @@ import { MLStudioPage } from '@/pages/MLStudioPage'
 import { ChatPage } from '@/pages/ChatPage'
 import { MacroDeskPage } from '@/pages/MacroDeskPage'
 import { PortfoliosPage } from '@/pages/PortfoliosPage'
+import { AccountsPage } from '@/pages/AccountsPage'
+import { InboxPage } from '@/pages/InboxPage'
+import { VibeAgentPage } from '@/pages/VibeAgentPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { SkillsPage } from '@/features/rag/pages/SkillsPage'
 import { DocumentsPage } from '@/features/rag/pages/DocumentsPage'
 import { CorpusPage } from '@/features/rag/pages/CorpusPage'
-import { RagChatPage } from '@/features/rag/pages/RagChatPage'
+import { ChatsHistoryPage, ChatThreadRedirect } from '@/features/rag/pages/ChatsHistoryPage'
 
 // Every nav destination that isn't built here still gets a route, so the
 // sidebar can carry the platform's full navigation without dead links.
@@ -45,18 +51,26 @@ export default function App() {
   }
 
   return (
+    // InboxProvider wraps the sidebar too, not just <main> — the rail's
+    // unread badge must keep counting while the user is on any page.
+    <InboxProvider>
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <AppSidebar activeSection={sectionForPath(pathname)} />
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/chats" element={<RagChatPage />} />
+          <Route path="/dashboard/:threadId" element={<DashboardPage />} />
+          <Route path="/inbox" element={<InboxPage />} />
+          <Route path="/vibe-agent" element={<VibeAgentPage />} />
+          <Route path="/chats" element={<ChatsHistoryPage />} />
           <Route path="/chats/quick" element={<ChatPage />} />
-          <Route path="/chats/:threadId" element={<RagChatPage />} />
+          <Route path="/chats/:threadId" element={<ChatThreadRedirect />} />
           <Route path="/lab/builder" element={<StrategyBuilderPage />} />
           <Route path="/lab/ml-studio" element={<MLStudioPage />} />
           <Route path="/lab/databank" element={<DatabankPage />} />
+          <Route path="/lab/alpha-zoo" element={<AlphaZooPage />} />
+          <Route path="/lab/shadow-accounts" element={<ShadowAccountsPage />} />
           <Route path="/lab/roster" element={<SkillsPage />} />
           <Route path="/lab/roster/:skillId" element={<SkillsPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
@@ -67,6 +81,7 @@ export default function App() {
           <Route path="/macro" element={<MacroDeskPage />} />
           <Route path="/book" element={<PortfoliosPage />} />
           <Route path="/book/:portfolioId" element={<PortfoliosPage />} />
+          <Route path="/accounts" element={<AccountsPage />} />
           {/* Pages that moved into a platform destination. Old links, bookmarks
               and anything already sent out keep working. Data Explorer became
               Markets; Factor Lab became the Databank; Models became ML Studio. */}
@@ -85,5 +100,6 @@ export default function App() {
         </Routes>
       </main>
     </div>
+    </InboxProvider>
   )
 }

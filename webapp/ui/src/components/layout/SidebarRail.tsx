@@ -4,6 +4,7 @@ import { PanelLeftOpen, Moon, Sun } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
 import { UserMenu } from '@/components/UserMenu'
+import { useInbox } from '@/hooks/useInbox'
 import { useTheme } from '@/hooks/useTheme'
 import { allNavSections, type NavItem, type SectionKey } from './NavItems'
 import { cn } from '@/lib/utils'
@@ -20,6 +21,7 @@ export function SidebarRail({ activeSection, onExpand }: SidebarRailProps) {
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
   const { user, signOut, isAdmin } = useAuth()
+  const { unreadCount } = useInbox()
 
   const handleSignOut = async () => {
     try {
@@ -63,7 +65,7 @@ export function SidebarRail({ activeSection, onExpand }: SidebarRailProps) {
             onClick={(event) => handleNavClick(event, item.key, item.route)}
             onContextMenu={(event) => handleNavContextMenu(event, item.route)}
             className={cn(
-              'flex h-9 w-9 items-center rounded-lg px-2.5 py-2 text-sm transition-colors',
+              'relative flex h-9 w-9 items-center rounded-lg px-2.5 py-2 text-sm transition-colors',
               isActive
                 ? 'bg-foreground/[0.07] text-foreground font-medium'
                 : 'text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground',
@@ -71,6 +73,14 @@ export function SidebarRail({ activeSection, onExpand }: SidebarRailProps) {
             )}
           >
             <Icon className="h-4 w-4 shrink-0" />
+            {item.key === 'inbox' && unreadCount > 0 && (
+              <span
+                data-testid="sidebar-inbox-badge"
+                className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[9px] font-medium text-primary-foreground"
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </a>
         </TooltipTrigger>
         <TooltipContent side="right">{label}</TooltipContent>

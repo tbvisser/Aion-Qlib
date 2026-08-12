@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Moon, Sun } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useInbox } from '@/hooks/useInbox'
 import { useTheme } from '@/hooks/useTheme'
 import { UserMenu } from '@/components/UserMenu'
 import { allNavSections, type NavItem, type NavSection, type SectionKey } from './NavItems'
@@ -16,14 +17,16 @@ interface SidebarPanelProps {
  * Expanded 260px sidebar. Structure, spacing and class strings are copied from
  * the Aion Platform's layout/SidebarPanel.tsx so the two render identically.
  *
- * Omitted from the original: the UserMenu, the admin "System" section and the
- * inbox unread badge, all of which need auth this app does not have. The
- * bottom container the UserMenu occupied holds the theme toggle instead.
+ * Omitted from the original: the admin "System" section, which needs roles
+ * this app does not have. The UserMenu and the inbox unread badge, both once
+ * omitted for the same reason, are restored now that the app has auth and an
+ * activity feed.
  */
 export function SidebarPanel({ activeSection, onCollapse }: SidebarPanelProps) {
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
   const { user, signOut, isAdmin } = useAuth()
+  const { unreadCount } = useInbox()
 
   const handleSignOut = async () => {
     try {
@@ -74,6 +77,14 @@ export function SidebarPanel({ activeSection, onCollapse }: SidebarPanelProps) {
         {/* min-w-0 so the truncating label yields to the chip rather than
             pushing it out of the 260px panel. */}
         <span className="min-w-0 truncate">{item.label}</span>
+        {item.key === 'inbox' && unreadCount > 0 && (
+          <span
+            data-testid="sidebar-inbox-badge"
+            className="ml-auto shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] font-medium text-primary"
+          >
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
         {isSoon && (
           <span
             data-testid="sidebar-nav-soon"
