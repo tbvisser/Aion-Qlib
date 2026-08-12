@@ -251,6 +251,7 @@ export function agendaDayLabel(iso: string, today = todayIso()): string {
   const diff = daysBetween(today, iso)
   if (diff === 0) return 'Today'
   if (diff === 1) return 'Tomorrow'
+  if (diff === -1) return 'Yesterday'
   return formatIsoDayMonth(iso)
 }
 

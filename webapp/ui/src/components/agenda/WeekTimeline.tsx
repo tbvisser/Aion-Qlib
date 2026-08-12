@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
-import { NavButton } from '@/components/inbox/NavButton'
-import { TYPE_STYLES } from '@/components/inbox/typeStyles'
+import { NavButton } from '@/components/agenda/NavButton'
+import { TYPE_STYLES } from '@/components/agenda/typeStyles'
 import { Panel } from '@/components/ui/panel'
 import type { AgendaEntry } from '@/lib/agenda'
 import {

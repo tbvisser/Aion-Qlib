@@ -20,6 +20,13 @@ describe('nav shape', () => {
     expect(items).toHaveLength(20)
   })
 
+  it('reads "Agenda" on the row whose key and route stay "inbox"', () => {
+    // The label changed with the page; the key and route did not, because the
+    // sidebar's unread badge and every existing link point at them.
+    expect(navItemFor('inbox')?.label).toBe('Agenda')
+    expect(navItemFor('inbox')?.route).toBe('/inbox')
+  })
+
   it('gives every destination a distinct key and route', () => {
     expect(new Set(items.map((i) => i.key)).size).toBe(items.length)
     expect(new Set(items.map((i) => i.route)).size).toBe(items.length)

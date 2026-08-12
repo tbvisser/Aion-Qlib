@@ -4,9 +4,10 @@ import {
   Bell, CalendarClock, MessageSquare, RefreshCw, TrendingUp,
 } from 'lucide-react'
 
-import { ImportanceBadge } from '@/components/inbox/ImportanceBadge'
-import { TYPE_STYLES } from '@/components/inbox/typeStyles'
+import { ImportanceBadge } from '@/components/agenda/ImportanceBadge'
+import { TYPE_STYLES } from '@/components/agenda/typeStyles'
 import { RunStatusIcon, statusTextClass } from '@/components/runs/RunStatusIcon'
+import { Badge } from '@/components/ui/badge'
 import type { AgendaEntry, AgendaType } from '@/lib/agenda'
 import type { MacroRelease } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -62,7 +63,7 @@ export function AgendaEntryRow({ entry, unread, today, isSelected = false, onSel
         }
         : undefined}
       className={cn(
-        'relative flex items-start gap-2.5 border-b border-border/30 py-2 pl-3.5 pr-3 last:border-0',
+        'relative flex items-start gap-2.5 border-b border-border/30 px-3 py-2 last:border-0',
         unread && 'bg-primary/[0.06]',
         selectable && 'cursor-pointer transition-colors hover:bg-foreground/[0.03]',
         selectable && 'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/60',
@@ -151,9 +152,7 @@ function Body({ entry, today }: { entry: AgendaEntry; today: string }) {
       <>
         <TitleLine entry={entry}>
           {entry.monthGranular && (
-            <span className="shrink-0 rounded bg-foreground/[0.06] px-1 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground/70">
-              month-end read
-            </span>
+            <Badge variant="muted" className="shrink-0">month-end read</Badge>
           )}
         </TitleLine>
         {entry.detail && <p className="text-xs text-muted-foreground">{entry.detail}</p>}
@@ -176,6 +175,12 @@ function Body({ entry, today }: { entry: AgendaEntry; today: string }) {
  * The desk's two honesty rules travel with the row: a surprise needs both
  * sides (the backend only fills `surprise` from actual − estimate), and a
  * past release with no actual reads "awaiting", never zero.
+ *
+ * Title above, figures below — the same two-line shape every other type uses.
+ * These once shared one line with the country as a leading column, which held
+ * up in a full-width panel and collapsed in a 340px one: "Core Inflation Rate"
+ * truncated to "C…" while three figures kept their space beside it. The figures
+ * are worth less than the name of the print.
  */
 function ReleaseBody({ entry, release, today }: {
   entry: AgendaEntry
@@ -184,22 +189,19 @@ function ReleaseBody({ entry, release, today }: {
 }) {
   const awaiting = release.actual == null && release.date < today
   return (
-    <div className="flex items-baseline gap-2">
-      {release.country && (
-        <span className="w-6 shrink-0 font-mono text-[10px] text-muted-foreground/70">
-          {release.country}
-        </span>
-      )}
-      <span className="min-w-0 truncate text-sm">
-        {entry.title}
+    <>
+      <TitleLine entry={entry}>
         {release.comparison && (
-          <span className="ml-1 font-mono text-[9px] uppercase text-muted-foreground/60">
+          <span className="shrink-0 font-mono text-[10px] uppercase text-muted-foreground/60">
             {release.comparison}
           </span>
         )}
-      </span>
-      <ImportanceBadge tier={release.importance} />
-      <span className="ml-auto flex shrink-0 items-baseline gap-2 font-mono text-[11px]">
+        <ImportanceBadge tier={release.importance} />
+      </TitleLine>
+      <div className="flex items-baseline gap-2 font-mono text-[11px]">
+        {release.country && (
+          <span className="shrink-0 text-muted-foreground/70">{release.country}</span>
+        )}
         {release.actual != null ? (
           <span
             className={cn('tnum', release.surprise != null
@@ -213,7 +215,7 @@ function ReleaseBody({ entry, release, today }: {
         ) : null}
         <span className="tnum text-muted-foreground">est {num(release.estimate)}</span>
         <span className="tnum text-muted-foreground/60">prev {num(release.previous)}</span>
-      </span>
-    </div>
+      </div>
+    </>
   )
 }

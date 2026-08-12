@@ -9,14 +9,18 @@ type TradePayload = Extract<AgendaPayload, { kind: 'signal' } | { kind: 'rebalan
  * The trade side of the desk, honestly: model scores and rebalance turnover
  * are what this backend actually has — no fills, quantities or PnL exist
  * here, so none are implied. Broker fills stay a follow-up feed.
+ *
+ * Renders as a bare block, not a card: `EntryList` opens it inside the row's
+ * own sub-panel, and a card nested in that would be a border inside a border
+ * inside a panel.
  */
 export function TradeDetailCard({ entry, payload }: {
   entry: AgendaEntry
   payload: TradePayload
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border/50 bg-card shadow-card">
-      <div className="border-b border-border/30 px-3 py-2.5">
+    <div className="space-y-3">
+      <div>
         <h4 className="min-w-0 truncate text-sm font-medium">
           {entry.href ? (
             <Link to={entry.href} className="transition-colors hover:text-primary">
@@ -31,11 +35,13 @@ export function TradeDetailCard({ entry, payload }: {
         </p>
       </div>
 
-      {payload.kind === 'signal' ? (
-        <SignalBody payload={payload} />
-      ) : (
-        <RebalanceBody entry={entry} payload={payload} />
-      )}
+      <div className="border-t border-border/40 pt-3">
+        {payload.kind === 'signal' ? (
+          <SignalBody payload={payload} />
+        ) : (
+          <RebalanceBody entry={entry} payload={payload} />
+        )}
+      </div>
     </div>
   )
 }
@@ -43,16 +49,14 @@ export function TradeDetailCard({ entry, payload }: {
 function SignalBody({ payload }: { payload: Extract<TradePayload, { kind: 'signal' }> }) {
   if (payload.signal.top.length === 0) {
     return (
-      <p className="px-3 py-3 text-xs text-muted-foreground">
-        No ranked instruments for this run.
-      </p>
+      <p className="text-xs text-muted-foreground">No ranked instruments for this run.</p>
     )
   }
   return (
-    <div className="px-3 py-2">
+    <div>
       <table className="w-full font-mono text-[11px]">
         <thead>
-          <tr className="text-left text-[9px] uppercase tracking-wider text-muted-foreground/50">
+          <tr className="text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
             <th className="py-1 font-normal">instrument</th>
             <th className="py-1 text-right font-normal">model score</th>
           </tr>
@@ -75,7 +79,7 @@ function SignalBody({ payload }: { payload: Extract<TradePayload, { kind: 'signa
           ))}
         </tbody>
       </table>
-      <p className="mt-1.5 font-mono text-[9px] text-muted-foreground/50">
+      <p className="mt-1.5 font-mono text-[10px] text-muted-foreground/50">
         prediction scores, not positions or fills
       </p>
     </div>
@@ -87,10 +91,10 @@ function RebalanceBody({ entry, payload }: {
   payload: Extract<TradePayload, { kind: 'rebalance' }>
 }) {
   return (
-    <div className="px-3 py-2.5">
+    <div>
       <div className="flex items-baseline gap-4 font-mono">
         <span className="flex flex-col">
-          <span className="text-[9px] uppercase tracking-wider text-muted-foreground/50">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
             turnover
           </span>
           <span className="tnum text-base">

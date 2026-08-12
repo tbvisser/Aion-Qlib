@@ -17,7 +17,7 @@ import { ChatPage } from '@/pages/ChatPage'
 import { MacroDeskPage } from '@/pages/MacroDeskPage'
 import { PortfoliosPage } from '@/pages/PortfoliosPage'
 import { AccountsPage } from '@/pages/AccountsPage'
-import { InboxPage } from '@/pages/InboxPage'
+import { AgendaPage } from '@/pages/AgendaPage'
 import { ArtifactsPage } from '@/pages/ArtifactsPage'
 import { VibeAgentPage } from '@/pages/VibeAgentPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
@@ -62,7 +62,9 @@ export default function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/dashboard/:threadId" element={<DashboardPage />} />
-          <Route path="/inbox" element={<InboxPage />} />
+          {/* The route keeps its old name: existing links and the sidebar's
+              unread badge both point at it. */}
+          <Route path="/inbox" element={<AgendaPage />} />
           <Route path="/artifacts" element={<ArtifactsPage />} />
           <Route path="/vibe-agent" element={<VibeAgentPage />} />
           <Route path="/chats" element={<ChatsHistoryPage />} />
