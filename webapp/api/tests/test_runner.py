@@ -156,3 +156,105 @@ class TestDiagnosis:
         order = [p.pattern for p, _ in runner._DIAGNOSES]
         assert order.index(r"Empty data from dataset") < len(order) - 1
         assert re.search(r"MemoryError", order[-1])
+
+
+class TestOrphanReconciliation:
+    """A run.json left at `running` by a dead process must not stay `running`."""
+
+    def _write_meta(self, runs_dir, run_id, status):
+        import json
+
+        directory = runs_dir / run_id
+        directory.mkdir(parents=True)
+        (directory / "run.json").write_text(json.dumps({
+            "id": run_id, "name": "orphan", "kind": "backtest",
+            "strategy_id": None, "status": status, "phase": "Training model",
+            "created_at": "2026-08-11T00:00:00+00:00",
+            "started_at": "2026-08-11T00:00:01+00:00", "finished_at": None,
+            "exit_code": None, "error": None,
+        }))
+
+    def test_orphaned_running_run_is_failed_on_load(self, tmp_path):
+        import json
+
+        runs_dir = tmp_path / "runs"
+        self._write_meta(runs_dir, "abc123", "running")
+        manager = RunManager(runs_dir, tmp_path, venv_python=tmp_path / "python")
+
+        rows = manager.list()
+        assert len(rows) == 1
+        assert rows[0]["status"] == "failed"
+        assert "restart" in (rows[0]["error"] or "")
+        assert rows[0]["finished_at"] is not None
+        # The verdict is persisted, not just in-memory.
+        on_disk = json.loads((runs_dir / "abc123" / "run.json").read_text())
+        assert on_disk["status"] == "failed"
+
+    def test_orphaned_queued_run_is_failed_too(self, tmp_path):
+        runs_dir = tmp_path / "runs"
+        self._write_meta(runs_dir, "def456", "queued")
+        manager = RunManager(runs_dir, tmp_path, venv_python=tmp_path / "python")
+        assert manager.get("def456").meta["status"] == "failed"
+
+    def test_terminal_runs_load_untouched(self, tmp_path):
+        runs_dir = tmp_path / "runs"
+        self._write_meta(runs_dir, "aaa111", "succeeded")
+        manager = RunManager(runs_dir, tmp_path, venv_python=tmp_path / "python")
+        meta = manager.get("aaa111").meta
+        assert meta["status"] == "succeeded"
+        assert meta["error"] is None
+
+
+class TestDelete:
+    """Deleting a run removes its directory -- and refuses while it can still write."""
+
+    def _write_meta(self, runs_dir, run_id, status):
+        import json
+
+        directory = runs_dir / run_id
+        directory.mkdir(parents=True)
+        (directory / "run.json").write_text(json.dumps({
+            "id": run_id, "name": "done", "kind": "backtest",
+            "strategy_id": None, "status": status, "phase": "Finished",
+            "created_at": "2026-08-11T00:00:00+00:00",
+            "started_at": "2026-08-11T00:00:01+00:00",
+            "finished_at": "2026-08-11T00:05:00+00:00",
+            "exit_code": 0, "error": None,
+        }))
+        (directory / "run.log").write_text("done\n")
+        return directory
+
+    def test_finished_run_is_removed(self, tmp_path):
+        runs_dir = tmp_path / "runs"
+        directory = self._write_meta(runs_dir, "aaa111", "succeeded")
+        manager = RunManager(runs_dir, tmp_path, venv_python=tmp_path / "python")
+
+        assert manager.delete("aaa111") is True
+        assert not directory.exists()
+        assert manager.get("aaa111") is None
+        assert manager.list() == []
+
+    def test_running_run_refuses(self, tmp_path):
+        runs_dir = tmp_path / "runs"
+        self._write_meta(runs_dir, "bbb222", "succeeded")
+        manager = RunManager(runs_dir, tmp_path, venv_python=tmp_path / "python")
+        # Reconciliation fails anything found on disk as running, so put it back
+        # into flight in memory -- which is the state the endpoint must refuse.
+        manager.get("bbb222").update(status="running")
+
+        with pytest.raises(runner.RunBusy):
+            manager.delete("bbb222")
+        assert (runs_dir / "bbb222").exists()
+
+    def test_missing_run_is_false_not_an_error(self, tmp_path):
+        manager = RunManager(tmp_path / "runs", tmp_path, venv_python=tmp_path / "python")
+        assert manager.delete("nosuchrun") is False
+
+    def test_a_traversing_id_is_refused(self, tmp_path):
+        """`get` validates the id, so `delete` can never rmtree outside runs_dir."""
+        outside = tmp_path / "precious"
+        outside.mkdir()
+        manager = RunManager(tmp_path / "runs", tmp_path, venv_python=tmp_path / "python")
+
+        assert manager.delete("../precious") is False
+        assert outside.exists()

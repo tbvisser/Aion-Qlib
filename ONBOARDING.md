@@ -132,11 +132,20 @@ echo "$GHCR_PAT" | docker login ghcr.io -u tbvisser --password-stdin
 The app needs a qlib binary store. Until one exists, every data endpoint answers
 `503 No qlib data store found` (`webapp/api/qlib_session.py`, `resolve_store`).
 
+The ingest is two passes: equities first (`--universe-size`), then the other
+asset classes (`--classes`). The second pass is not optional — it is the only
+thing that writes `webapp/data/catalog.json`, and `build_stores` refuses to run
+without it. Never put `equity` in `--classes`: that path ignores the dollar-volume
+ranking and fetches the entire US exchange.
+
 Do a small run first to prove the pipeline and your key work — a few minutes:
 
 ```bash
 docker compose run --rm qlib python -m webapp.ingest \
     --universe-size 25 --limit 25 --start 2020-01-01
+docker compose run --rm qlib python -m webapp.ingest \
+    --classes etf,crypto,fx,index --limit 25 --start 2020-01-01
+docker compose run --rm qlib python -m webapp.ingest.build_stores --all
 ```
 
 If that lands, do the real one:
@@ -144,6 +153,8 @@ If that lands, do the real one:
 ```bash
 docker compose run --rm qlib python -m webapp.ingest \
     --universe-size 500 --start 2010-01-01
+docker compose run --rm qlib python -m webapp.ingest \
+    --classes etf,crypto,fx,index --start 2010-01-01
 docker compose run --rm qlib python -m webapp.ingest.build_stores --all
 ```
 
@@ -151,7 +162,7 @@ What you get, and where:
 
 | Path | Size | What |
 |---|---|---|
-| `~/.qlib/qlib_data/us_eodhd` | ~875 MB | primary store: top-500 US names by dollar volume, plus SPY/QQQ |
+| `~/.qlib/qlib_data/us_eodhd` | ~875 MB | primary store: top-500 US names by dollar volume, plus every US ETF and the promoted crypto/FX/index symbols |
 | `~/.qlib/qlib_data/crypto_365` | ~150 MB | crypto, on a 365-day calendar |
 | `webapp/ingest/.cache/` | ~4.4 GB | raw + normalised CSV scratch; keep it, `--mode update` reuses it |
 | `webapp/data/market/` | ~540 MB | index/FX/crypto parquet that qlib itself never reads |
@@ -161,7 +172,11 @@ What you get, and where:
 `${HOME}/.qlib` mount, so a host-side venv and the containers use one dataset.
 
 EODHD rate-limits; the client backs off on 429 (`webapp/ingest/eodhd.py`). A
-partial ingest is resumable — rerun with `--skip-existing`.
+partial `--classes` ingest is resumable — rerun with `--skip-existing`. But only
+resume with the **same `--start`**: `--skip-existing` keeps any CSV already on
+disk, so a symbol fetched during a shallower run (say the smoke test's 2020
+start) silently keeps its truncated history. After changing `--start`, rerun
+without `--skip-existing`.
 
 `build_stores` is offline: it rebuilds both qlib stores, the universe files, and
 `store_manifest.json` from the cached CSVs, so you can re-run it after a schema
@@ -177,11 +192,40 @@ docker compose up -d api ui
 |---|---|---|
 | UI | <http://localhost:5274> | 5173/5273 were taken on the original machine; the port is `strictPort` |
 | API | <http://localhost:8770> | `/api/health`, OpenAPI at `/docs` |
+| RAG API | <http://localhost:8001> | `docker compose up -d rag-api`; needs the Supabase stack below |
+| Supabase (Kong) | <http://localhost:8010> | separate compose project, see "The RAG stack" |
 | JupyterLab | <http://localhost:8888/lab?token=qlib> | `docker compose up -d jupyter` |
 | MLflow | <http://localhost:5500> | `docker compose up -d mlflow-ui` |
 
-Everything except MLflow binds `127.0.0.1` only. There is no auth — the API keys
-stay server-side and never reach the browser.
+Everything except MLflow binds `127.0.0.1` only. The UI sits behind a Supabase
+login (see below); the EODHD/OpenRouter API keys stay server-side either way and
+never reach the browser.
+
+### The RAG stack
+
+The document/chat assistant (routes `/chats`, `/documents`, `/corpus`,
+`/lab/roster`) is the vendored `rag/` subtree running as the `rag-api` service,
+backed by an **isolated Supabase instance** that lives outside this repo:
+
+- Compose project `supabase-aq` at `C:\Users\TBVis\Supabase\supabase-project`
+  (`docker compose -p supabase-aq up -d` from that directory). Kong publishes it
+  on host `:8010` (REST, auth, storage) with the pooler on `:5442`. It is
+  deliberately separate from any other Supabase install on the machine.
+- `rag/backend/.env` (gitignored) configures `rag-api`: Supabase URL/keys,
+  embedding backend, and the test-user credentials (`TEST_USER1_PASSWORD`).
+- `webapp/ui/.env.local` (gitignored) gives the browser `VITE_SUPABASE_URL`
+  (the Kong URL) and `VITE_SUPABASE_ANON_KEY`.
+
+Start order: Supabase first, then `docker compose up -d rag-api ui`. The UI's
+auth gate wraps the whole shell — sign in as `test@test.com` with the password
+from `rag/backend/.env`. The Vite dev server proxies `/rag-api/*` to the
+`rag-api` container with the prefix stripped, so the app stays same-origin.
+
+Only `src/features/rag/**` attaches the Supabase JWT to requests; the original
+qlib `/api` endpoints remain keyless and server-side. A quick end-to-end check:
+upload a small markdown file on `/documents`, watch it reach `completed`,
+inspect its chunks on `/corpus`, then ask a question about it on `/chats` — the
+answer should carry a citation back to the uploaded file.
 
 MLflow is published on 5500 because macOS ControlCenter owns 5000. On Linux 5000
 is usually free, but the mapping is kept so both machines match.

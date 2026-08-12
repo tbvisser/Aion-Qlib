@@ -1,0 +1,168 @@
+VENDOR CONTRACT AND CONTACT DATABASE
+Acme Technologies Inc. - Procurement Department
+Last Updated: January 25, 2025
+
+================================================================
+VENDOR #1: CloudScale Solutions LLC
+================================================================
+Legal Entity: CloudScale Solutions LLC
+EIN: 82-4917356
+DUNS Number: 08-291-4753
+Address: 450 Park Avenue South, 10th Floor, New York, NY 10016
+
+Primary Contact:
+  Name: Patricia Ann Donovan
+  Title: VP of Enterprise Sales
+  Email: patricia.d@cloudscale.io
+  Personal Email: pat.donovan@gmail.com
+  Phone: (212) 555-0934
+  Mobile: +1-917-555-0412
+  SSN: 223-45-6789 (for 1099 processing)
+  DOB: 04/22/1980
+  Home Address: 88 Greenwich Street, Apt 42F, New York, NY 10006
+
+Banking Details:
+  Bank: JPMorgan Chase
+  Routing: 021000021
+  Account: 829174635028
+  SWIFT: CHASUS33
+  Account Holder: CloudScale Solutions LLC
+
+Contract Details:
+  Contract #: ACME-VENDOR-2024-001
+  Start Date: January 1, 2024
+  End Date: December 31, 2025
+  Annual Value: $540,000
+  Payment Terms: Net 30
+  Auto-Renewal: Yes
+
+Authorized Signatories:
+  - Patricia Donovan (pat.donovan@gmail.com)
+  - Marcus Webb, CFO (m.webb@cloudscale.io), SSN: 334-56-7890
+    Phone: (212) 555-0821
+    Home: 1250 Broadway, Apt 18A, New York, NY 10001
+
+Internal Contact: Sarah Williams, sarah.williams@acmetech.com, (415) 555-0445
+
+================================================================
+VENDOR #2: DataGuard Security Inc.
+================================================================
+Legal Entity: DataGuard Security Inc.
+EIN: 91-3847291
+DUNS Number: 12-847-3921
+Address: 2850 Stevens Creek Boulevard, San Jose, CA 95128
+
+Primary Contact:
+  Name: Ahmad Rashid Hassan
+  Title: Director of Professional Services
+  Email: a.hassan@dataguard.com
+  Personal Email: ahmad.hassan.sec@protonmail.com
+  Phone: (408) 555-0712
+  Mobile: +1-408-555-0293
+  SSN: 445-67-8901 (for 1099 processing)
+  DOB: 12/03/1975
+  Home Address: 5600 Almaden Expressway, Unit 7, San Jose, CA 95118
+  Passport (UAE): A12345678
+  US Green Card: SRC-2019-012345
+
+Banking Details:
+  Bank: Silicon Valley Bank
+  Routing: 121140399
+  Account: 3918274650
+  SWIFT: SVBKUS6S
+  Account Holder: DataGuard Security Inc.
+
+Contract Details:
+  Contract #: ACME-VENDOR-2024-002
+  Start Date: July 1, 2024
+  End Date: June 30, 2025
+  Contract Value: $28,500 (one-time audit)
+  Payment Terms: 50% upfront, 50% on completion
+
+Authorized Signatories:
+  - Ahmad Hassan (a.hassan@dataguard.com)
+  - Priya Sharma, CEO (p.sharma@dataguard.com), Phone: (408) 555-0100
+    DOB: 06/15/1972
+    Home: 19200 Stevens Creek Blvd, Cupertino, CA 95014
+
+Internal Contact: Elena Vasquez, elena.vasquez@acmetech.com, (415) 555-0534
+
+================================================================
+VENDOR #3: TechTalent Recruiting Partners
+================================================================
+Legal Entity: TechTalent Recruiting Partners Inc.
+EIN: 76-5829134
+DUNS Number: 34-182-9475
+Address: 100 Montgomery Street, Suite 1500, San Francisco, CA 94104
+
+Primary Contact:
+  Name: Jennifer Louise Martinez
+  Title: Senior Account Executive
+  Email: j.martinez@techtalent.com
+  Personal Email: jenn.martinez88@hotmail.com
+  Phone: (415) 555-0623
+  Mobile: +1-415-555-0847
+  SSN: 556-78-9012 (for 1099 processing)
+  DOB: 08/29/1988
+  Home Address: 3400 California Street, Apt 6D, San Francisco, CA 94118
+  Driver's License: CA D5567890
+
+Banking Details:
+  Bank: First Republic Bank
+  Routing: 321081669
+  Account: 4827391056
+  Account Holder: TechTalent Recruiting Partners Inc.
+
+Contract Details:
+  Contract #: ACME-VENDOR-2023-008
+  Start Date: March 1, 2023
+  End Date: February 28, 2025
+  Fee Structure: 20% of first-year salary for successful placements
+  Payment Terms: Net 45
+
+Recent Placements:
+  - James Chen (hired 06/15/2021) - Placement fee: $31,000
+  - Michael O'Brien (hired 12/01/2022) - Placement fee: $29,000
+  - 2025 Pipeline: 3 open reqs, budget $150K in fees
+
+Internal Contacts:
+  - Margaret Thompson (hiring manager), margaret.thompson@acmetech.com
+  - James Chen (technical interviewer), james.chen@acmetech.com
+
+================================================================
+VENDOR #4: Meridian Office Supplies GmbH
+================================================================
+Legal Entity: Meridian Office Supplies GmbH
+VAT Number: DE291847352
+Address: Berliner Strasse 45, 60311 Frankfurt am Main, Germany
+
+Primary Contact:
+  Name: Klaus Heinrich Weber
+  Title: International Sales Manager
+  Email: k.weber@meridian-supplies.de
+  Phone: +49 69 5555 1234
+  Mobile: +49 170 5555 6789
+  German ID (Personalausweis): T220001293
+  DOB: 02/14/1968
+  Home Address: Hauptwache 12, 60313 Frankfurt am Main, Germany
+
+Banking Details:
+  Bank: Deutsche Bank
+  IBAN: DE89 3704 0044 0532 0130 00
+  BIC/SWIFT: COBADEFFXXX
+  Account Holder: Meridian Office Supplies GmbH
+
+Contract Details:
+  Contract #: ACME-VENDOR-2024-005
+  Start Date: April 1, 2024
+  End Date: March 31, 2026
+  Annual Value: EUR 35,000
+  Payment Terms: Net 60, EUR wire transfer
+
+Internal Contact: Michael O'Brien, michael.obrien@acmetech.com, (415) 555-0712
+
+================================================================
+NOTICE: This document contains sensitive vendor information including
+financial data and personally identifiable information. Handle in
+accordance with Acme Technologies Data Classification Policy DCP-003.
+================================================================

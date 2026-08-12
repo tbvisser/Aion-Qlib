@@ -1,0 +1,220 @@
+name: skill-creator
+description: >-
+  Create new skills, modify and improve existing skills, and help users write
+  effective skill names, descriptions, and instructions. Use this skill whenever
+  the user wants to create a skill from scratch, update or optimize an existing
+  skill, turn a conversation workflow into a reusable skill, or get help writing
+  skill content. Also use when the user mentions "skill", "custom instruction",
+  "workflow template", or asks to automate a repeating task pattern, even if they
+  don't explicitly say "create a skill".
+instructions: |
+  # Skill Creator
+
+  A skill for creating new skills and iteratively improving them.
+
+  At a high level, creating a skill goes like this:
+
+  - Figure out what the user wants the skill to do and roughly how it should work
+  - Write a draft of the skill
+  - Present it for the user to review
+  - Improve based on their feedback
+  - Save with `save_skill`
+  - Users can add building-block files later from the Skills page
+
+  Your job is to figure out where the user is in this process and jump in. Maybe
+  they say "I want a skill for X" — help them narrow it down, draft it, iterate.
+  Maybe they already have a draft — go straight to refining. Maybe the current
+  conversation already contains a workflow they want to capture ("turn this into
+  a skill") — extract the steps, tools used, corrections made, input/output
+  formats observed, and draft from that context.
+
+  Of course, be flexible. If the user says "just save it, I'll tweak later", do
+  that. If they have very specific ideas about what the skill should say, follow
+  their lead rather than over-engineering it.
+
+  ## Communicating with the user
+
+  This skill gets used by people across a wide range of technical familiarity.
+  Some users are developers who think in APIs and schemas. Others are domain
+  experts — a sales manager who wants to automate report analysis, a researcher
+  who wants consistent literature review steps.
+
+  Pay attention to context cues to understand how to pitch your communication.
+  Terms like "markdown" and "trigger" are borderline — fine for most users, but
+  if someone seems unfamiliar, give a brief explanation. Don't dumb things down
+  for technical users, and don't assume jargon with non-technical ones. When in
+  doubt, a short clarifying phrase costs almost nothing: "the description (which
+  controls when this skill activates)".
+
+  ## Creating a Skill
+
+  ### Capture Intent
+
+  Start by understanding the user's intent. The current conversation might
+  already contain everything you need (e.g., they just walked through a workflow
+  and said "make this a skill"). If so, extract what you can from the history
+  first — then confirm with the user and fill any gaps.
+
+  Key questions (skip any the conversation already answers):
+  1. What should this skill enable the assistant to do?
+  2. When should it trigger? (what user phrases or contexts)
+  3. What's the expected output format or behavior?
+  4. Does it need any building-block files? (can be added later)
+
+  ### Interview
+
+  Proactively ask about edge cases, input/output formats, example scenarios, and
+  success criteria. This is the cheapest time to get clarity — it's much easier
+  to ask a question now than to rewrite the skill later.
+
+  But don't overdo it. 2-3 focused questions usually suffice. If you find
+  yourself drafting a 10-question survey, you're overthinking it — write a draft
+  and iterate instead.
+
+  ### Write the Draft
+
+  Based on what you've learned, draft all three components and present them to
+  the user for review **before** saving. The draft should include:
+
+  **Name**
+  The skill identifier. Think of it as a URL slug — it should be scannable and
+  self-explanatory.
+  - Lowercase letters, numbers, hyphens only
+  - Max 64 characters
+  - Gerund form preferred: analyzing-sales-data, reviewing-contracts,
+    managing-inventory
+  - Should clearly convey what the skill does at a glance
+
+  **Description**
+  The description is the most important field. It's the primary triggering
+  mechanism — when the assistant sees a user's message, it scans skill
+  descriptions to decide whether to load one. A great skill with a bad
+  description never gets used.
+
+  - Write in third person (not "I can" or "You can")
+  - Include WHAT the skill does AND WHEN to use it — both matter equally
+  - Include specific key terms and phrases users would actually say
+  - The assistant has a tendency to "under-trigger" — to not load skills when
+    they'd actually be helpful. To counter this, make descriptions a little
+    "pushy". For example, instead of:
+      "Analyzes quarterly sales reports."
+    Write:
+      "Analyzes quarterly sales reports. Use whenever the user mentions sales
+      data, revenue trends, quarterly numbers, or wants to compare performance
+      across time periods, even if they don't explicitly ask for a 'sales
+      report'."
+    The extra specificity about when to trigger makes a real difference.
+  - Min 20 chars, max 1024 chars
+
+  **Instructions**
+  The instructions get loaded into context when the skill triggers. Every token
+  here competes with the conversation, so make them count. Think of it as
+  briefing a smart colleague — tell them what they need to know that they
+  wouldn't already know, and trust them to handle the rest.
+
+  Writing principles:
+
+  - Only include context the assistant doesn't already have. Don't explain how
+    to use markdown or how to be helpful — that's baseline behavior. Focus on
+    domain-specific knowledge, workflows, constraints, and output formats.
+
+  - Explain the reasoning behind instructions instead of relying on rigid rules.
+    "Format dates as YYYY-MM-DD because the downstream dashboard parses this
+    format" is more robust than "ALWAYS use YYYY-MM-DD." When the assistant
+    understands *why*, it can handle edge cases the instructions don't
+    explicitly cover. If you find yourself writing MUST in all caps, that's a
+    yellow flag — try reframing as an explanation of why it matters.
+
+  - Use structure: headings, numbered steps, code blocks, checklists. For
+    complex multi-step skills, clear numbering helps the assistant track where
+    it is in the workflow.
+
+  - Keep it under ~500 lines. If you're approaching that, it's a sign the skill
+    is trying to do too much — consider breaking it into a clear hierarchy with
+    headings so the assistant can navigate efficiently.
+
+  - Start with a brief overview (what does this skill do and why does it exist),
+    then get into specifics. The assistant reads top-to-bottom, so front-load
+    the most important context.
+
+  Useful patterns for instructions:
+
+  Defining output formats —
+  ```markdown
+  ## Report structure
+  Use this template:
+  # [Title]
+  ## Executive summary
+  ## Key findings
+  ## Recommendations
+  ```
+
+  Including examples — concrete examples clarify ambiguous instructions better
+  than more words:
+  ```markdown
+  ## Email subject format
+  **Example 1:**
+  Input: Wrote up the Q4 findings for the board
+  Output: Q4 Board Report: Key Findings and Recommendations
+
+  **Example 2:**
+  Input: Fixed the login bug Sarah reported
+  Output: Bug Fix: Login Authentication Issue (ref: Sarah's report)
+  ```
+
+  ## Review and Iterate
+
+  Present the full draft (name, description, instructions) and ask for feedback.
+  This is where the skill gets good.
+
+  When improving based on feedback, keep these principles in mind:
+
+  1. **Generalize, don't overfit.** A skill gets used across many different
+     prompts by many different users. You and the user are iterating on a few
+     examples because it's fast, but if the skill only works for those specific
+     examples, it's useless. When the user says "it didn't include the date",
+     ask yourself whether the fix is "always include the date" or something
+     deeper about what information the user considers essential. Prefer the
+     general fix.
+
+  2. **Keep it lean.** After each round of feedback, look at the instructions
+     with fresh eyes. Is everything pulling its weight? If something keeps
+     causing the assistant to waste time on unproductive work, cut it. A shorter
+     skill that covers 90% of cases well beats a bloated one that tries to
+     handle everything.
+
+  3. **Explain the why.** When a particular behavior matters to the user, don't
+     just add a rule — explain the reasoning. "Include the client name in every
+     section heading because these reports get shared across teams and readers
+     need context without scrolling to the top" gives the assistant something to
+     work with. "ALWAYS include client name in headings" is brittle.
+
+  Iterate until the user is satisfied, then save.
+
+  ## Save
+
+  Call `save_skill` with the final name, description, and instructions.
+
+  If the skill benefits from building-block files (Python scripts, templates,
+  data files), use `upload_skill_file` right after saving. For example, if you
+  worked out a great Python script during the conversation, attach it so the
+  skill can read it later via `read_skill_file`. The skill_id is returned by
+  `save_skill`.
+
+  Confirm success with the user and let them know they can find the
+  skill in their Skills page if they want to edit it later or manage
+  its attached files.
+
+  ## Improving Existing Skills
+
+  When the user wants to improve an existing skill rather than create a new one:
+
+  1. Load the current version with `load_skill` to see what's there
+  2. Understand what's not working — ask for specific examples of where the
+     skill produced bad results. "It's not great" isn't actionable; "it keeps
+     forgetting to include the summary table" is
+  3. Figure out whether the problem is in the description (skill isn't
+     triggering when it should) or the instructions (skill triggers but behaves
+     wrong). These are different problems with different fixes
+  4. Draft improvements and show the user what changed and why
+  5. Save the updated version with `save_skill`

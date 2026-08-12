@@ -16,8 +16,8 @@ describe('nav shape', () => {
     ])
   })
 
-  it('carries all sixteen destinations', () => {
-    expect(items).toHaveLength(16)
+  it('carries all nineteen destinations', () => {
+    expect(items).toHaveLength(19)
   })
 
   it('gives every destination a distinct key and route', () => {
@@ -30,8 +30,8 @@ describe('nav shape', () => {
     // blurb is the spec, so an unbuilt item without one is a bug.
     const soon = items.filter((i) => !i.built)
     expect(soon.map((i) => i.key)).toEqual([
-      'inbox', 'documents', 'explorer', 'corpus',
-      'investors', 'tl-shadow', 'tl-roster',
+      'explorer',
+      'investors',
     ])
     for (const item of soon) {
       expect(item.blurb, `${item.key} has no blurb`).toBeTruthy()
@@ -54,8 +54,9 @@ describe('nav shape', () => {
       allNavSections.find((s) => s.heading === heading)!.items.map((i) => i.key)
 
     expect(section('Strategy Lab')).toEqual([
-      'tl-builder', 'tl-mlstudio', 'tl-databank', 'indicators', 'tl-shadow', 'tl-roster',
+      'tl-builder', 'tl-mlstudio', 'tl-databank', 'tl-alphazoo', 'indicators', 'tl-shadow', 'tl-roster',
     ])
+    expect(navItemFor('tl-shadow')?.built).toBe(true)
     expect(section('Book')).not.toContain('indicators')
   })
 })
@@ -65,6 +66,13 @@ describe('sectionForPath', () => {
     expect(sectionForPath('/markets')).toBe('markets')
     expect(sectionForPath('/book')).toBe('book')
     expect(sectionForPath('/book/abc123')).toBe('book')
+  })
+
+  it('keeps the dashboard highlighted while a conversation is open on it', () => {
+    // Conversations live at /dashboard/:threadId; /chats is history only.
+    expect(sectionForPath('/dashboard/some-thread-id')).toBe('dashboard')
+    expect(sectionForPath('/chats')).toBe('chat')
+    expect(sectionForPath('/chats/quick')).toBe('chat')
   })
 
   it('prefers the longer route, so /lab/builder never loses to a /lab prefix', () => {

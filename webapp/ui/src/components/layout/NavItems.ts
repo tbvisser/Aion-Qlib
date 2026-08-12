@@ -1,9 +1,9 @@
 import {
   LayoutDashboard, MessageSquare, Inbox,
   Folder, Network, Library,
-  Briefcase, Users, LineChart,
+  Briefcase, Users, LineChart, Wallet,
   CandlestickChart, Landmark,
-  SlidersHorizontal, Brain, Boxes, Copy, Bot,
+  SlidersHorizontal, Brain, Boxes, Copy, Bot, FlaskConical, Sparkles,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -24,11 +24,11 @@ import type { LucideIcon } from 'lucide-react'
 // will do and which existing piece folds into them. Hiding them made the app
 // look finished and the plan invisible.
 export type SectionKey =
-  | 'dashboard' | 'chat' | 'inbox'
+  | 'dashboard' | 'chat' | 'inbox' | 'vibe-agent'
   | 'documents' | 'explorer' | 'corpus'
-  | 'book' | 'investors' | 'indicators'
+  | 'book' | 'accounts' | 'investors' | 'indicators'
   | 'markets' | 'macro'
-  | 'tl-builder' | 'tl-mlstudio' | 'tl-databank' | 'tl-shadow' | 'tl-roster'
+  | 'tl-builder' | 'tl-mlstudio' | 'tl-databank' | 'tl-alphazoo' | 'tl-shadow' | 'tl-roster'
 
 export interface NavItem {
   key: SectionKey
@@ -56,24 +56,18 @@ export const mainNavSections: NavSection[] = [
     items: [
       { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard', built: true },
       { key: 'chat', label: 'Chats', icon: MessageSquare, route: '/chats', built: true },
-      {
-        key: 'inbox', label: 'Inbox', icon: Inbox, route: '/inbox',
-        blurb:
-          'Alerts worth interrupting for: backtest completions and failures, data-refresh outcomes, ' +
-          'upcoming economic-calendar events and regime flips. Every source already exists — the run ' +
-          'event stream, the ingest job stream and the macro calendar — with nothing collecting them.',
-      },
+      { key: 'inbox', label: 'Inbox', icon: Inbox, route: '/inbox', built: true },
+      // The Vibe-Trading sidecar's own agent/swarm console. Its API forbids
+      // framing (CSP frame-ancestors 'none'), so this destination is a status
+      // + launch page, not an embed — the console opens same-origin on the
+      // sidecar itself (:8899), where its SSE-ticket auth works unchanged.
+      { key: 'vibe-agent', label: 'Vibe Agent', icon: Sparkles, route: '/vibe-agent', built: true },
     ],
   },
   {
     heading: 'Knowledge',
     items: [
-      {
-        key: 'documents', label: 'Documents', icon: Folder, route: '/documents',
-        blurb:
-          'Research notes and filings, uploaded and attached to a strategy, portfolio or instrument. ' +
-          'No backend for this yet.',
-      },
+      { key: 'documents', label: 'Documents', icon: Folder, route: '/documents', built: true },
       {
         key: 'explorer', label: 'Graph', icon: Network, route: '/explorer',
         blurb:
@@ -81,18 +75,18 @@ export const mainNavSections: NavSection[] = [
           'Generalises the Macro Desk linkage panel, which already computes drivers, betas, regime ' +
           'behaviour and event studies for one subject at a time.',
       },
-      {
-        key: 'corpus', label: 'Corpus', icon: Library, route: '/corpus',
-        blurb:
-          'The indexed text behind the assistant: sources, chunks, embeddings, and which of them a ' +
-          'given answer was drawn from. No backend for this yet.',
-      },
+      { key: 'corpus', label: 'Corpus', icon: Library, route: '/corpus', built: true },
     ],
   },
   {
     heading: 'Book',
     items: [
       { key: 'book', label: 'Portfolios & Strategies', icon: Briefcase, route: '/book', built: true },
+      // Read-only broker views + paper trading through the Vibe-Trading
+      // sidecar's trading_* tools. Live order placement is not reachable from
+      // this app — the proxy's allowlist (webapp/api/routers/vibe.py) stops at
+      // read + paper, and vibe's own mandate gates sit behind that.
+      { key: 'accounts', label: 'Broker Accounts', icon: Wallet, route: '/accounts', built: true },
       {
         key: 'investors', label: 'Investors', icon: Users, route: '/investors',
         blurb:
@@ -114,21 +108,20 @@ export const mainNavSections: NavSection[] = [
       { key: 'tl-builder', label: 'Strategy Builder', icon: SlidersHorizontal, route: '/lab/builder', built: true },
       { key: 'tl-mlstudio', label: 'ML Studio', icon: Brain, route: '/lab/ml-studio', built: true },
       { key: 'tl-databank', label: 'Databank', icon: Boxes, route: '/lab/databank', built: true },
+      // Vibe-Trading's 462-alpha registry, browsed via the vibe sidecar
+      // (webapp/api/routers/vibe.py). Sits beside the Databank because both
+      // answer "what factors exist?" — Databank for qlib expressions, the Zoo
+      // for the sidecar's cross-sectional academic/fundamental catalog.
+      { key: 'tl-alphazoo', label: 'Alpha Zoo', icon: FlaskConical, route: '/lab/alpha-zoo', built: true },
       // Moved here from Book — see the divergence note at the top of the file.
       { key: 'indicators', label: 'Indicators', icon: LineChart, route: '/indicators', built: true },
-      {
-        key: 'tl-shadow', label: 'Shadow Accounts', icon: Copy, route: '/lab/shadow-accounts',
-        blurb:
-          'Paper-traded forward tracking of a strategy once its backtest is done, and the divergence ' +
-          'between the two. Needs a scheduler; no backend for this yet.',
-      },
-      {
-        key: 'tl-roster', label: 'Agents & Skills', icon: Bot, route: '/lab/roster',
-        blurb:
-          "The assistant's tool roster, made manageable. Eight tools across the general and builder " +
-          'profiles already exist and are already reported by the chat config endpoint; this page ' +
-          'turns that into enable/disable and per-profile configuration.',
-      },
+      // Journal-driven mimicry via the Vibe-Trading sidecar: upload a broker
+      // trade export, mine it into if-then rules, backtest and forward-scan
+      // them. (The original vision — forward-tracking a backtested strategy —
+      // needs per-trade data our runs don't produce; the journal route is what
+      // the sidecar's engine actually supports.)
+      { key: 'tl-shadow', label: 'Shadow Accounts', icon: Copy, route: '/lab/shadow-accounts', built: true },
+      { key: 'tl-roster', label: 'Agents & Skills', icon: Bot, route: '/lab/roster', built: true },
     ],
   },
 ]

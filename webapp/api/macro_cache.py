@@ -176,6 +176,8 @@ def _release_row(row) -> dict:
         "estimate": _clean(row.get("estimate")),
         "previous": _clean(row.get("previous")),
         "surprise": _clean(row.get("surprise")),
+        "change": _clean(row.get("change")),
+        "change_percentage": _clean(row.get("change_percentage")),
         "is_forecast": bool(row.get("is_forecast")),
     }
 
@@ -204,6 +206,38 @@ def event_types(country: str = "", min_count: int = 4) -> list[dict]:
          "event_key": _text(r["event_key"]), "n": int(r["n"])}
         for _, r in grouped.iterrows()
     ]
+
+
+def release_history(
+    event_key: str,
+    country: str = "US",
+    limit: int = 24,
+) -> list[dict]:
+    """Trailing prints of one release type, release-dated, oldest first.
+
+    Unlike ``release_series`` this is **not** session-shifted: it answers
+    "what did this indicator print on each release date" for a history chart,
+    not "when could the market first react". Rows without an ``actual`` are
+    excluded — except the single next pending print (dated after the last
+    filed one), kept so the chart can mark the upcoming estimate without
+    plotting fabricated points.
+    """
+    frame = calendar_frame()
+    if frame is None or frame.empty:
+        return []
+    wanted = (event_key or "").lower()
+    out = frame[frame["event_key"].str.lower() == wanted]
+    if country:
+        out = out[out["country"].str.upper() == country.upper()]
+    if out.empty:
+        return []
+    out = out.sort_values("date")
+    filed = out[out["actual"].notna()]
+    pending = out[out["actual"].isna()]
+    if not filed.empty:
+        pending = pending[pending["date"] > filed["date"].iloc[-1]]
+    rows = pd.concat([filed.tail(limit), pending.head(1)]).sort_values("date")
+    return [_release_row(r) for _, r in rows.iterrows()]
 
 
 def release_series(

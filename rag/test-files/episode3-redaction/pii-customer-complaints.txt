@@ -1,0 +1,171 @@
+CUSTOMER SUPPORT TICKET LOG
+Acme Technologies Inc. - Support Department
+Export Date: January 20, 2025
+
+========================================
+TICKET #CS-2025-00142
+========================================
+Date: January 3, 2025
+Customer: Margaret Thompson
+Email: maggie.t85@gmail.com
+Phone: (628) 555-0234
+Account Number: CUST-884729
+Priority: HIGH
+
+Subject: Unauthorized charge on credit card
+
+Description:
+Hi, my name is Margaret Thompson and I noticed an unauthorized charge of $499.99
+on my Visa card ending in 7823. The full card number is 4539-1488-0343-6467 with
+expiration 08/2026. My billing address is 1847 Oak Valley Drive, Apt 12B,
+San Francisco, CA 94110.
+
+I need this resolved ASAP. You can reach me at maggie.t85@gmail.com or my cell
+(628) 555-0234. My date of birth for verification is March 14, 1985 and my
+SSN last four are 3891.
+
+Agent Response (Jan 3):
+Ms. Thompson, I've flagged the charge for review. I've verified your identity using
+DOB 03/14/1985 and last four of SSN 3891. Your refund will be processed to the
+Visa ending in 7823 within 5-7 business days.
+
+Follow-up (Jan 8):
+Margaret called back at 628-555-0234 to confirm refund received. Case closed.
+
+========================================
+TICKET #CS-2025-00187
+========================================
+Date: January 7, 2025
+Customer: James Chen
+Email: jrchen90@yahoo.com
+Phone: (510) 555-0876
+Account Number: CUST-556391
+Priority: MEDIUM
+
+Subject: Data export request - GDPR compliance
+
+Description:
+This is James Chen requesting a full data export under GDPR Article 15. My details:
+- Full Name: James Robert Chen
+- DOB: November 22, 1990
+- Email: jrchen90@yahoo.com
+- Address: 3256 Sunset Boulevard, Unit 4A, Oakland, CA 94601
+- Phone: 510-555-0876
+- Account: CUST-556391
+- SSN (for identity verification): 591-38-4720
+- Passport: 681234957
+
+Please send the export to my email. I also want to know if you've shared my data
+with any third parties, particularly my credit card details (Mastercard
+5425-2334-9871-0044, exp 11/2027).
+
+Agent Response (Jan 8):
+Mr. Chen, we've received your GDPR request. Identity verified via passport number
+681234957. Export will be ready within 30 days per regulation. Your Mastercard
+ending in 0044 data will be included in the export.
+
+========================================
+TICKET #CS-2025-00203
+========================================
+Date: January 10, 2025
+Customer: Dr. Sarah Williams
+Email: swilliams78@outlook.com
+Phone: (415) 555-0667
+Account Number: CUST-771024
+Priority: URGENT
+
+Subject: Account security breach - immediate action required
+
+Description:
+I'm Dr. Sarah Patricia Williams and I believe my account has been compromised.
+Someone has been making purchases using my American Express card
+3714-496353-98431 (exp 03/2027, CVV 4821). They also seem to have access to
+my personal details:
+
+- SSN: 134-72-9085
+- Driver's License: CA D1347290
+- Home Address: 920 Pacific Heights Lane, San Francisco, CA 94115
+- DOB: July 8, 1978
+
+The fraudulent transactions originated from IP address 203.45.167.89. Please
+freeze my account immediately and contact me at 415-555-0667 or
+swilliams78@outlook.com.
+
+My husband David Williams can also be reached at (312) 555-0891 if I'm
+unavailable.
+
+Agent Response (Jan 10):
+Dr. Williams, we've immediately frozen account CUST-771024. We've flagged the
+IP 203.45.167.89 and notified our fraud team. Your Amex ending in 8431 has been
+reported to American Express. New card will be issued to 920 Pacific Heights Lane,
+San Francisco, CA 94115.
+
+========================================
+TICKET #CS-2025-00245
+========================================
+Date: January 14, 2025
+Customer: Michael O'Brien
+Email: mikeob92@icloud.com
+Phone: (650) 555-0198
+Account Number: CUST-339128
+Priority: LOW
+
+Subject: Update billing information
+
+Description:
+Hey, Mike O'Brien here. Need to update my billing info:
+
+Old card: Discover 6011-5140-9823-4567 (exp 06/2025)
+New card: Visa 4916-3389-0145-2678 (exp 12/2028, CVV 592)
+
+New billing address: 4501 El Camino Real, Suite 200, Palo Alto, CA 94306
+Phone: 650-555-0198
+DOB: 05/30/1992
+
+Also, can you update my UK bank details for international transfers?
+IBAN: GB29 NWBK 6016 1331 9268 19
+SWIFT/BIC: NWBKGB2L
+
+Thanks,
+Michael David O'Brien
+
+Agent Response (Jan 15):
+Mr. O'Brien, billing information updated. Old Discover ending in 4567 removed,
+new Visa ending in 2678 added. IBAN and SWIFT details saved for international
+transfers. Confirmation sent to mikeob92@icloud.com.
+
+========================================
+TICKET #CS-2025-00278
+========================================
+Date: January 17, 2025
+Customer: Elena Vasquez
+Email: elenavasquez87@protonmail.com
+Phone: (415) 555-0891
+Account Number: CUST-445672
+Priority: MEDIUM
+
+Subject: Legal hold request and account documentation
+
+Description:
+This is Elena Rosario Vasquez, General Counsel. I need documentation for a legal
+hold on the following accounts. My credentials for verification:
+
+- Bar License: CA-SBN-298451
+- SSN: 456-83-2197
+- Personal ID: CA D4568321
+- Passport: 912345678
+- Contact: 415-555-0891 or elenavasquez87@protonmail.com
+- Office: 2710 Mission Street, Apt 8C, San Francisco, CA 94110
+
+The accounts under review involve transactions with these credit card numbers:
+- Company card: 4532-8921-0045-6789 (Sarah Williams' corporate Visa)
+- Vendor payment card: 5287-1943-0067-8834
+
+Please preserve all records from September 2024 onward. Bitcoin wallet
+bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq was flagged in the audit.
+
+Agent Response (Jan 18):
+Ms. Vasquez, identity verified via Bar License CA-SBN-298451. Legal hold placed
+on specified accounts. All records from Sept 2024 preserved. Crypto wallet address
+bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq flagged for compliance review.
+Documentation sent to elenavasquez87@protonmail.com.

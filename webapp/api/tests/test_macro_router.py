@@ -197,6 +197,139 @@ def test_cold_calendar_types_is_200_with_a_reason(client, cold_cache):
     assert body["available"] is False and body["types"] == []
 
 
+def test_calendar_exposes_cache_coverage_beside_the_query_window(client, monkeypatch):
+    """`from`/`to` echo the query; the cache's own span must survive too.
+
+    The Inbox month grid needs the cache span to say "outside the cached
+    window" for an empty month instead of implying no releases occurred.
+    """
+    monkeypatch.setattr(macro_cache, "calendar_status", lambda: {
+        "available": True, "rows": 3, "fetched_at": "2026-08-11T00:00:00",
+        "age_seconds": 60.0, "stale": False, "countries": ["US"],
+        "from": "2015-01-01", "to": "2026-09-30",
+    })
+    monkeypatch.setattr(macro_cache, "releases",
+                        lambda start, end, country, type_, limit: [])
+    body = client.get("/api/macro/calendar",
+                      params={"from": "2026-08-01", "to": "2026-08-31"}).json()
+    assert body["cache_from"] == "2015-01-01"
+    assert body["cache_to"] == "2026-09-30"
+    assert body["from"] == "2026-08-01" and body["to"] == "2026-08-31"
+
+
+# --------------------------------------------------------------------------
+# Calendar history
+# --------------------------------------------------------------------------
+_WARM_CALENDAR_STATUS = {
+    "available": True, "rows": 11, "fetched_at": "2026-08-11T00:00:00",
+    "age_seconds": 60.0, "stale": False, "countries": ["US", "DE"],
+    "from": "2015-01-01", "to": "2027-08-11",
+}
+
+
+def _calendar_history_frame() -> pd.DataFrame:
+    """Six filed US CPI prints, one stale unfiled one, two pending, plus
+    a DE row and a different event to prove the filters."""
+    def row(date, actual, event_key="inflation_rate__yoy", country="US"):
+        estimate = 2.5
+        return {
+            "date": pd.Timestamp(date), "time": "13:30:00", "country": country,
+            "type": "Inflation Rate", "event_key": event_key, "period": None,
+            "comparison": "yoy", "actual": actual, "previous": 2.6,
+            "estimate": estimate, "change": -0.1, "change_percentage": -3.8,
+            "surprise": actual - estimate, "is_forecast": pd.isna(actual),
+        }
+    return pd.DataFrame([
+        row("2026-01-13", 3.0),
+        row("2026-02-11", 2.9),
+        row("2026-03-10", np.nan),   # unfiled past print — never a chart point
+        row("2026-04-10", 2.8),
+        row("2026-05-12", 2.7),
+        row("2026-06-10", 2.6),
+        row("2026-07-14", 2.4),
+        row("2026-08-12", np.nan),   # next pending — kept as the estimate marker
+        row("2026-09-10", np.nan),   # later pending — dropped
+        row("2026-06-10", 2.2, country="DE"),
+        row("2026-06-15", 51.0, event_key="ism_manufacturing_pmi"),
+    ])
+
+
+@pytest.fixture
+def warm_history(monkeypatch):
+    monkeypatch.setattr(macro_cache, "calendar_status",
+                        lambda: dict(_WARM_CALENDAR_STATUS))
+    monkeypatch.setattr(macro_cache, "calendar_frame", _calendar_history_frame)
+
+
+def test_calendar_history_cold_cache_is_200_with_a_reason(client, cold_cache):
+    body = client.get("/api/macro/calendar/history",
+                      params={"event_key": "inflation_rate__yoy"}).json()
+    assert body["available"] is False
+    assert body["reason"]
+    assert body["points"] == []
+
+
+def test_calendar_history_is_release_dated_oldest_first(client, warm_history):
+    body = client.get("/api/macro/calendar/history",
+                      params={"event_key": "inflation_rate__yoy",
+                              "country": "US"}).json()
+    assert body["available"] is True
+    dates = [p["date"] for p in body["points"]]
+    assert dates == ["2026-01-13", "2026-02-11", "2026-04-10", "2026-05-12",
+                     "2026-06-10", "2026-07-14", "2026-08-12"]
+    # Null-actual rows never chart except the single next pending print.
+    pending = [p["date"] for p in body["points"] if p["actual"] is None]
+    assert pending == ["2026-08-12"]
+    assert all(p["importance"] == "headline" for p in body["points"])
+    assert all("change" in p and "change_percentage" in p
+               for p in body["points"])
+
+
+def test_calendar_history_respects_limit(client, warm_history):
+    body = client.get("/api/macro/calendar/history",
+                      params={"event_key": "inflation_rate__yoy",
+                              "country": "US", "limit": 4}).json()
+    dates = [p["date"] for p in body["points"]]
+    # Trailing 4 filed prints plus the pending marker; older prints fall off.
+    assert dates == ["2026-04-10", "2026-05-12", "2026-06-10", "2026-07-14",
+                     "2026-08-12"]
+
+
+def test_calendar_history_unknown_key_is_empty_but_available(client, warm_history):
+    body = client.get("/api/macro/calendar/history",
+                      params={"event_key": "no_such_event"}).json()
+    assert body["available"] is True
+    assert body["points"] == []
+
+
+def test_calendar_annotates_importance(client, monkeypatch):
+    monkeypatch.setattr(macro_cache, "calendar_status",
+                        lambda: dict(_WARM_CALENDAR_STATUS))
+    monkeypatch.setattr(
+        macro_cache, "releases",
+        lambda *a, **k: [
+            {"date": "2026-08-01", "event_key": "inflation_rate__yoy"},
+            {"date": "2026-08-20", "event_key": "baker_hughes_oil_rig_count"},
+        ])
+    body = client.get("/api/macro/calendar").json()
+    rows = {r["event_key"]: r for r in body["past"] + body["upcoming"]}
+    assert rows["inflation_rate__yoy"]["importance"] == "headline"
+    assert rows["baker_hughes_oil_rig_count"]["importance"] == "standard"
+
+
+def test_release_row_keeps_change_fields():
+    row = pd.Series({
+        "date": pd.Timestamp("2026-07-14"), "time": "13:30:00", "country": "US",
+        "type": "Inflation Rate", "event_key": "inflation_rate__yoy",
+        "period": None, "comparison": "yoy", "actual": 2.4, "previous": 2.6,
+        "estimate": 2.5, "surprise": -0.1, "change": -0.2,
+        "change_percentage": np.nan, "is_forecast": False,
+    })
+    out = macro_cache._release_row(row)
+    assert out["change"] == -0.2
+    assert out["change_percentage"] is None
+
+
 # --------------------------------------------------------------------------
 # Refresh job
 # --------------------------------------------------------------------------

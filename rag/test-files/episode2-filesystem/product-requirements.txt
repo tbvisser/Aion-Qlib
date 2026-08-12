@@ -1,0 +1,19 @@
+Product Requirements Document
+
+Feature: Folder Navigation
+
+User Story:
+As a user, I want to organize my documents into folders so that I can
+easily find and manage related content.
+
+Requirements:
+1. Users can create nested folder hierarchies
+2. Users can move documents between folders
+3. Users can rename and delete folders
+4. Deleting a folder should not delete documents (move to unfiled)
+5. Folder tree should support drag-and-drop operations
+
+Acceptance Criteria:
+- Folder tree displays in left sidebar
+- Clicking a folder shows its contents in main panel
+- Breadcrumb navigation allows quick traversal

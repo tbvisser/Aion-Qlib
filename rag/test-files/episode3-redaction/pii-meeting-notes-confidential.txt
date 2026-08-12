@@ -1,0 +1,134 @@
+CONFIDENTIAL MEETING NOTES
+Board of Directors - Quarterly Review
+Date: January 20, 2025
+Location: Acme Technologies, 500 Folsom Street, 15th Floor, San Francisco, CA 94105
+Minutes Recorded by: Elena Vasquez, General Counsel
+
+================================================================
+ATTENDEES
+================================================================
+
+1. Margaret Thompson - Senior Software Engineer
+   Dial-in from: (628) 555-0234
+   IP Connection: 73.162.45.198 (Comcast residential, San Francisco)
+
+2. James Chen - ML Engineer
+   Present in person
+   Badge ID: ACME-B-5918
+
+3. Sarah Williams - VP Financial Operations
+   Present in person
+   Presented financial slides from her laptop (MAC address: A4:83:E7:2B:91:F0)
+
+4. Michael O'Brien - Regional Sales Director
+   Dial-in from: (650) 555-0198
+   Connecting from: Meridian Global offices, London
+   UK mobile: +44 7911 555 234
+
+5. Elena Vasquez - General Counsel
+   Present in person
+
+================================================================
+AGENDA ITEM 1: Q4 Financial Review
+Presenter: Sarah Williams
+================================================================
+
+Sarah Williams presented the Q4 2024 financials. Key highlights:
+
+- Revenue: $4.2M (up 23% YoY)
+- Major client Meridian Global (contact: Richard Blackwell, +44 20 7946 0958)
+  renewed for $2.4M ARR
+- NovaTech Pharmaceuticals (contact: Dr. Yuki Tanaka, y.tanaka@novatech-pharma.com)
+  signed $850K annual contract
+- Expenses tracked under Sarah's corporate Visa 4532-8921-0045-6789
+
+ACTION: S. Williams to prepare tax filing documents. Her SSN 134-72-9085 and
+the company EIN 82-4917356 are needed for the IRS submission. Deadline: Feb 15.
+
+================================================================
+AGENDA ITEM 2: Engineering Update
+Presenter: Margaret Thompson
+================================================================
+
+Maggie Thompson reported on the platform modernization initiative:
+
+- Auth microservice migration completed (saved $200K)
+- New ML pipeline developed by J. Chen reduced processing time by 60%
+- Security audit by DataGuard (invoice paid, see finance report)
+
+Margaret mentioned she'll be presenting at GopherCon. Her travel has been
+pre-approved. Contact her assistant at margaret.thompson@acmetech.com or her
+personal email maggie.t85@gmail.com for scheduling.
+
+James Chen added that the ML model accuracy reached 97.3%. He noted his home
+lab setup at 3256 Sunset Boulevard, Oakland has a GPU cluster for after-hours
+testing. His personal AWS account (james.chen.personal@aws, account ID:
+123456789012) is used for overflow compute.
+
+================================================================
+AGENDA ITEM 3: Sales Pipeline
+Presenter: Michael O'Brien
+================================================================
+
+Mike O'Brien reported from the London office via video call:
+
+- West Coast pipeline: $8.7M in qualified opportunities
+- Closed Meridian Global ($2.4M) and NovaTech ($850K)
+- New prospect: BioVenture Labs, contact Dr. Hannah Fischer,
+  h.fischer@bioventure.de, phone: +49 30 5555 7890
+  Address: Friedrichstrasse 123, 10117 Berlin, Germany
+
+Michael's commission for Q4: $192,000 (paid to IBAN GB29 NWBK 6016 1331 9268 19)
+Mike noted his US tax implications. His SSN 876-21-4539 is on file for the
+dual-jurisdiction tax filing.
+
+Wife Katie O'Brien (SSN: 654-32-1098) needs to be added to the joint filing.
+
+================================================================
+AGENDA ITEM 4: Legal & Compliance
+Presenter: Elena Vasquez
+================================================================
+
+Elena Vasquez provided the legal update:
+
+- Patent case settled favorably (savings: $1.2M)
+- GDPR compliance audit complete. James Chen's data export request (ticket
+  CS-2025-00187) was processed as a test case.
+- SOC 2 Type II certification in progress
+
+Elena flagged a suspicious Bitcoin transaction from wallet
+bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq that appeared in vendor payments.
+Investigation ongoing.
+
+PRIVILEGED: Elena's bar license CA-SBN-298451 was verified for the new
+retainer agreement with Morrison & Foerster LLP.
+
+================================================================
+ACTION ITEMS
+================================================================
+
+1. Sarah Williams - Prepare W-2s (employee SSNs listed in payroll system)
+   Due: February 1, 2025
+   Contact: swilliams78@outlook.com
+
+2. Margaret Thompson - Submit conference proposal
+   Due: January 31, 2025
+   Contact: maggie.t85@gmail.com, (628) 555-0234
+
+3. James Chen - Document ML model for SOC 2 audit
+   Due: February 15, 2025
+   Contact: jrchen90@yahoo.com, (510) 555-0876
+
+4. Michael O'Brien - Close BioVenture Labs deal
+   Due: March 15, 2025
+   Contact: mikeob92@icloud.com, (650) 555-0198
+
+5. Elena Vasquez - Complete Bitcoin wallet investigation
+   Due: February 28, 2025
+   Contact: elenavasquez87@protonmail.com, (415) 555-0891
+
+================================================================
+NEXT MEETING: April 21, 2025 at 10:00 AM PST
+Dial-in: (415) 555-9999, PIN: 482917#
+Video: https://zoom.us/j/98765432100?pwd=aB3cD4eF5gH6
+================================================================

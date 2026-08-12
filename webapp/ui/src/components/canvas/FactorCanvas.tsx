@@ -129,20 +129,13 @@ interface Props {
   onUseTemplate?: (spec: StrategySpec) => void
   onOpenSaved?: (strategy: StoredStrategy) => void
   onDeleteSaved?: (strategy: StoredStrategy) => void
-  /**
-   * Floated over the graph pane, inside its positioning context.
-   *
-   * The backtest index belongs over the canvas rather than over the whole mode
-   * column: anchored to the page it would sit on top of the node inspector.
-   */
-  overlay?: React.ReactNode
 }
 
 export function FactorCanvas({
   initialFeatures, revision = 0, handler = 'Alpha158', store, measure, mode = 'extend',
   onModeChange, onChange, openExpression, openName,
   saved = [], currentId, onUseTemplate = () => {}, onOpenSaved = () => {},
-  onDeleteSaved = () => {}, overlay,
+  onDeleteSaved = () => {},
 }: Props = {}) {
   const { registry } = useOperators()
   const { catalog, families, indicators, fields } = useFactorLibrary(store)
@@ -341,8 +334,6 @@ export function FactorCanvas({
               <Controls showInteractive={false} position="top-right" />
               <RefitOnStructureChange signature={`${activeId}:${nodes.map((n) => n.id).join()}`} />
             </ReactFlow>
-
-            {overlay}
 
             {parseError && (
               <div className="absolute inset-x-0 top-0 border-b border-destructive/40 bg-card px-4 py-2 font-mono text-[11px] text-destructive">

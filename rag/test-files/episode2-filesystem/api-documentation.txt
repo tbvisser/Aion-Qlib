@@ -1,0 +1,22 @@
+API Documentation
+
+Authentication
+All API requests require a Bearer token in the Authorization header.
+
+Endpoints:
+
+GET /documents
+- Returns list of documents for the authenticated user
+- Query params: folder_id, status, search
+
+POST /documents/upload
+- Upload a new document
+- Content-Type: multipart/form-data
+- Body: file (required), folder_id (optional)
+
+GET /folders
+- Returns folder tree for the authenticated user
+
+POST /folders
+- Create a new folder
+- Body: name (required), parent_id (optional)

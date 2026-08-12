@@ -75,6 +75,24 @@ export function best(rows: readonly MetricRow[], key: MetricKey): string | null 
   return winner?.runId ?? null
 }
 
+/** Token class for a metric cell. `null` means neutral — no colour. */
+export type MetricTone = 'positive' | 'negative' | null
+
+/**
+ * How a metric should be coloured in the backtests ledger.
+ *
+ * `maxDrawdown` and `volatility` are exempt from the sign rule and always read
+ * negative, which is the same call `RunReportView.Metric`'s `negative` flag
+ * makes: a max drawdown of −28% is the number, not a verdict. Applying the sign
+ * rule to it would paint every run's drawdown clay as though it were a loss
+ * and — worse — paint a run with *zero* drawdown mint.
+ */
+export function metricTone(key: MetricKey, value: number | null): MetricTone {
+  if (value === null) return null
+  if (key === 'maxDrawdown' || key === 'volatility') return 'negative'
+  return value > 0 ? 'positive' : 'negative'
+}
+
 export interface DiffRow {
   field: string
   /** Run id -> that run's value for this field. */

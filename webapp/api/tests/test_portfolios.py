@@ -410,3 +410,105 @@ def test_report_is_json_serialisable(fake_prices):
     fake_prices("FLAT", np.full(len(BDAYS), 100.0))
     report = PN.build_nav(spec([("FLAT", "etf", 1.0)]), start="2021-01-04")
     assert json.loads(json.dumps(report)) is not None
+
+
+# --------------------------------------------------------------------------
+# Rebalance events (the Inbox agenda's trade lane)
+# --------------------------------------------------------------------------
+def test_rebalances_are_dated_month_ends(fake_prices):
+    fake_prices("UP", 100 * 1.002 ** np.arange(len(BDAYS)))
+    fake_prices("DOWN", 100 * 0.999 ** np.arange(len(BDAYS)))
+    report = PN.build_nav(
+        spec([("UP", "etf", 0.5), ("DOWN", "etf", 0.5)],
+             rebalance="monthly", cost_bps=100),
+        start="2021-01-04",
+    )
+    events = report["rebalances"]
+    assert events, "a monthly book over two years must rebalance"
+    # One event per calendar month, dated the last session of that month.
+    months = [e["date"][:7] for e in events]
+    assert len(months) == len(set(months))
+    for event in events:
+        assert event["turnover"] is not None and event["turnover"] >= 0
+        # cost = turnover * cost_bps/1e4, per the engine's charge line.
+        assert event["cost"] == pytest.approx(event["turnover"] * 100 / 1e4)
+    # The scalar the report always had is the sum of the events.
+    assert sum(e["turnover"] for e in events) == pytest.approx(
+        report["metrics"]["annual_turnover"] * ((BDAYS[-1] - BDAYS[0]).days / 365.25),
+        rel=1e-6,
+    )
+
+
+def test_no_rebalance_rule_means_no_events(fake_prices):
+    fake_prices("SPY", 100 * 1.001 ** np.arange(len(BDAYS)))
+    report = PN.build_nav(spec([("SPY", "etf", 1.0)]), start="2021-01-04")
+    assert report["rebalances"] == []
+
+
+@pytest.fixture
+def client():
+    from fastapi.testclient import TestClient
+
+    from webapp.api.main import app
+
+    return TestClient(app)
+
+
+@pytest.fixture
+def temp_store(tmp_path, monkeypatch):
+    from webapp.api.routers import portfolios as router_module
+
+    monkeypatch.setattr(router_module, "_store", PortfolioStore(tmp_path))
+    return tmp_path
+
+
+def _create(client, **overrides):
+    body = {
+        "name": "Test book", "base_ccy": "USD",
+        "inception": "2021-01-04", "rebalance": "monthly", "cost_bps": 10,
+        "holdings": [{"symbol": "UP", "asset_class": "etf", "weight": 0.5},
+                     {"symbol": "DOWN", "asset_class": "etf", "weight": 0.5}],
+        **overrides,
+    }
+    resp = client.post("/api/portfolios", json=body)
+    assert resp.status_code == 200
+    return resp.json()["id"]
+
+
+def test_rebalances_endpoint_returns_newest_tail(client, temp_store, fake_prices):
+    fake_prices("UP", 100 * 1.002 ** np.arange(len(BDAYS)))
+    fake_prices("DOWN", 100 * 0.999 ** np.arange(len(BDAYS)))
+    pid = _create(client)
+
+    resp = client.get(f"/api/portfolios/{pid}/rebalances", params={"limit": 3})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["rebalance"] == "monthly"
+    assert len(body["rebalances"]) == 3
+    dates = [e["date"] for e in body["rebalances"]]
+    assert dates == sorted(dates), "the tail keeps chronological order"
+    # The tail is the newest events, so its last date is the book's last one.
+    full = client.get(f"/api/portfolios/{pid}/rebalances", params={"limit": 50}).json()
+    assert dates[-1] == full["rebalances"][-1]["date"]
+
+
+def test_rebalances_endpoint_fast_path_for_rule_none(client, temp_store):
+    # No prices faked: rule "none" must answer without pricing the book.
+    pid = _create(client, rebalance="none")
+    body = client.get(f"/api/portfolios/{pid}/rebalances").json()
+    assert body == {"portfolio_id": pid, "name": "Test book",
+                    "rebalance": "none", "rebalances": []}
+
+
+def test_rebalances_endpoint_soft_on_unpriceable(client, temp_store, fake_prices):
+    # fake_prices installed but empty: every symbol is unpriceable.
+    pid = _create(client)
+    resp = client.get(f"/api/portfolios/{pid}/rebalances")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["rebalances"] == []
+    assert body["reason"]
+
+
+def test_rebalances_endpoint_unknown_book_is_404(client, temp_store):
+    assert client.get("/api/portfolios/nope/rebalances").status_code == 404

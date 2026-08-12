@@ -266,6 +266,10 @@ def build_nav(spec: PortfolioSpec, start: str | None = None,
     gross = np.zeros(len(index))
     net = np.zeros(len(index))
     turnover_total = 0.0
+    # Every rebalance as a dated event, for the Inbox agenda. Turnover and
+    # cost are pre-FX return-stream quantities (fractions of the book, not
+    # currency amounts) — same units the scalar metrics already use.
+    rebalance_events: list[dict] = []
     contribution = np.zeros(len(symbols))
 
     for t in range(1, len(index)):
@@ -283,6 +287,11 @@ def build_nav(spec: PortfolioSpec, start: str | None = None,
             turnover = 0.5 * float(np.abs(weights - targets).sum())
             turnover_total += turnover
             charged = turnover * cost_rate
+            rebalance_events.append({
+                "date": index[t].strftime("%Y-%m-%d"),
+                "turnover": _clean(turnover),
+                "cost": _clean(charged),
+            })
             weights = targets.copy()
         net[t] = period_return - charged
 
@@ -353,6 +362,7 @@ def build_nav(spec: PortfolioSpec, start: str | None = None,
             for i, (symbol, target) in enumerate(zip(symbols, targets))
         ],
         "allocation": _allocation(symbols, targets),
+        "rebalances": rebalance_events,
         "unpriced": unpriced,
         "warnings": warnings + ([base_note] if base_note else []),
     }

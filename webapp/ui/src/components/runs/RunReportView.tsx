@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+﻿import { useEffect, useState } from 'react'
 import {
   Area, AreaChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip,
   XAxis, YAxis,
@@ -25,11 +24,12 @@ const AXIS_TICK = {
  * make money, what did the ride look like, when did it hurt, what was it
  * holding. Eight tiles and one chart made you assemble that yourself.
  *
- * `compact` is for the builder's run dock, where the same content has to fit a
- * few hundred pixels: the later sections fold away and the charts shrink.
- * Nothing is silently dropped — the dock says so and links on.
+ * There used to be a `compact` variant, for the builder's run dock. The dock is
+ * gone — its ledger and log merged into `BacktestsPanel`, where a finished run
+ * links to `RunReportModal` rather than trying to be a small copy of it — so
+ * the folded-away variant went with it.
  */
-export function RunReportView({ report, compact }: { report: RunReport; compact?: boolean }) {
+export function RunReportView({ report }: { report: RunReport }) {
   const excess = report.risk['excess_return_with_cost'] ?? {}
   // Only the three styled curves: `report.curves` also carries `net_of_cost`
   // and `drawdown`, which this chart does not draw and the legend does not name.
@@ -40,8 +40,8 @@ export function RunReportView({ report, compact }: { report: RunReport; compact?
   const months = monthlyReturns(report.curves.excess ?? report.curves.strategy ?? [])
 
   return (
-    <div className={cn(compact ? 'space-y-4' : 'space-y-10')}>
-      <Section n="01" title="Performance" caption="engine-computed, net of cost" compact={compact}>
+    <div className="space-y-10">
+      <Section n="01" title="Performance" caption="engine-computed, net of cost">
         <div className="grid grid-cols-2 border-l border-t border-border/50 lg:grid-cols-4">
           <Metric label="Ann. excess return" value={excess['annualized_return']} percent />
           <Metric label="Information ratio" value={excess['information_ratio']} digits={3} />
@@ -63,10 +63,9 @@ export function RunReportView({ report, compact }: { report: RunReport; compact?
           n="02"
           title="Equity & drawdown"
           caption="cumulative, compounded from daily returns"
-          compact={compact}
         >
           <Panel label="Equity">
-            <ResponsiveContainer width="100%" height={compact ? 180 : 280}>
+            <ResponsiveContainer width="100%" height={280}>
               <LineChart data={merged} margin={{ top: 4, right: 8, bottom: 4, left: -8 }}>
                 <CartesianGrid stroke="hsl(var(--border) / 0.4)" vertical={false} />
                 <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={48}
@@ -88,7 +87,7 @@ export function RunReportView({ report, compact }: { report: RunReport; compact?
 
           {drawdown.length > 0 && (
             <Panel label="Drawdown">
-              <ResponsiveContainer width="100%" height={compact ? 110 : 160}>
+              <ResponsiveContainer width="100%" height={160}>
                 <AreaChart data={drawdown} margin={{ top: 4, right: 8, bottom: 4, left: -8 }}>
                   <CartesianGrid stroke="hsl(var(--border) / 0.4)" vertical={false} />
                   <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={48}
@@ -106,35 +105,19 @@ export function RunReportView({ report, compact }: { report: RunReport; compact?
         </Section>
       )}
 
-      {!compact && months.length > 0 && (
+      {months.length > 0 && (
         <Section n="03" title="Monthly returns" caption="excess of benchmark, net of cost">
           <MonthlyTable rows={months} />
         </Section>
       )}
 
-      {!compact && (
-        <Section
-          n="04"
-          title="Positions"
-          caption="what the model ranked highest on the last scored date"
-        >
-          <Positions runId={report.run.id} />
-        </Section>
-      )}
-
-      {/* A link, not an apology. Naming two sections the reader cannot reach
-          from here was worse than not mentioning them. */}
-      {compact && (
-        <p className="text-[11px] text-muted-foreground">
-          <Link
-            to={`/runs/${report.run.id}`}
-            className="text-primary underline-offset-2 hover:underline"
-          >
-            Open the full report
-          </Link>
-          {' '}for monthly returns and positions.
-        </p>
-      )}
+      <Section
+        n="04"
+        title="Positions"
+        caption="what the model ranked highest on the last scored date"
+      >
+        <Positions runId={report.run.id} />
+      </Section>
     </div>
   )
 }
@@ -149,19 +132,18 @@ const TOOLTIP = {
   },
 } as const
 
-function Section({ n, title, caption, compact, children }: {
+function Section({ n, title, caption, children }: {
   n: string
   title: string
   caption?: string
-  compact?: boolean
   children: React.ReactNode
 }) {
   return (
     <section>
       <div className="mb-3 flex items-baseline gap-2.5">
         <span className="font-mono text-[11px] text-muted-foreground/50">{n}</span>
-        <h3 className={cn('font-medium', compact ? 'text-xs' : 'text-base')}>{title}</h3>
-        {caption && !compact && (
+        <h3 className="text-base font-medium">{title}</h3>
+        {caption && (
           <span className="min-w-0 truncate text-[11px] text-muted-foreground">{caption}</span>
         )}
       </div>

@@ -86,6 +86,32 @@
   box-shadow: 0 0 0 1px hsl(var(--ring));
 }
 
+/* -- The strategy pipeline ------------------------------------------------- */
+
+/* Smaller and inert, against the expression canvas's 9px live handles. Nothing
+   on the pipeline is connectable, and a dot you cannot use must not look like
+   one you can. */
+.react-flow__handle.aion-stage-handle {
+  width: 6px;
+  height: 6px;
+  background: hsl(var(--border));
+  border-color: hsl(var(--border));
+  pointer-events: none;
+}
+
+.react-flow__node.selected .aion-stage-card {
+  box-shadow: 0 0 0 1px hsl(var(--ring)), 0 0 20px -5px hsl(var(--ring) / 0.3);
+}
+
+/* Every edge after a blocked stage. The run stops there, and the break has to
+   stay visible when the canvas is panned away from the card carrying the badge.
+   Clay rather than destructive: a strategy that cannot run yet is a verdict
+   about the configuration, not something that broke. */
+.react-flow__edge.aion-edge-blocked .react-flow__edge-path {
+  stroke: hsl(var(--clay) / 0.7);
+  stroke-dasharray: 5 4;
+}
+
 /* xyflow is MIT and asks that the attribution stays. Toned down to sit with the
    rest of the chrome rather than removed. */
 .react-flow__attribution {

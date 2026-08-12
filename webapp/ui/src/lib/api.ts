@@ -313,6 +313,14 @@ export const api = {
 
   cancelRun: (id: string) => request<{ ok: boolean }>(`/runs/${id}/cancel`, { method: 'POST' }),
 
+  /**
+   * Remove a finished run.
+   *
+   * 409 while it is queued or running — cancel it first. The run's MLflow
+   * experiment and artifacts are left on disk; only the run directory goes.
+   */
+  deleteRun: (id: string) => request<void>(`/runs/${id}`, { method: 'DELETE' }),
+
   runReport: (id: string) => request<RunReport>(`/runs/${id}/report`),
 
   runPredictions: (id: string) =>
@@ -339,6 +347,9 @@ export const api = {
 
   macroCalendarTypes: (country = 'US') =>
     request<MacroEventTypes>(`/macro/calendar/types${qs({ country })}`),
+
+  macroCalendarHistory: (params: { event_key: string; country?: string; limit?: number }) =>
+    request<MacroReleaseHistory>(`/macro/calendar/history${qs(params)}`),
 
   macroIndicators: (country = 'USA') =>
     request<CountryIndicators>(`/macro/indicators${qs({ country })}`),
@@ -384,6 +395,11 @@ export const api = {
   portfolioNav: (id: string, params: { start?: string; end?: string } = {}) =>
     request<PortfolioNav>(`/portfolios/${encodeURIComponent(id)}/nav${qs(params)}`),
 
+  portfolioRebalances: (id: string, params: { limit?: number } = {}) =>
+    request<PortfolioRebalances>(
+      `/portfolios/${encodeURIComponent(id)}/rebalances${qs(params)}`,
+    ),
+
   portfolioStrategies: (id: string) =>
     request<{ portfolio_id: string; strategies: LinkedStrategy[] }>(
       `/portfolios/${encodeURIComponent(id)}/strategies`,
@@ -401,6 +417,130 @@ export const api = {
     request<MacroPlaybookResponse>(`/macro/regime/playbook${qs({ lens })}`),
 
   macroLenses: () => request<MacroLensList>('/macro/regime/lenses'),
+
+  // ── Activity ────────────────────────────────────────────────────────────
+
+  /** Every long-running thing at once: runs, ingests and macro refreshes. */
+  activity: (limit = 50) => request<ActivityFeed>(`/activity${qs({ limit })}`),
+
+  // ── Vibe-Trading sidecar ────────────────────────────────────────────────
+  // All of these go through the whitelist proxy (webapp/api/routers/vibe.py);
+  // the browser never talks to the sidecar or holds its token. Tool results
+  // arrive as vibe's own envelope: { ok/status, data/result, ... }.
+
+  vibeHealth: () => request<VibeHealth>('/vibe/health'),
+  /** Generic allowlisted MCP tool call; typed wrappers below are preferred. */
+  vibeMcpCall: <T = unknown>(tool: string, args: Record<string, unknown>) =>
+    request<{ tool: string; result: T }>('/vibe/mcp/call', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tool, arguments: args }),
+    }),
+  vibeAlphaList: (filters: { zoo?: string; theme?: string; universe?: string; limit?: number } = {}) =>
+    api.vibeMcpCall<VibeAlphaZooEnvelope<VibeAlphaList>>('alpha_zoo', {
+      action: 'list_alphas',
+      limit: 500,
+      ...filters,
+    }),
+  vibeAlphaGet: (alphaId: string) =>
+    api.vibeMcpCall<VibeAlphaZooEnvelope<VibeAlpha>>('alpha_zoo', {
+      action: 'get_alpha',
+      alpha_id: alphaId,
+    }),
+  vibeSymbolSearch: (query: string) =>
+    api.vibeMcpCall<VibeDataEnvelope<VibeSymbolSearch>>('search_symbol', { query }),
+  vibeStockProfile: (ticker: string, sections?: string[]) =>
+    api.vibeMcpCall<VibeDataEnvelope<Record<string, unknown>>>('get_stock_profile', {
+      ticker,
+      ...(sections ? { sections } : {}),
+    }),
+  vibeFinancials: (code: string, statement: 'balance' | 'income' | 'cashflow' | 'indicators' = 'indicators', period: 'annual' | 'quarter' = 'annual') =>
+    api.vibeMcpCall<VibeDataEnvelope<Record<string, unknown>>>('get_financial_statements', {
+      code, statement, period,
+    }),
+  // Broker views are read-only by construction: the proxy's tool allowlist has
+  // no order-placing tool, so nothing this client can express places an order.
+  vibeBrokerConnections: () =>
+    api.vibeMcpCall<VibeBrokerConnections>('trading_connections', {}),
+  vibeBrokerSelect: (profileId: string) =>
+    api.vibeMcpCall<VibeBrokerResult>('trading_select_connection', { profile_id: profileId }),
+  vibeBrokerAccount: () =>
+    api.vibeMcpCall<VibeBrokerResult>('trading_account', {}),
+  vibeBrokerPositions: () =>
+    api.vibeMcpCall<VibeBrokerResult>('trading_positions', {}),
+  vibeBrokerOrders: () =>
+    api.vibeMcpCall<VibeBrokerResult>('trading_orders', {}),
+  vibeBrokerHistory: () =>
+    api.vibeMcpCall<VibeBrokerResult>('trading_history', {}),
+  // Shadow accounts are journal-driven: upload a broker trade export, let the
+  // sidecar mine its profitable roundtrips into 3-5 if-then rules, then scan
+  // forward. Reports render inside vibe and are served by path (see
+  // vibeShadowReportUrl) so the HTML never round-trips through JSON.
+  vibeJournalUpload: async (file: File) => {
+    const resp = await fetch(
+      `/api/vibe/journal?filename=${encodeURIComponent(file.name)}`,
+      { method: 'POST', body: file },
+    )
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}))
+      throw new ApiError(resp.status,
+        typeof body?.detail === 'string' ? body.detail : `${resp.status} upload failed`)
+    }
+    return resp.json() as Promise<VibeJournalUpload>
+  },
+  vibeJournalAnalyze: (journalPath: string) =>
+    api.vibeMcpCall<VibeShadowResult>('analyze_trade_journal', { journal_path: journalPath }),
+  vibeShadowExtract: (journalPath: string, opts: { min_support?: number; max_rules?: number } = {}) =>
+    api.vibeMcpCall<VibeShadowResult>('extract_shadow_strategy', {
+      journal_path: journalPath, ...opts,
+    }),
+  vibeShadowBacktest: (shadowId: string, opts: { window_start?: string; window_end?: string; markets?: string[]; journal_path?: string } = {}) =>
+    api.vibeMcpCall<VibeShadowResult>('run_shadow_backtest', { shadow_id: shadowId, ...opts }),
+  vibeShadowScan: (shadowId: string, opts: { date?: string; per_market?: number } = {}) =>
+    api.vibeMcpCall<VibeShadowResult>('scan_shadow_signals', { shadow_id: shadowId, ...opts }),
+  vibeShadowRender: (shadowId: string) =>
+    api.vibeMcpCall<VibeShadowResult>('render_shadow_report', { shadow_id: shadowId }),
+  /** Same-origin URL for the rendered report (proxied GET, allowlisted). */
+  vibeShadowReportUrl: (shadowId: string, format: 'html' | 'pdf' = 'html') =>
+    `/api/vibe/shadow-reports/${encodeURIComponent(shadowId)}?format=${format}`,
+}
+
+export type ActivityKind = 'run' | 'ingest' | 'macro_refresh'
+
+export interface ActivityProgress {
+  stage: string | null
+  message: string | null
+  done: number | null
+  total: number | null
+}
+
+/**
+ * One item of the aggregate feed. The unified status vocabulary is exactly
+ * `RunStatus` — the backend maps ingest/macro job statuses onto it
+ * (done → succeeded, error → failed) so the UI renders one vocabulary.
+ */
+export interface ActivityItem {
+  /** `run:<id>` | `ingest:<id>` | `macro:<id>` — unique across sources. */
+  id: string
+  source_id: string
+  kind: ActivityKind
+  title: string
+  status: RunStatus
+  /** Jobs carry no created_at; started_at is stamped at enqueue instead. */
+  created_at: string | null
+  started_at: string | null
+  finished_at: string | null
+  phase: string | null
+  /** Present for ingest/macro jobs; runs report progress via `phase`. */
+  progress: ActivityProgress | null
+  error: string | null
+  error_hint?: string | null
+  restart_required?: boolean | null
+}
+
+export interface ActivityFeed {
+  items: ActivityItem[]
+  generated_at: string
 }
 
 export interface ModelsResponse {
@@ -996,7 +1136,21 @@ export interface MacroRelease {
   previous: number | null
   /** actual - estimate, null when either is missing. Never derived from `previous`. */
   surprise: number | null
+  /** actual - previous, as normalised by the ingest; null when unfiled. */
+  change: number | null
+  change_percentage: number | null
+  /** Derived server-side from the desk's headline list; EODHD has no importance. */
+  importance?: 'headline' | 'standard' | 'low'
   is_forecast: boolean
+}
+
+/** Trailing prints of one indicator — the release-detail history chart feed. */
+export interface MacroReleaseHistory {
+  available: boolean
+  reason?: string | null
+  event_key: string
+  country: string | null
+  points: MacroRelease[]
 }
 
 /** Cache freshness, carried on every cached-macro response. */
@@ -1011,6 +1165,9 @@ export interface MacroCacheStatus {
 export interface MacroCalendar extends MacroCacheStatus {
   from?: string
   to?: string
+  /** The cache's own coverage — `from`/`to` echo the query window instead. */
+  cache_from?: string | null
+  cache_to?: string | null
   country?: string | null
   countries?: string[]
   rows?: number
@@ -1236,12 +1393,31 @@ export interface PortfolioNav {
   }
   contribution: PortfolioContribution[]
   allocation: AllocationSlice[]
+  /** Every rebalance as a dated event; turnover/cost are fractions, not currency. */
+  rebalances: RebalanceEvent[]
   /**
    * Holdings with no bars over the window. The curve is still real, but it is
    * not the portfolio the user described — saying so is the whole point.
    */
   unpriced: { symbol: string; reason: string }[]
   warnings: string[]
+}
+
+export interface RebalanceEvent {
+  date: string
+  /** Fraction of the book traded (one-way). */
+  turnover: number | null
+  /** Return-units drag charged that session. */
+  cost: number | null
+}
+
+export interface PortfolioRebalances {
+  portfolio_id: string
+  name: string
+  rebalance: Rebalance
+  rebalances: RebalanceEvent[]
+  /** Present when the book could not be priced — soft, never a 409. */
+  reason?: string
 }
 
 export interface PortfolioValidation {
@@ -1440,4 +1616,114 @@ export interface MacroLensList {
     caveat: string
     states: { state: string; label: string }[]
   }[]
+}
+
+// ── Vibe-Trading sidecar types ─────────────────────────────────────────────
+
+export interface VibeHealth {
+  status: 'ok' | 'unreachable'
+  detail?: string
+}
+
+/** alpha_zoo tool envelope: { status: "ok", result: T }. */
+export interface VibeAlphaZooEnvelope<T> {
+  status: string
+  result: T
+}
+
+/** Data tools envelope: { ok, market, source, data }. */
+export interface VibeDataEnvelope<T> {
+  ok: boolean
+  market?: string
+  source?: string
+  data: T
+  error?: string
+}
+
+export interface VibeAlpha {
+  id: string
+  zoo: string
+  nickname: string
+  theme: string[]
+  formula_latex: string
+  columns_required: string[]
+  extras_required: string[]
+  requires_sector: boolean
+  universe: string[]
+  frequency: string[]
+  decay_horizon: number | null
+  min_warmup_bars: number | null
+  notes: string
+}
+
+export interface VibeAlphaList {
+  total: number
+  returned: number
+  truncated: boolean
+  filters: { zoo: string | null; theme: string | null; universe: string | null }
+  items: VibeAlpha[]
+}
+
+export interface VibeSymbolCandidate {
+  symbol: string
+  name: string
+  market: string
+  type?: string
+  source?: string
+  also_from?: string[]
+  cik?: string
+}
+
+export interface VibeSymbolSearch {
+  query: string
+  count: number
+  candidates: VibeSymbolCandidate[]
+}
+
+export interface VibeBrokerProfile {
+  id: string
+  connector: string
+  label: string
+  environment: 'paper' | 'live' | string
+  transport?: string
+  capabilities: string[]
+  readonly: boolean
+  config?: Record<string, unknown>
+  notes?: string
+}
+
+export interface VibeBrokerConnections {
+  status: 'ok' | 'error'
+  error?: string
+  selected_profile: string | null
+  profiles: VibeBrokerProfile[]
+}
+
+/**
+ * Account/positions/orders/history share this envelope. `status: "error"`
+ * with a human-readable `error` is the normal unconfigured state (for example
+ * "No TWS / IB Gateway socket is listening at 127.0.0.1:7497"), not a crash.
+ */
+export interface VibeBrokerResult {
+  status: 'ok' | 'error'
+  error?: string
+  [key: string]: unknown
+}
+
+export interface VibeJournalUpload {
+  status: string
+  /** Path on the sidecar's filesystem — feed to vibeShadowExtract. */
+  file_path: string
+  filename: string
+}
+
+/**
+ * Shadow tools share vibe's loose envelope: `status: "ok" | "error"` plus
+ * tool-specific keys (shadow_id, rules, signals, report sections…).
+ */
+export interface VibeShadowResult {
+  status: 'ok' | 'error'
+  error?: string
+  shadow_id?: string
+  [key: string]: unknown
 }

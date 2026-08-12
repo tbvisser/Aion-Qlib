@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Run, RunReport } from './api'
-import { best, changedSince, excessOf, metricRow, rankValue, runDiff } from './runMetrics'
+import {
+  best, changedSince, excessOf, metricRow, metricTone, rankValue, runDiff,
+} from './runMetrics'
 
 const run = (id: string, extra: Partial<Run> = {}): Run => ({
   id,
@@ -109,6 +111,34 @@ describe('best', () => {
     expect(best([metricRow(run('a'), null), rows[0]], 'ir')).toBe('a')
     expect(best([metricRow(run('z'), null)], 'ir')).toBeNull()
     expect(best([], 'ir')).toBeNull()
+  })
+})
+
+describe('metricTone', () => {
+  it('colours a return by its sign', () => {
+    expect(metricTone('ir', 1.24)).toBe('positive')
+    expect(metricTone('ir', -0.4)).toBe('negative')
+    expect(metricTone('annualised', 0.142)).toBe('positive')
+  })
+
+  it('treats a flat return as negative, not positive', () => {
+    expect(metricTone('ir', 0)).toBe('negative')
+  })
+
+  /**
+   * The rule most likely to be got wrong in the ledger. Drawdown is negative by
+   * construction, so the sign rule would paint a run with *zero* drawdown mint
+   * — the best possible outcome rendered as though it were the worst.
+   */
+  it('always reads drawdown and volatility as negative, whatever the sign', () => {
+    expect(metricTone('maxDrawdown', -0.281)).toBe('negative')
+    expect(metricTone('maxDrawdown', 0)).toBe('negative')
+    expect(metricTone('volatility', 0.18)).toBe('negative')
+  })
+
+  it('is neutral when there is no number', () => {
+    expect(metricTone('ir', null)).toBeNull()
+    expect(metricTone('maxDrawdown', null)).toBeNull()
   })
 })
 

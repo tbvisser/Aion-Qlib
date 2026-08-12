@@ -1,9 +1,14 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { allNavSections, sectionForPath } from '@/components/layout/NavItems'
+import { useAuth } from '@/hooks/useAuth'
+import { InboxProvider } from '@/hooks/useInbox'
+import { LoginPage } from '@/components/auth/LoginPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { MarketsPage } from '@/pages/MarketsPage'
 import { DatabankPage } from '@/pages/DatabankPage'
+import { AlphaZooPage } from '@/pages/AlphaZooPage'
+import { ShadowAccountsPage } from '@/pages/ShadowAccountsPage'
 import { IndicatorsPage } from '@/pages/IndicatorsPage'
 import { StrategyBuilderPage } from '@/pages/StrategyBuilderPage'
 import { RunsPage } from '@/pages/RunsPage'
@@ -11,7 +16,14 @@ import { MLStudioPage } from '@/pages/MLStudioPage'
 import { ChatPage } from '@/pages/ChatPage'
 import { MacroDeskPage } from '@/pages/MacroDeskPage'
 import { PortfoliosPage } from '@/pages/PortfoliosPage'
+import { AccountsPage } from '@/pages/AccountsPage'
+import { InboxPage } from '@/pages/InboxPage'
+import { VibeAgentPage } from '@/pages/VibeAgentPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { SkillsPage } from '@/features/rag/pages/SkillsPage'
+import { DocumentsPage } from '@/features/rag/pages/DocumentsPage'
+import { CorpusPage } from '@/features/rag/pages/CorpusPage'
+import { ChatsHistoryPage, ChatThreadRedirect } from '@/features/rag/pages/ChatsHistoryPage'
 
 // Every nav destination that isn't built here still gets a route, so the
 // sidebar can carry the platform's full navigation without dead links.
@@ -22,22 +34,54 @@ const placeholderRoutes = allNavSections
 
 export default function App() {
   const { pathname } = useLocation()
+  const { user, loading } = useAuth()
+
+  // Auth gate rendered around the shell rather than as an /auth route: deep
+  // links survive login (the requested URL is untouched while the gate shows),
+  // and there is no extra route to keep in sync with the nav test.
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="animate-subtle-pulse text-sm text-muted-foreground">Loading…</div>
+      </div>
+    )
+  }
+  if (!user) {
+    return <LoginPage />
+  }
 
   return (
+    // InboxProvider wraps the sidebar too, not just <main> — the rail's
+    // unread badge must keep counting while the user is on any page.
+    <InboxProvider>
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <AppSidebar activeSection={sectionForPath(pathname)} />
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/chats" element={<ChatPage />} />
+          <Route path="/dashboard/:threadId" element={<DashboardPage />} />
+          <Route path="/inbox" element={<InboxPage />} />
+          <Route path="/vibe-agent" element={<VibeAgentPage />} />
+          <Route path="/chats" element={<ChatsHistoryPage />} />
+          <Route path="/chats/quick" element={<ChatPage />} />
+          <Route path="/chats/:threadId" element={<ChatThreadRedirect />} />
           <Route path="/lab/builder" element={<StrategyBuilderPage />} />
           <Route path="/lab/ml-studio" element={<MLStudioPage />} />
           <Route path="/lab/databank" element={<DatabankPage />} />
+          <Route path="/lab/alpha-zoo" element={<AlphaZooPage />} />
+          <Route path="/lab/shadow-accounts" element={<ShadowAccountsPage />} />
+          <Route path="/lab/roster" element={<SkillsPage />} />
+          <Route path="/lab/roster/:skillId" element={<SkillsPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/documents/:folderId" element={<DocumentsPage />} />
+          <Route path="/corpus" element={<CorpusPage />} />
+          <Route path="/corpus/:documentId" element={<CorpusPage />} />
           <Route path="/markets" element={<MarketsPage />} />
           <Route path="/macro" element={<MacroDeskPage />} />
           <Route path="/book" element={<PortfoliosPage />} />
           <Route path="/book/:portfolioId" element={<PortfoliosPage />} />
+          <Route path="/accounts" element={<AccountsPage />} />
           {/* Pages that moved into a platform destination. Old links, bookmarks
               and anything already sent out keep working. Data Explorer became
               Markets; Factor Lab became the Databank; Models became ML Studio. */}
@@ -56,5 +100,6 @@ export default function App() {
         </Routes>
       </main>
     </div>
+    </InboxProvider>
   )
 }

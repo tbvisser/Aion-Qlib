@@ -1,0 +1,4 @@
+interface:
+  display_name: "Remove Worktree"
+  short_description: "Safely remove a linked worktree (accounts, junctions, git) for this repo."
+  default_prompt: "Safely remove this linked worktree: delete its test accounts, unlink the shared junctions, then git worktree remove."

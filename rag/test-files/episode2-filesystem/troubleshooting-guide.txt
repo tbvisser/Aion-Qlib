@@ -1,0 +1,19 @@
+Troubleshooting Guide
+
+Common Issues and Solutions:
+
+Issue: Documents not appearing after upload
+Solution: Check that the ingestion process completed. Look for status
+updates in the document list. If stuck in "processing", check backend logs.
+
+Issue: Search returns no results
+Solution: Ensure documents have been fully processed (status: ready).
+Vector embeddings are generated during ingestion.
+
+Issue: Authentication errors
+Solution: Clear browser cookies and log in again. Check that your
+session hasn't expired (sessions last 7 days).
+
+Issue: Slow performance
+Solution: Large documents may take longer to process. Consider breaking
+very large files into smaller sections before upload.

@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     openrouter_model: str = "anthropic/claude-sonnet-5"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    # Vibe-Trading sidecar (compose services vibe-api / vibe-mcp). The token
+    # must equal API_AUTH_KEY in vibe/.env: vibe rejects non-loopback callers
+    # without it, and this API reaches it over the docker network. Empty token
+    # means the proxy runs unauthenticated (works only for native dev where
+    # both processes share localhost).
+    vibe_api_url: str = "http://vibe-api:8000"
+    vibe_mcp_url: str = "http://vibe-mcp:8900/mcp"
+    vibe_api_token: str = ""
 
     # --- local paths --------------------------------------------------------
     strategies_dir: Path = WEBAPP_DIR / "data" / "strategies"

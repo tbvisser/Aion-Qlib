@@ -1,0 +1,167 @@
+SECURITY INCIDENT REPORT
+Acme Technologies Inc. - Information Security
+Report ID: IR-2025-003
+Classification: HIGHLY CONFIDENTIAL
+
+================================================================
+INCIDENT SUMMARY
+================================================================
+Date Detected: January 10, 2025, 14:32 PST
+Date Reported: January 10, 2025, 15:05 PST
+Severity: CRITICAL
+Status: Under Investigation
+Lead Investigator: Elena Vasquez, General Counsel
+  Contact: (415) 555-0891, elenavasquez87@protonmail.com
+  Bar License: CA-SBN-298451
+
+Technical Lead: James Chen, ML Engineer
+  Contact: (510) 555-0876, jrchen90@yahoo.com
+
+================================================================
+AFFECTED SYSTEMS
+================================================================
+
+1. Production Database Server
+   Internal IP: 10.0.1.47
+   External IP: 52.89.134.207
+   Hostname: prod-db-west-01.acmetech.internal
+   Admin Account: db_admin_thompson (Margaret Thompson's service account)
+   SSH Key Fingerprint: SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8
+
+2. VPN Gateway
+   Internal IP: 10.0.0.1
+   External IP: 203.0.113.50
+   Affected Users (VPN credentials compromised):
+   - margaret.thompson (VPN cert serial: 00A1B2C3D4)
+     Last known IP: 73.162.45.198
+   - james.chen (VPN cert serial: 00E5F6G7H8)
+     Last known IP: 98.42.176.55
+   - sarah.williams (VPN cert serial: 00I9J0K1L2)
+     Last known IP: 104.172.89.33
+
+3. Email System (Microsoft 365)
+   Compromised mailboxes:
+   - margaret.thompson@acmetech.com
+   - sarah.williams@acmetech.com
+   Phishing email originated from: admin-alert@acmetech-security.com (spoofed)
+
+================================================================
+TIMELINE OF EVENTS
+================================================================
+
+Jan 8, 14:00 - Phishing email sent to multiple employees
+  From: admin-alert@acmetech-security.com
+  Subject: "Urgent: Password Reset Required"
+  Clicked by:
+  - Margaret Thompson (from IP 73.162.45.198) at 14:12
+  - Sarah Williams (from IP 104.172.89.33) at 14:25
+
+Jan 8, 14:30 - Credentials harvested via fake login page
+  Margaret's credentials used at 14:35 from IP 203.45.167.89
+  Sarah's credentials used at 14:48 from IP 203.45.167.89
+  (Same source IP - traced to VPN exit node in Eastern Europe)
+
+Jan 9, 02:00 - Unauthorized database access detected
+  Query executed: SELECT * FROM employees WHERE ssn IS NOT NULL
+  Data potentially exfiltrated:
+  - Margaret Thompson, SSN: 287-54-3891, DOB: 03/14/1985
+  - James Chen, SSN: 591-38-4720, DOB: 11/22/1990
+  - Sarah Williams, SSN: 134-72-9085, DOB: 07/08/1978
+  - Michael O'Brien, SSN: 876-21-4539, DOB: 05/30/1992
+  - Elena Vasquez, SSN: 456-83-2197, DOB: 09/17/1987
+
+  Additional queries targeted:
+  - Credit card table: 47 card numbers accessed
+  - Banking table: 23 direct deposit records accessed
+    Including routing/account for all 5 executives
+
+Jan 9, 03:15 - Attacker accessed AWS console
+  Using Margaret's SSO credentials
+  AWS Account ID: 123456789012
+  IAM User: margaret.thompson@acmetech.com
+  API calls: ListBuckets, GetObject (S3 bucket: acme-hr-docs)
+  Access Key exposed: AKIAIOSFODNN7EXAMPLE
+
+Jan 10, 14:32 - Anomaly detected by SIEM
+  Alert triggered by: Unusual query volume from db_admin_thompson account
+  Investigated by James Chen (james.chen@acmetech.com)
+
+================================================================
+AFFECTED INDIVIDUALS (for breach notification)
+================================================================
+
+All employees whose data was accessed must be notified per California
+Civil Code Section 1798.82:
+
+1. Margaret Eleanor Thompson
+   SSN: 287-54-3891
+   Home: 1847 Oak Valley Drive, Apt 12B, San Francisco, CA 94110
+   Email: maggie.t85@gmail.com
+   Phone: (628) 555-0234
+   Credit Cards Exposed: Visa 4539-1488-0343-6467
+   Bank Account Exposed: Chase, Acct: 483291076524
+
+2. James Robert Chen
+   SSN: 591-38-4720
+   Home: 3256 Sunset Boulevard, Unit 4A, Oakland, CA 94601
+   Email: jrchen90@yahoo.com
+   Phone: (510) 555-0876
+   Credit Cards Exposed: Mastercard 5425-2334-9871-0044
+   Bank Account Exposed: Wells Fargo, Acct: 7291038456
+
+3. Sarah Patricia Williams
+   SSN: 134-72-9085
+   Home: 920 Pacific Heights Lane, San Francisco, CA 94115
+   Email: swilliams78@outlook.com
+   Phone: (415) 555-0667
+   Credit Cards Exposed: Visa 4532-8921-0045-6789, Amex 3714-496353-98431
+   Bank Account Exposed: BofA, Acct: 1928374650
+
+4. Michael David O'Brien
+   SSN: 876-21-4539
+   Home: 4501 El Camino Real, Suite 200, Palo Alto, CA 94306
+   Email: mikeob92@icloud.com
+   Phone: (650) 555-0198
+   Credit Cards Exposed: Visa 4916-3389-0145-2678, Discover 6011-5140-9823-4567
+   Bank Account Exposed: US Bank, Acct: 3847291056
+   IBAN Exposed: GB29 NWBK 6016 1331 9268 19
+
+5. Elena Rosario Vasquez
+   SSN: 456-83-2197
+   Home: 2710 Mission Street, Apt 8C, San Francisco, CA 94110
+   Email: elenavasquez87@protonmail.com
+   Phone: (415) 555-0891
+   Bank Account Exposed: Citibank, Acct: 5647382910
+
+================================================================
+REMEDIATION STEPS
+================================================================
+
+1. All affected passwords reset - completed Jan 10, 16:00
+2. VPN certificates revoked and reissued
+3. AWS access keys rotated (old key: AKIAIOSFODNN7EXAMPLE)
+4. Credit monitoring offered to all affected employees
+   Enrollment via: https://acmetech.equifax.com/enroll
+   PIN for Margaret Thompson: 8429
+   PIN for James Chen: 5183
+   PIN for Sarah Williams: 7294
+   PIN for Michael O'Brien: 3847
+   PIN for Elena Vasquez: 6192
+
+5. Breach notification letters to be mailed to home addresses
+6. Law enforcement notified: FBI Cyber Division, Case #CY-2025-00481
+   Agent: Special Agent Marcus Rivera, (415) 555-7700
+
+================================================================
+LEGAL HOLD NOTICE
+================================================================
+All documents, communications, and data related to this incident
+are subject to legal hold per direction of Elena Vasquez (CA-SBN-298451).
+Do not delete, modify, or destroy any relevant records.
+
+Report Distribution:
+- Elena Vasquez: elenavasquez87@protonmail.com (encrypted)
+- Sarah Williams: swilliams78@outlook.com
+- External Counsel: Morrison & Foerster LLP
+  Contact: David Park, d.park@mofo.com, (415) 555-2000
+================================================================

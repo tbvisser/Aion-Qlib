@@ -113,6 +113,30 @@ def portfolio_nav_report(portfolio_id: str, start: str | None = None,
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
+@router.get("/portfolios/{portfolio_id}/rebalances")
+def portfolio_rebalances(portfolio_id: str, limit: int = 10) -> dict:
+    """The book's recent rebalance events, for the Inbox agenda.
+
+    Unlike ``/nav``, an unpriceable book answers 200 with a reason rather than
+    409 — this feeds an aggregate view, and one broken book must not poison
+    the whole feed. ``build_nav`` caches by ``(id, updated_at)``, so after the
+    first compute this is a dict slice.
+    """
+    stored = _require(portfolio_id)
+    limit = max(1, min(limit, 50))
+    base = {"portfolio_id": stored.id, "name": stored.name,
+            "rebalance": stored.rebalance}
+    if stored.rebalance == "none":
+        return {**base, "rebalances": []}
+    try:
+        report = portfolio_nav.build_nav(
+            stored, portfolio_id=stored.id, updated_at=stored.updated_at,
+        )
+    except NavError as exc:
+        return {**base, "rebalances": [], "reason": str(exc)}
+    return {**base, "rebalances": report["rebalances"][-limit:]}
+
+
 @router.get("/portfolios/{portfolio_id}/strategies")
 def portfolio_strategies(portfolio_id: str) -> dict:
     """The linked strategies, each with its latest run.

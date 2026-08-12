@@ -14,15 +14,29 @@ import { MAX_BPS, fromBps, toBps } from '@/lib/bps'
 import { cn } from '@/lib/utils'
 
 export function Section({
-  title, note, children,
-}: { title: string; note?: string; children: React.ReactNode }) {
+  title, note, columns = 2, children,
+}: {
+  title: string
+  note?: string
+  /**
+   * Fields per row.
+   *
+   * `sm:grid-cols-2` is a *viewport* breakpoint, so a Section inside a 320px
+   * rail on a wide screen lays itself out in two columns and every control
+   * comes out half-width. The stage inspectors pass `1` for that reason.
+   */
+  columns?: 1 | 2
+  children: React.ReactNode
+}) {
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm">{title}</CardTitle>
         {note && <p className="pt-1 text-xs text-muted-foreground">{note}</p>}
       </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-2">{children}</CardContent>
+      <CardContent className={cn('grid gap-4', columns === 2 && 'sm:grid-cols-2')}>
+        {children}
+      </CardContent>
     </Card>
   )
 }

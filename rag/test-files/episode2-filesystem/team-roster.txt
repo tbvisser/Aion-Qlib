@@ -1,0 +1,17 @@
+Team Roster 2026
+
+Engineering Team:
+- Sarah Chen (Tech Lead) - sarah@example.com
+- Michael Park (Senior Developer) - michael@example.com
+- Emily Watson (Developer) - emily@example.com
+- James Liu (Developer) - james@example.com
+
+Product Team:
+- Rachel Green (Product Manager) - rachel@example.com
+- David Kim (UX Designer) - david@example.com
+
+Operations:
+- Lisa Thompson (DevOps) - lisa@example.com
+- Tom Anderson (QA Lead) - tom@example.com
+
+Contact the team lead for any questions about project assignments.
