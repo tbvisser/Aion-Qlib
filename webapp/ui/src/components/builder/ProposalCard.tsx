@@ -27,11 +27,21 @@ interface Props {
   proposal: Proposal
   current: StrategySpec
   applied: boolean
+  /**
+   * The primary button's label.
+   *
+   * The front door says "Use this strategy", because from there applying is the
+   * whole point and what follows is the canvas. The dock keeps "Apply", because
+   * there it is one edit among several to a strategy already on screen.
+   */
+  primaryLabel?: string
   onApply: () => void
   onDismiss: () => void
 }
 
-export function ProposalCard({ proposal, current, applied, onApply, onDismiss }: Props) {
+export function ProposalCard({
+  proposal, current, applied, primaryLabel, onApply, onDismiss,
+}: Props) {
   const spec = proposal.spec
   const changed = changedKeys(spec, current as unknown as Record<string, unknown>)
 
@@ -98,20 +108,23 @@ export function ProposalCard({ proposal, current, applied, onApply, onDismiss }:
         {applied ? (
           <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-primary">
             <Check className="h-3.5 w-3.5" />
-            Applied to the form
+            On the canvas
           </span>
         ) : (
           <>
             <Button size="sm" onClick={onApply} data-testid="proposal-apply">
               <Check className="h-4 w-4" />
-              Apply
+              {primaryLabel ?? 'Apply'}
             </Button>
             <Button variant="ghost" size="sm" onClick={onDismiss}>
               <X className="h-4 w-4" />
               Dismiss
             </Button>
+            {/* The old copy — "Nothing runs until you press Run backtest" —
+                named a header button the front door's scrim was covering at
+                that exact moment. Say where you are about to end up instead. */}
             <span className="ml-auto text-[10px] text-muted-foreground">
-              Nothing runs until you press Run backtest
+              You'll see the cards next
             </span>
           </>
         )}

@@ -1,26 +1,46 @@
-import { useCallback, useEffect, useState } from 'react'
+/**
+ * The Strategy Builder.
+ *
+ * The whole strategy is a chain of seven stage cards on a canvas; clicking one
+ * opens its fields in the right rail. That replaces a `form | canvas` toggle
+ * where the form was a long column of controls and the canvas only ever held
+ * factor expressions -- so nothing on screen ever showed the strategy as a
+ * whole, which is the one thing a builder ought to show.
+ *
+ * Two panes share the canvas area: the pipeline, and the factor canvas reached
+ * from the Features stage. **Both are mounted at all times**; the inactive one
+ * is `invisible pointer-events-none`, never unmounted. That is load-bearing --
+ * see the comment on the pane container.
+ */
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Bot, FileCode2, Play, Save } from 'lucide-react'
+import { Bot, FileCode2, Play } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { AssistantDock } from '@/components/builder/AssistantDock'
-import { BacktestsPanel } from '@/components/builder/BacktestsPanel'
-import { CoverageBanner } from '@/components/builder/CoverageBanner'
-import { StrategySummary } from '@/components/builder/StrategySummary'
-import { RunDock, useRunDockOpen, useSessionRuns } from '@/components/builder/RunDock'
+import { BacktestsPanel, useBacktestsOpen } from '@/components/builder/BacktestsPanel'
+import { RunConfirmDialog } from '@/components/builder/RunConfirmDialog'
 import { RunReportModal } from '@/components/runs/RunReportModal'
 import { loadTemplates } from '@/hooks/useTemplates'
 import { StartHere } from '@/components/builder/StartHere'
-import { StrategyForm } from '@/components/builder/StrategyForm'
+import { StrategyMenu } from '@/components/builder/StrategyMenu'
+import { UnsavedChangesDialog } from '@/components/builder/UnsavedChangesDialog'
 import { BuilderRail } from '@/components/canvas/BuilderRail'
 import { FactorCanvas, type FeatureSetSnapshot } from '@/components/canvas/FactorCanvas'
+import { PipelineCanvas } from '@/components/pipeline/PipelineCanvas'
+import { StageInspector } from '@/components/pipeline/StageInspector'
+import { StageStrip } from '@/components/pipeline/StageStrip'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Notice } from '@/components/ui/notice'
-import { Segmented } from '@/components/ui/segmented'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog'
-import { useHealth } from '@/hooks/useHealth'
+import { useBuilderChat, useChatConfigured } from '@/hooks/useBuilderChat'
+import { isActive } from '@/hooks/useRunStream'
+import { useSessionRuns } from '@/hooks/useSessionRuns'
+import { useStrategies } from '@/hooks/useStrategies'
 import { useUniverseCount } from '@/hooks/useStoreUniverses'
+import { useUnsavedGuard } from '@/hooks/useUnsavedGuard'
 import {
   DEFAULT_STRATEGY, api,
   type DataStore, type FeatureMode, type ModelsResponse, type Run,
@@ -28,19 +48,27 @@ import {
 } from '@/lib/api'
 import { mergeBlockers } from '@/lib/blockers'
 import { blocking, toSpecFeatures } from '@/lib/factorExpr/featureSet'
+import { dirtyFields } from '@/lib/strategyDirty'
+import { nextCopyName } from '@/lib/strategyNames'
+import { routeWarnings, unroutedWarnings, warningsFor } from '@/lib/strategyGraph/routeWarning'
+import { firstBlockedStage, stageStatus } from '@/lib/strategyGraph/stageStatus'
+import type { StageId } from '@/lib/strategyGraph/stages'
+import { cn } from '@/lib/utils'
 
-type Mode = 'form' | 'canvas'
+/** Which of the two canvases the pane area is showing. */
+type Pane = 'pipeline' | 'features'
 
 export function StrategyBuilderPage() {
   const [params] = useSearchParams()
-  const { health } = useHealth(0)
   // The Indicators page links in with ?mode=canvas&expression=..., so arriving
-  // from a library row lands on the canvas with that expression already drawn
-  // rather than on the form with a query string nothing reads.
+  // from a library row lands on the factor canvas with that expression already
+  // drawn. The param spelling is that page's; only the internal name changed.
   const handedOver = params.get('expression') ?? undefined
-  const [mode, setMode] = useState<Mode>(
-    params.get('mode') === 'canvas' || handedOver ? 'canvas' : 'form')
+  const [pane, setPane] = useState<Pane>(
+    params.get('mode') === 'canvas' || handedOver ? 'features' : 'pipeline')
   const [assistantOpen, setAssistantOpen] = useState(false)
+  /** The stage card whose fields the inspector is showing. null = the summary. */
+  const [selectedStage, setSelectedStage] = useState<StageId | null>(null)
   /** The whole canvas state, lifted: the spec needs it and so does the assistant. */
   const [canvas, setCanvas] = useState<FeatureSetSnapshot | null>(null)
   /**
@@ -55,15 +83,28 @@ export function StrategyBuilderPage() {
    * It shows while `specRevision === 0` — that counter is bumped by
    * `applySpec` and `openSaved` and by nothing else, so zero already means
    * "nothing has been loaded into this builder yet". This flag covers the other
-   * exit: someone who ignores both offers and edits the form directly, and
-   * should not have to keep scrolling past a panel they have declined.
+   * exit: someone who ignores both offers and edits directly, and should not
+   * have to keep dismissing a panel they have declined.
    */
   const [startHereGone, setStartHereGone] = useState(false)
   const [spec, setSpec] = useState<StrategySpec>(DEFAULT_STRATEGY)
+  /**
+   * The spec as it was the last time it agreed with the world.
+   *
+   * Set at four funnels and nowhere else: the `test_end` calendar patch below,
+   * `applySpec`, `openSaved`, and a successful save. Dirtiness is a comparison
+   * against this rather than a counter, because `setSpec` fires twice on load
+   * without a user touching anything — the canvas sync and that calendar patch
+   * — and a counter would call a freshly opened builder dirty within 300ms.
+   */
+  const [baseline, setBaseline] = useState<StrategySpec>(DEFAULT_STRATEGY)
   const [models, setModels] = useState<ModelsResponse | null>(null)
   const [stores, setStores] = useState<DataStore[]>([])
-  const [saved, setSaved] = useState<StoredStrategy[]>([])
+  const { saved, save: writeStrategy, remove: removeStrategy } = useStrategies()
   const [currentId, setCurrentId] = useState<string | undefined>()
+  /** Bumped to send the rail to its templates half. */
+  const [templatesNonce, setTemplatesNonce] = useState(0)
+  const [runConfirmOpen, setRunConfirmOpen] = useState(false)
   const [yamlText, setYamlText] = useState('')
   const [warnings, setWarnings] = useState<string[]>([])
   /** Advisory store facts from the same preview call. Never a blocker. */
@@ -76,14 +117,8 @@ export function StrategyBuilderPage() {
   const [busy, setBusy] = useState(false)
   /** Runs launched from this session, and whether their panel is expanded. */
   const sessionRuns = useSessionRuns()
-  const [runDockOpen, setRunDockOpen] = useRunDockOpen()
-  /**
-   * Every run, fetched once and shared.
-   *
-   * The dock needs it to fall back to a saved strategy's newest run and the
-   * backtest index needs it to be an index; two components fetching the same
-   * list would let them disagree about what exists.
-   */
+  const [backtestsOpen, setBacktestsOpen] = useBacktestsOpen()
+  /** Every run, fetched once and shared with the backtests panel. */
   const [runs, setRuns] = useState<Run[]>([])
   const [reportRun, setReportRun] = useState<Run | null>(null)
 
@@ -100,11 +135,10 @@ export function StrategyBuilderPage() {
 
   useEffect(() => {
     api.models().then(setModels).catch(() => undefined)
-    void refreshSaved()
     void refreshRuns()
     // Warmed here rather than on first paint of the rail. Lowering thirty
     // templates against this machine is slow enough to be visible, and the
-    // templates half of the rail is one click away in either mode.
+    // templates half of the rail is one click away in either pane.
     void loadTemplates().catch(() => undefined)
   }, [])
 
@@ -116,8 +150,9 @@ export function StrategyBuilderPage() {
    * the only signal `FactorCanvas` accepts for re-seeding, and therefore the only
    * reason a template carrying feature columns draws them.
    */
-  const applySpec = useCallback((next: StrategySpec) => {
+  const applySpecNow = useCallback((next: StrategySpec) => {
     setSpec(next)
+    setBaseline(next)
     setCurrentId(undefined)
     setSpecRevision((r) => r + 1)
   }, [])
@@ -128,11 +163,43 @@ export function StrategyBuilderPage() {
    * Same three steps as `applySpec` except the id is *kept*: this is the saved
    * strategy, so Save must update it rather than fork a second copy.
    */
-  const openSaved = useCallback((s: StoredStrategy) => {
+  const openSavedNow = useCallback((s: StoredStrategy) => {
     setSpec(s)
+    setBaseline(s)
     setCurrentId(s.id)
     setSpecRevision((r) => r + 1)
   }, [])
+
+  /**
+   * Unsaved edits, and the guard around losing them.
+   *
+   * `applySpec` and `openSaved` are the only two ways the spec is replaced
+   * wholesale, so wrapping *them* covers the template rail, the factor
+   * canvas's copy of it, the front door, the assistant's Apply and the header
+   * menu at once. Guarding the menu alone would leave four unguarded routes
+   * into the same destruction.
+   */
+  const changed = useMemo(() => dirtyFields(spec, baseline), [spec, baseline])
+  const dirty = changed.length > 0
+  const { guard, pending, discard, cancel, resume } = useUnsavedGuard(dirty)
+
+  const applySpec = useCallback((next: StrategySpec) => {
+    guard({ label: `open “${next.name}”`, run: () => applySpecNow(next) })
+  }, [guard, applySpecNow])
+
+  const openSaved = useCallback((s: StoredStrategy) => {
+    guard({ label: `open “${s.name}”`, run: () => openSavedNow(s) })
+  }, [guard, openSavedNow])
+
+  // Covers a tab close or a reload. An in-app route change cannot be guarded
+  // here: `main.tsx` mounts a `<BrowserRouter>` and `useBlocker` needs a data
+  // router, which is not a migration worth doing for this.
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
 
   /**
    * Delete a saved strategy.
@@ -143,29 +210,20 @@ export function StrategyBuilderPage() {
    */
   const deleteSaved = useCallback(async (s: StoredStrategy) => {
     try {
-      await api.deleteStrategy(s.id)
+      await removeStrategy(s.id)
       setCurrentId((id) => (id === s.id ? undefined : id))
-      await refreshSaved()
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not delete')
     }
-  }, [])
-
-  const refreshSaved = async () => {
-    try {
-      setSaved((await api.listStrategies()).strategies)
-    } catch {
-      /* the list is a convenience; a failure here must not block building */
-    }
-  }
+  }, [removeStrategy])
 
   // Keep the YAML preview honest: it is regenerated by the backend from the
   // same function that produces the config qrun actually runs.
   //
-  // This effect lives above the mode switch on purpose. The toggle changes what
+  // This effect lives above the pane switch on purpose. The pane changes what
   // is rendered, never where state lives, so the preview is identical in both
-  // modes and cannot drift into a client-side approximation in one of them.
+  // and cannot drift into a client-side approximation in one of them.
   const preview = useCallback(async () => {
     try {
       const r = await api.previewStrategy(spec)
@@ -184,29 +242,47 @@ export function StrategyBuilderPage() {
     return () => clearTimeout(t)
   }, [preview])
 
-  const save = async () => {
+  /** Returns whether it worked, so "Save and continue" knows not to continue. */
+  const save = async (): Promise<boolean> => {
     setBusy(true)
     try {
-      const stored = await api.saveStrategy(spec, currentId)
+      const stored = await writeStrategy(spec, currentId)
       setCurrentId(stored.id)
-      await refreshSaved()
+      // The record the server returned, not the spec we sent: it carries the
+      // ids and timestamps, and comparing against the sent version would leave
+      // the dot dirty the instant a save succeeded.
+      setBaseline(stored)
       setError(null)
+      return true
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed')
+      return false
     } finally {
       setBusy(false)
     }
   }
 
+  /** Fork the current edits into a new, unsaved strategy. Nothing is lost, so no guard. */
+  const duplicate = useCallback(() => {
+    const name = nextCopyName(spec.name, saved.map((s) => s.name))
+    applySpecNow({ ...spec, name })
+  }, [spec, saved, applySpecNow])
+
   // Starting a backtest used to navigate to /runs/<id>, which threw the canvas
-  // away at the moment you most wanted it. The run now streams into the dock
-  // below and the builder stays exactly where it was.
-  const run = async () => {
+  // away at the moment you most wanted it. The run now streams into the
+  // backtests panel and the builder stays exactly where it was.
+  const start = async (draft: StrategySpec) => {
     setBusy(true)
     try {
-      const started = await api.startRun(spec, currentId)
+      // The draft is committed to the spec, not merged behind its back — see
+      // the docblock on `RunConfirmDialog`.
+      setSpec(draft)
+      const started = await api.startRun(draft, currentId)
       sessionRuns.add(started)
-      setRunDockOpen(true)
+      setBacktestsOpen(true)
+      // Closed before the panel's first paint: a Radix overlay is z-50 and
+      // would sit over the panel's z-20 for a frame.
+      setRunConfirmOpen(false)
       void refreshRuns()
       setError(null)
     } catch (e) {
@@ -216,9 +292,24 @@ export function StrategyBuilderPage() {
     }
   }
 
-  // Universes come from the selected store, not the mounted one: a run targets
-  // whichever store its spec names, and the two hold different instrument sets.
-  const store = stores.find((s) => s.key === spec.data_store)
+  /**
+   * Remove a finished run.
+   *
+   * Optimistic, then reconciled: the row is the only thing on screen that
+   * refers to it, and waiting for a refetch to make a delete look like it
+   * happened reads as a broken button.
+   */
+  const deleteRun = useCallback(async (target: Run) => {
+    setRuns((prev) => prev.filter((r) => r.id !== target.id))
+    try {
+      await api.deleteRun(target.id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete the run')
+    } finally {
+      void refreshRuns()
+    }
+  }, [refreshRuns])
+
   const refreshStores = useCallback(async () => {
     try {
       const r = await api.dataStores()
@@ -229,7 +320,13 @@ export function StrategyBuilderPage() {
       // stale one makes the backend clamp and warn on every fresh strategy.
       const end = r.stores.find((s) => s.key === DEFAULT_STRATEGY.data_store)?.calendar_end
       if (end) {
+        // The baseline moves with it. This patch is the store answering a
+        // question, not the user editing anything, and leaving the baseline
+        // behind would make every freshly opened builder read "unsaved edits"
+        // within 300ms — which is how a save indicator becomes noise.
         setSpec((prev) => (prev.test_end === DEFAULT_STRATEGY.test_end
+          ? { ...prev, test_end: end } : prev))
+        setBaseline((prev) => (prev.test_end === DEFAULT_STRATEGY.test_end
           ? { ...prev, test_end: end } : prev))
       }
     } catch {
@@ -237,9 +334,6 @@ export function StrategyBuilderPage() {
     }
   }, [])
   useEffect(() => { void refreshStores() }, [refreshStores])
-
-  const universes = (store?.universes ?? health?.qlib.universes ?? [])
-    .filter((u) => u !== 'benchmarks')
 
   // The canvas owns the feature set; the spec receives only the finished
   // columns. An unfinished tree serialises with a `?` in it, which would 422
@@ -271,6 +365,58 @@ export function StrategyBuilderPage() {
     columnName: canvas?.features.find((f) => f.id === i.columnId)?.name,
   })))
 
+  // Which stage card each blocker belongs on, and what badge each card wears.
+  // Routing consumes `mergeBlockers`' output rather than replacing it — saying
+  // the same thing twice is what `lib/blockers` exists to prevent.
+  const routed = useMemo(
+    () => routeWarnings(blockers, canvas?.features ?? []),
+    [blockers.join(' '), canvas?.features],
+  )
+  const status = useMemo(
+    () => stageStatus(routed, { coverage, unfinished: unfinished.length }),
+    [routed, coverage, unfinished.length],
+  )
+  /**
+   * Warnings no routing rule claimed.
+   *
+   * Rendered page-level so a string a future server invents cannot vanish. The
+   * badges are the discoverable path; this is the one that cannot be closed.
+   */
+  const unrouted = useMemo(() => unroutedWarnings(routed), [routed])
+
+  const openFeatureCanvas = useCallback(() => setPane('features'), [])
+
+  /**
+   * One conversation, two views of it.
+   *
+   * Owned here rather than by either surface because the front door unmounts
+   * the moment a proposal is applied — and when it owned the stream, that took
+   * the transcript with it. Describing a strategy and using it now leaves the
+   * history intact in the dock, so the next thing you say can be "make it lower
+   * turnover" rather than starting over.
+   */
+  const configured = useChatConfigured()
+  const chat = useBuilderChat({
+    spec,
+    strategyId: currentId,
+    // `BuilderContext.mode` is a `Literal["form","canvas"]` under
+    // `extra="forbid"` in api/chat_tools.py, so an unknown value 422s the chat
+    // endpoint. Mapped at the boundary rather than widened there: what the
+    // assistant needs to know is whether it is being asked about an expression
+    // or about the spec, which is exactly the distinction the two panes draw.
+    mode: pane === 'features' ? 'canvas' : 'form',
+    expression: canvas?.active,
+    features: canvas?.features,
+    featureMode: spec.feature_mode,
+  })
+
+  /** Applying from the front door closes it and hands the conversation to the dock. */
+  const applyFromFrontDoor = useCallback((next: StrategySpec) => {
+    applySpec(next)
+    setStartHereGone(true)
+    setAssistantOpen(true)
+  }, [applySpec])
+
   return (
     <>
       <PageHeader
@@ -280,32 +426,49 @@ export function StrategyBuilderPage() {
         // ran everything as "New strategy", and the backtest index, /runs and
         // the rail all filled with identical rows.
         titleSlot={
-          <div className="flex min-w-0 items-baseline gap-2">
-            <input
-              data-testid="strategy-name"
-              value={spec.name}
-              onChange={(e) => setSpec((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="Name this strategy"
-              aria-label="Strategy name"
-              className="min-w-0 max-w-md flex-1 truncate rounded-md bg-transparent px-1.5 py-0.5 text-lg font-semibold tracking-tight outline-none transition-colors placeholder:font-normal placeholder:text-muted-foreground/60 hover:bg-foreground/[0.04] focus:bg-foreground/[0.06]"
-            />
-            {currentId && (
-              <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
-                saved
-              </span>
-            )}
-          </div>
+          <StrategyMenu
+            name={spec.name}
+            onNameChange={(name) => setSpec((prev) => ({ ...prev, name }))}
+            currentId={currentId}
+            dirty={dirty}
+            changed={changed}
+            saved={saved}
+            busy={busy}
+            onSave={() => void save()}
+            onOpen={openSaved}
+            onNew={() => applySpec(DEFAULT_STRATEGY)}
+            onDuplicate={duplicate}
+            onDelete={(s) => void deleteSaved(s)}
+            onBrowseTemplates={() => {
+              setPane('pipeline')
+              setTemplatesNonce((n) => n + 1)
+            }}
+          />
         }
-        // What this page is *for*, and what the page next door is for. The
-        // division only helps if it is stated where the reader is standing —
-        // and the old sentence ("Pick a model, a universe and a period") named
-        // the model first, which is the framing this page is moving away from.
-        description={mode === 'form'
-          ? 'Describe a strategy, or start from a card. Trains one model here; sweep several in ML Studio.'
+        description={pane === 'pipeline'
+          ? 'Click a stage to edit it. Trains one model here; sweep several in ML Studio.'
           : 'Compose a factor expression as cards. The string at the bottom is what qlib evaluates.'}
         actions={
           <>
-            <ModeToggle value={mode} onChange={setMode} />
+            {/* The count is clickable and selects the first stage carrying a
+                blocker. Removing the wall of warnings must not remove the way
+                to find one: this is the header valve, the strip dots are the
+                always-visible one, and the badges are on the cards themselves. */}
+            {blockers.length > 0 && (
+              <button
+                type="button"
+                data-testid="blocker-chip"
+                title={blockers.join('\n')}
+                onClick={() => {
+                  const first = firstBlockedStage(status)
+                  if (first) { setPane('pipeline'); setSelectedStage(first) }
+                }}
+              >
+                <Badge variant="clay">
+                  {blockers.length} blocking
+                </Badge>
+              </button>
+            )}
             <Button
               variant={assistantOpen ? 'secondary' : 'outline'}
               size="sm"
@@ -315,187 +478,237 @@ export function StrategyBuilderPage() {
               <Bot className="h-4 w-4" />
               Assistant
             </Button>
-            {/* Both modes now. The YAML used to be a permanent column in form
-                mode, standing where the explanation should be; behind this
-                button it is still exactly one click away in either mode. */}
             <YamlDialog yaml={yamlText} />
-            <Button variant="outline" size="sm" onClick={() => void save()} disabled={busy}>
-              <Save className="h-4 w-4" />
-              {currentId ? 'Update' : 'Save'}
-            </Button>
-            {/* The reason travels with the button. It lives in `Alerts` too,
-                but in form mode that is the top of a scrollable column while
-                this is in a fixed header — so editing a date low down greyed
-                out the primary action with the explanation off-screen. */}
+            {/* Save is in the strategy menu, not here. There is no reason to
+                save a strategy before you know whether it worked, and a Save
+                button beside Test strategy invited exactly that order. The
+                unsaved dot still reports edits, and the unsaved-changes guard
+                still offers "Save and continue". */}
+            {/* Opens the confirm dialog rather than launching, and is disabled
+                only while busy. A button whose sole explanation is a `title`
+                is unreachable by keyboard and invisible on touch; the reasons
+                are written in the dialog now, so it has to be able to open it. */}
             <Button
               size="sm"
-              onClick={() => void run()}
-              disabled={busy || blockers.length > 0}
-              title={blockers.length
-                ? blockers.join('\n')
-                : 'Train the model and backtest it — usually a few minutes'}
+              onClick={() => setRunConfirmOpen(true)}
+              disabled={busy}
+              title="Train the model and backtest it — usually a few minutes"
             >
               <Play className="h-4 w-4" />
-              Run backtest
+              Test strategy
             </Button>
           </>
         }
       />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-      {/* The mode content and the run dock share a column, so the dock spans the
-          canvas in both modes and the assistant keeps its full-height rail. */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-      {mode === 'form' ? (
-        // The rail is mounted here too. Its blocks half needs a canvas and says
-        // so, but templates and saved strategies are how you start in either
-        // mode — and the form used to be the only place your saved work showed.
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <BuilderRail
-            canInsert={false}
-            saved={saved}
-            currentId={currentId}
-            onUseTemplate={applySpec}
-            onOpenSaved={openSaved}
-            onDeleteSaved={deleteSaved}
+        {/* The pane content and the run dock share a column, so the dock spans
+            the canvas in both panes and the assistant keeps its full-height rail. */}
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <StageStrip
+            selected={selectedStage}
+            onSelect={(id) => { setPane('pipeline'); setSelectedStage(id) }}
+            status={status}
+            pane={pane}
+            onBackToPipeline={() => setPane('pipeline')}
           />
 
-          {/* No backtest index here: form mode is two full columns wide and a
-              floating panel lands on top of the YAML preview. The run dock
-              still follows a run started from this mode. */}
-          <div className="min-h-0 flex-1 overflow-y-auto p-6">
-            <div className="mx-auto grid max-w-7xl gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)]">
-              <div className="space-y-6">
-                <Alerts error={error} warnings={blockers} unfinished={unfinished.length} coverage={coverage} />
-                {/* Form mode only. Canvas mode is where the Indicators page
-                    drops you with an expression already drawn — offering to
-                    help you start is answering a question you have answered. */}
-                {specRevision === 0 && !startHereGone && (
-                  <StartHere
-                    spec={spec}
-                    onApply={applySpec}
-                    onDismiss={() => setStartHereGone(true)}
-                  />
-                )}
-                <StrategyForm
-                  spec={spec}
-                  setSpec={setSpec}
-                  models={models}
-                  stores={stores}
-                  store={store}
-                  universes={universes}
-                  onStoresChanged={() => void refreshStores()}
-                />
-              </div>
-
-              {/* The lead explanation. This column used to hold a hundred
-                  lines of qrun YAML, which is precise and answers none of the
-                  questions a reader actually has — starting with what the
-                  thing predicts, which appeared nowhere in the UI at all. */}
-              <div className="xl:sticky xl:top-6 xl:self-start">
-                <StrategySummary
-                  spec={spec}
-                  explain={explain}
-                  universeCount={universeCount}
-                  coverage={coverage}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {(error || blockers.length > 0 || unfinished.length > 0 || coverage) && (
-            <div className="space-y-2 border-b border-border/50 px-6 py-3">
-              <Alerts error={error} warnings={blockers} unfinished={unfinished.length} coverage={coverage} />
+          {error && (
+            <div className="border-b border-border/50 px-6 py-2">
+              <Notice tone="destructive" icon={false}>{error}</Notice>
             </div>
           )}
-          <FactorCanvas
-            initialFeatures={spec.features}
-            revision={specRevision}
-            handler={spec.handler}
-            store={spec.data_store}
-            measure={{
-              universe: spec.universe,
-              // The *test* window. Measuring on the training period reports
-              // what the model is about to memorise, not what it can predict.
-              testStart: spec.test_start,
-              testEnd: explain?.effective_test_end ?? spec.test_end,
-              store: spec.data_store,
-              mountedStore: stores.find((s) => s.mounted)?.key,
-            }}
-            mode={spec.feature_mode}
-            onModeChange={(feature_mode: FeatureMode) =>
-              setSpec((prev) => ({ ...prev, feature_mode }))}
-            onChange={setCanvas}
-            openExpression={handedOver}
-            openName={params.get('name') ?? undefined}
-            saved={saved}
-            currentId={currentId}
-            onUseTemplate={applySpec}
-            onOpenSaved={openSaved}
-            onDeleteSaved={deleteSaved}
-            overlay={<BacktestsPanel runs={runs} onOpenReport={setReportRun} />}
-          />
+          {unrouted.length > 0 && (
+            <div className="border-b border-border/50 px-6 py-2">
+              <Notice tone="clay">
+                {unrouted.map((w) => <p key={w}>{w}</p>)}
+              </Notice>
+            </div>
+          )}
+
+          {/*
+            Both panes are mounted, always. The inactive one is `invisible`
+            (visibility: hidden), never `hidden`/`display:none` and never
+            unmounted — three separate reasons:
+
+            1. `toSpecFeatures` emits only *complete* columns, so unmounting
+               `FactorCanvas` silently deletes every half-built one.
+            2. Unmounting would add a second, implicit reseed path via
+               mount-time `seed()`, which is exactly what `specRevision`'s
+               contract forbids: it must remain the only signal the canvas
+               accepts, or an ordinary pane toggle reseeds mid-edit.
+            3. `display: none` collapses the box to 0×0, which React Flow's
+               ResizeObserver sees and the viewport never recovers from.
+
+            Belt and braces on top of that: an opaque background and an explicit
+            z-order, so the active pane *covers* the other rather than merely
+            out-painting it. Nothing in either pane is opaque on its own — the
+            rails, the inspector and React Flow's `base.css` all set no
+            background — so a stale build that lost `invisible` rendered both
+            node layers superimposed rather than failing visibly. This makes
+            that impossible whatever the cause.
+          */}
+          <div className="relative min-h-0 flex-1">
+            <div
+              className={cn('absolute inset-0 flex overflow-hidden bg-background',
+                            pane === 'pipeline' ? 'z-10' : 'z-0 invisible pointer-events-none')}
+            >
+              {/* The rail's blocks half needs a canvas and says so, but
+                  templates and saved strategies are how you start in either pane. */}
+              <BuilderRail
+                canInsert={false}
+                saved={saved}
+                currentId={currentId}
+                onUseTemplate={applySpec}
+                onOpenSaved={openSaved}
+                onDeleteSaved={deleteSaved}
+                openTemplates={templatesNonce}
+              />
+
+              <div className="relative flex min-w-0 flex-1">
+                <PipelineCanvas
+                  spec={spec}
+                  glance={{
+                    store: stores.find((s) => s.key === spec.data_store),
+                    explain,
+                    models,
+                    universeCount,
+                    unfinished: unfinished.length,
+                  }}
+                  status={status}
+                  selected={selectedStage}
+                  onSelect={setSelectedStage}
+                  onOpenStage={(id) => { if (id === 'features') openFeatureCanvas() }}
+                />
+
+                <BacktestsPanel
+                  runs={runs}
+                  sessionRunIds={sessionRuns.ids}
+                  seedRun={sessionRuns.seed}
+                  strategyId={currentId}
+                  onFinish={refreshRuns}
+                  onOpenReport={setReportRun}
+                  onDeleteRun={deleteRun}
+                  open={backtestsOpen}
+                  onOpenChange={setBacktestsOpen}
+                />
+
+                {/* The front door, over the canvas rather than above it: what
+                    is behind it is the default strategy, which is precisely
+                    what it is offering to replace. */}
+                {specRevision === 0 && !startHereGone && (
+                  <div className="absolute inset-0 z-10 flex items-start justify-center overflow-y-auto bg-background/70 p-6 backdrop-blur-sm">
+                    <div className="w-full max-w-2xl">
+                      <StartHere
+                        chat={chat}
+                        configured={configured}
+                        spec={spec}
+                        onApply={applyFromFrontDoor}
+                        onDismiss={() => setStartHereGone(true)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <StageInspector
+                selected={selectedStage}
+                spec={spec}
+                setSpec={setSpec}
+                stores={stores}
+                models={models}
+                explain={explain}
+                coverage={coverage}
+                universeCount={universeCount}
+                onStoresChanged={() => void refreshStores()}
+                onOpenFeatureCanvas={openFeatureCanvas}
+                unfinished={unfinished.length}
+                notes={selectedStage ? status[selectedStage].notes : []}
+                blocking={selectedStage ? warningsFor(routed, selectedStage) : []}
+              />
+            </div>
+
+            <div
+              className={cn('absolute inset-0 flex overflow-hidden bg-background',
+                            pane === 'features' ? 'z-10' : 'z-0 invisible pointer-events-none')}
+            >
+              <FactorCanvas
+                initialFeatures={spec.features}
+                revision={specRevision}
+                handler={spec.handler}
+                store={spec.data_store}
+                measure={{
+                  universe: spec.universe,
+                  // The *test* window. Measuring on the training period reports
+                  // what the model is about to memorise, not what it can predict.
+                  testStart: spec.test_start,
+                  testEnd: explain?.effective_test_end ?? spec.test_end,
+                  store: spec.data_store,
+                  mountedStore: stores.find((s) => s.mounted)?.key,
+                }}
+                mode={spec.feature_mode}
+                onModeChange={(feature_mode: FeatureMode) =>
+                  setSpec((prev) => ({ ...prev, feature_mode }))}
+                onChange={setCanvas}
+                openExpression={handedOver}
+                openName={params.get('name') ?? undefined}
+                saved={saved}
+                currentId={currentId}
+                onUseTemplate={applySpec}
+                onOpenSaved={openSaved}
+                onDeleteSaved={deleteSaved}
+              />
+            </div>
+          </div>
+
         </div>
-      )}
 
-        <RunDock
-          runs={runs}
-          strategyId={currentId}
-          sessionRunIds={sessionRuns.ids}
-          seedRun={sessionRuns.seed}
-          onFinish={refreshRuns}
-          open={runDockOpen}
-          onOpenChange={setRunDockOpen}
-        />
+        {assistantOpen && (
+          <AssistantDock
+            chat={chat}
+            configured={configured}
+            spec={spec}
+            // The assistant's only route into the spec, and the same three steps
+            // the template gallery takes. The debounced preview effect above turns
+            // either into fresh server-rendered YAML for free.
+            onApply={applySpec}
+            onClose={() => setAssistantOpen(false)}
+          />
+        )}
       </div>
 
-      {assistantOpen && (
-        <AssistantDock
-          spec={spec}
-          strategyId={currentId}
-          mode={mode}
-          expression={canvas?.active}
-          features={canvas?.features}
-          featureMode={spec.feature_mode}
-          // The assistant's only route into the form, and the same three steps
-          // the template gallery takes. The debounced preview effect above turns
-          // either into fresh server-rendered YAML for free.
-          onApply={applySpec}
-          onClose={() => setAssistantOpen(false)}
-        />
-      )}
-      </div>
+      <RunConfirmDialog
+        open={runConfirmOpen}
+        onOpenChange={setRunConfirmOpen}
+        spec={spec}
+        stores={stores}
+        models={models}
+        activeRun={runs.find(isActive)}
+        onPreview={api.previewStrategy}
+        initialBlockers={blockers}
+        onStart={start}
+        busy={busy}
+      />
 
       <RunReportModal run={reportRun} onClose={() => setReportRun(null)} />
+
+      <UnsavedChangesDialog
+        pending={pending}
+        changed={changed}
+        onCancel={cancel}
+        onDiscard={discard}
+        saving={busy}
+        onSave={() => { void save().then((ok) => { if (ok) resume() }) }}
+      />
     </>
   )
 }
 
 /**
- * `Segmented` is the app's mode switch, and this was one of the four copies it
- * was extracted from — it just never got migrated. Using it brings the roving
- * arrow keys and radiogroup semantics the hand-rolled version never had.
- */
-function ModeToggle({ value, onChange }: { value: Mode; onChange: (m: Mode) => void }) {
-  return (
-    <Segmented
-      value={value}
-      onChange={onChange}
-      options={[
-        { value: 'form', label: 'Form', testId: 'builder-mode-form',
-          title: 'The whole spec as labelled controls' },
-        { value: 'canvas', label: 'Canvas', testId: 'builder-mode-canvas',
-          title: 'Compose a factor expression as cards' },
-      ]}
-    />
-  )
-}
-
-/**
- * In canvas mode the YAML has no column to sit in, so it moves behind a button
- * rather than disappearing -- what runs must stay one click away in both modes.
+ * The generated config, one click away.
+ *
+ * Never a client-side approximation: this is the backend's own render of the
+ * file qrun is handed, which is why the sentence underneath can be true.
  */
 function YamlDialog({ yaml }: { yaml: string }) {
   return (
@@ -519,37 +732,5 @@ function YamlDialog({ yaml }: { yaml: string }) {
         </p>
       </DialogContent>
     </Dialog>
-  )
-}
-
-function Alerts({ error, warnings, unfinished = 0, coverage }: {
-  error: string | null
-  warnings: string[]
-  /** Columns still being built. Not errors — they are simply not in the config. */
-  unfinished?: number
-  /** Store facts. Advisory: rendered last, and never gates the Run button. */
-  coverage?: StrategyCoverage
-}) {
-  return (
-    <>
-      {error && <Notice tone="destructive" icon={false}>{error}</Notice>}
-
-      {unfinished > 0 && (
-        <Notice tone="muted">
-          {unfinished} {unfinished === 1 ? 'feature is' : 'features are'} unfinished and
-          not in the config yet. Fill the empty slots, or delete the column.
-        </Notice>
-      )}
-
-      {warnings.length > 0 && (
-        <Notice tone="clay">
-          {warnings.map((w) => (
-            <p key={w}>{w}</p>
-          ))}
-        </Notice>
-      )}
-
-      <CoverageBanner coverage={coverage} />
-    </>
   )
 }

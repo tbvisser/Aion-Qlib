@@ -27,6 +27,18 @@
  * results would be optimistic."
  */
 
+/**
+ * Does this warning name that column?
+ *
+ * The backtick rule, in one place. `strategyGraph/routeWarning.ts` needs the
+ * same question answered to decide whether a warning belongs on the Features
+ * card, and re-deriving it there would invite the bare-substring bug described
+ * above straight back in.
+ */
+export function mentionsColumn(warning: string, name: string): boolean {
+  return warning.includes(`\`${name}\``)
+}
+
 /** Only what the merge needs, so callers are not forced to build a `FeatureIssue`. */
 export interface BlockerIssue {
   message: string
@@ -49,7 +61,7 @@ export function mergeBlockers(
     .filter((name): name is string => Boolean(name))
 
   const kept = warnings.filter((w) =>
-    !said.has(w) && !flagged.some((name) => w.includes(`\`${name}\``)))
+    !said.has(w) && !flagged.some((name) => mentionsColumn(w, name)))
 
   return [...kept, ...issues.map((i) => i.message)]
 }

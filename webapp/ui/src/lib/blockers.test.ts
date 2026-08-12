@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { mergeBlockers } from './blockers'
+import { mentionsColumn, mergeBlockers } from './blockers'
 
 // The exact strings both sides produce, so this test breaks if either drifts.
 const LOOKAHEAD = 'Ref($close, -5) reads 5 days of future data. A feature may not.'
@@ -9,6 +9,22 @@ const CLAMP = 'Test end 2026-12-31 is past the last date this store can safely b
   + 'the run will end 2026-07-31 instead.'
 const COLLISION_SERVER = 'Column `MA5` already exists in Alpha158.'
 const COLLISION_CLIENT = 'MA5 is one of Alpha158\'s own columns — it would silently replace it.'
+
+describe('mentionsColumn', () => {
+  it('matches only the backticked name', () => {
+    expect(mentionsColumn('`MA5` is already a column in Alpha158.', 'MA5')).toBe(true)
+    expect(mentionsColumn('MA5 is already a column in Alpha158.', 'MA5')).toBe(false)
+  })
+
+  /**
+   * The bug this rule exists for: a column legally named `a` matched every
+   * warning containing the letter. `strategyGraph/routeWarning.ts` calls the
+   * same function so it cannot reintroduce it.
+   */
+  it('does not let a one-letter name match a sentence containing that letter', () => {
+    expect(mentionsColumn(OVERLAP, 'a')).toBe(false)
+  })
+})
 
 describe('mergeBlockers', () => {
   it('keeps a window problem only the server knows about', () => {

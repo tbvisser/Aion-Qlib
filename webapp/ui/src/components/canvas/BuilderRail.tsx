@@ -11,7 +11,7 @@
  * templates and saved strategies are how you start in either mode, and the
  * form used to be the only place that showed your saved work at all.
  */
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 
 import { TemplateRail } from '@/components/builder/TemplateRail'
@@ -47,11 +47,20 @@ export interface BuilderRailProps {
   onUseTemplate: (spec: StrategySpec) => void
   onOpenSaved: (strategy: StoredStrategy) => void
   onDeleteSaved: (strategy: StoredStrategy) => void
+  /**
+   * Bumped to show the templates half.
+   *
+   * A nonce rather than a boolean: "Browse templates" in the header menu is a
+   * request each time it is chosen, not a state to be held, and the rail owns
+   * which tab it is on the rest of the time.
+   */
+  openTemplates?: number
 }
 
 export function BuilderRail({
   canInsert, registry = {}, fields = [], catalog = [], families = [], indicators = [],
   saved, currentId, onInsert, onAdd, onUseTemplate, onOpenSaved, onDeleteSaved,
+  openTemplates = 0,
 }: BuilderRailProps) {
   const [tab, setTab] = useState<Tab>(canInsert ? 'blocks' : 'templates')
   const [query, setQuery] = useState('')
@@ -67,6 +76,14 @@ export function BuilderRail({
     setTab(next)
     setQuery('')
   }
+
+  // Skips the first render: `openTemplates` starts at 0 and a mount is not a request.
+  const firstNonce = useRef(openTemplates)
+  useEffect(() => {
+    if (openTemplates === firstNonce.current) return
+    setTab('templates')
+    setQuery('')
+  }, [openTemplates])
 
   return (
     <TooltipProvider delayDuration={400}>

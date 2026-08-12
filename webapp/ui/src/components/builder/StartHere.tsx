@@ -2,77 +2,52 @@
  * The Strategy Builder's front door.
  *
  * The two ways into a strategy that do not require knowing the vocabulary —
- * describe it, or pick a card — were both real and both hidden: the assistant
- * behind a header toggle that is off by default, and the templates behind the
- * rail's second tab. An empty builder therefore opened on nineteen labelled
- * controls, which is a form for someone who already knows what they want.
+ * describe it, or pick a card — were both hidden: the assistant behind a header
+ * toggle that is off by default, and the templates behind the rail's second tab.
  *
- * Nothing here is a new capability. The describe half is one turn through the
- * same `builder` chat profile the dock uses, rendered with the same
- * `ProposalCard`; the cards are the same `TemplateDetail` the rail opens. This
- * is a placement change, and it is deliberately built out of the existing parts
- * so there is no second proposal renderer to keep in step.
+ * It used to be a *doorway* rather than a conversation: it cleared the textarea
+ * on submit, rendered nothing from the transcript, and showed only the newest
+ * proposal. So your own words vanished the moment you sent them, the model's
+ * explanation of what it had decided was never shown, and applying tore the
+ * panel down and took the history with it — which made "make it lower turnover"
+ * impossible to say. It renders the shared `ChatTranscript` now, over a
+ * conversation the page owns, so the history outlives this panel.
  *
- * **It cannot run anything.** `PROFILES["builder"]` has no `run_backtest` tool,
- * and a proposal reaches the form only through the card's Apply button. Moving
- * the entrance forward must not move that line.
+ * **It still cannot run anything.** `PROFILES["builder"]` has no `run_backtest`
+ * tool, and a proposal reaches the canvas only through the card's button.
+ * Moving the entrance forward must not move that line.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowUp, Square, X } from 'lucide-react'
+import { useState } from 'react'
+import { X } from 'lucide-react'
 
-import { ProposalCard } from './ProposalCard'
+import { ChatComposer, ChatTranscript } from './ChatTranscript'
 import { TemplateDetail } from './TemplateRail'
+import { AionMark } from '@/components/AionMark'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Panel } from '@/components/ui/panel'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Textarea } from '@/components/ui/textarea'
-import { useChatStream } from '@/hooks/useChatStream'
+import type { BuilderChat } from '@/hooks/useBuilderChat'
 import { useTemplates } from '@/hooks/useTemplates'
 import type { StrategySpec, TemplateEntry } from '@/lib/api'
-import { isProposal, type BuilderContext, type Proposal } from '@/lib/chat'
 import { EXAMPLES, pickStarters } from '@/lib/startHere'
 import { cn } from '@/lib/utils'
 
 /** Four fits one row at `xl` and two at `sm` without a third breakpoint. */
 const STARTERS = 4
 
-export function StartHere({ spec, onApply, onDismiss }: {
+export function StartHere({ chat, configured, spec, onApply, onDismiss }: {
+  /** The page's conversation, shared with the dock. */
+  chat: BuilderChat
+  /** null while the deployment's chat config is still being fetched. */
+  configured: boolean | null
   /** Sent as context so "make this more conservative" has a referent. */
   spec: StrategySpec
   onApply: (spec: StrategySpec) => void
   onDismiss: () => void
 }) {
   const [input, setInput] = useState('')
-  const [configured, setConfigured] = useState<boolean | null>(null)
   const { data } = useTemplates()
-
-  // Same ref indirection as the dock: `useChatStream` memoises on `context`,
-  // and a fresh closure every render would rebuild `send` on every keystroke.
-  const live = useRef(spec)
-  live.current = spec
-
-  const context = useCallback((): BuilderContext => ({
-    spec: live.current,
-    strategy_id: null,
-    saved: false,
-    mode: 'form',
-    expression: null,
-    features: [],
-    feature_mode: live.current.feature_mode ?? null,
-    assumed: null,
-  }), [])
-
-  const { messages, streaming, error, send, stop } = useChatStream({
-    profile: 'builder', context,
-  })
-
-  useEffect(() => {
-    fetch('/api/chat/config?profile=builder')
-      .then((r) => r.json())
-      .then((c) => setConfigured(Boolean(c.configured)))
-      .catch(() => setConfigured(false))
-  }, [])
+  const { messages, streaming, send, stop } = chat
 
   const submit = (text: string) => {
     if (!text.trim() || streaming) return
@@ -80,10 +55,7 @@ export function StartHere({ spec, onApply, onDismiss }: {
     setInput('')
   }
 
-  // Only the newest one. This panel is a doorway, not a conversation — a
-  // second proposal below the first invites comparing them here, which is what
-  // the dock is for and what this has no room to do well.
-  const proposal = latestProposal(messages)
+  const started = messages.length > 0
   const starters = pickStarters(data?.templates ?? [], STARTERS)
   const familyLabel = (key: string) =>
     data?.families.find((f) => f.key === key)?.label ?? key
@@ -92,11 +64,11 @@ export function StartHere({ spec, onApply, onDismiss }: {
     <Panel
       data-testid="start-here"
       title="Start here"
-      hint="or fill in the form below"
+      hint={started ? 'ask for a change, or use it' : 'describe it, or pick a card'}
       actions={
         <button
           onClick={onDismiss}
-          title="Hide this — I'll fill in the form myself"
+          title="Hide this — I'll build it on the canvas myself"
           className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
@@ -112,43 +84,45 @@ export function StartHere({ spec, onApply, onDismiss }: {
             Describing a strategy in words needs an OpenRouter key. Add
             <span className="font-mono"> OPENROUTER_API_KEY </span>
             to <span className="font-mono">webapp/.env</span> and restart the API.
-            The cards below work either way.
           </p>
         ) : (
-          <div className="space-y-2">
-            <p className="text-[13px] leading-relaxed">
-              Describe what you want to trade. You get a proposal to look over —
-              nothing is saved or run until you apply it.
-            </p>
+          <div className="space-y-3">
+            {!started && (
+              <div className="flex items-start gap-2.5">
+                <AionMark alt="" className="mt-0.5 h-4" />
+                <p className="text-[13px] leading-relaxed">
+                  Describe what you want to trade. You get a proposal to look over —
+                  nothing is saved or run until you use it.
+                </p>
+              </div>
+            )}
 
-            <div className="flex items-end gap-2">
-              <Textarea
-                rows={2}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    submit(input)
-                  }
-                }}
-                placeholder="momentum on US large caps, low turnover…"
-                data-testid="start-here-input"
-                className="min-h-0 resize-none text-[13px]"
+            {started && (
+              <ChatTranscript
+                chat={chat}
+                spec={spec}
+                onApply={onApply}
+                // From here, applying *is* the point and the canvas is what
+                // follows. The dock keeps "Apply", where a proposal is one edit
+                // among several to a strategy already on screen.
+                primaryLabel="Use this strategy"
+                className="max-h-[45vh] overflow-y-auto"
               />
-              {streaming ? (
-                <Button size="icon" variant="outline" onClick={stop} title="Stop">
-                  <Square className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button size="icon" onClick={() => submit(input)} disabled={!input.trim()}
-                        title="Describe it">
-                  <ArrowUp className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+            )}
 
-            {!messages.length && (
+            <ChatComposer
+              rows={2}
+              value={input}
+              onChange={setInput}
+              onSubmit={() => submit(input)}
+              onStop={stop}
+              streaming={streaming}
+              placeholder={started
+                ? 'lower the turnover…'
+                : 'momentum on US large caps, low turnover…'}
+            />
+
+            {!started && (
               <div className="flex flex-wrap gap-1.5">
                 {EXAMPLES.map((example) => (
                   <button
@@ -161,42 +135,17 @@ export function StartHere({ spec, onApply, onDismiss }: {
                 ))}
               </div>
             )}
-
-            {streaming && !proposal && (
-              <p className="animate-subtle-pulse text-[12px] text-muted-foreground">
-                Working out a strategy…
-              </p>
-            )}
-
-            {error && (
-              <p className="rounded-lg border border-destructive/40 p-2 font-mono text-[11px] text-destructive">
-                {error}
-              </p>
-            )}
-
-            {proposal && (
-              <ProposalCard
-                proposal={proposal}
-                current={spec}
-                applied={false}
-                onApply={() => {
-                  onApply(proposal.spec as unknown as StrategySpec)
-                  onDismiss()
-                }}
-                onDismiss={onDismiss}
-              />
-            )}
           </div>
         )}
 
-        {starters.length > 0 && (
+        {/* Only before the conversation starts. Once there is a proposal on
+            screen, a grid of alternatives underneath it is a second offer
+            competing with the one you asked for. */}
+        {!started && starters.length > 0 && (
           <div className="space-y-2 border-t border-border/50 pt-3">
             <p className="text-[12px] text-muted-foreground">
               …or start from one of these and change it:
             </p>
-            {/* Two columns, never four. This panel sits in the form's left
-                column, which is ~460px at the widest — four cards across put
-                a title into ~100px and it collided with its own badge. */}
             <div className="grid gap-2 sm:grid-cols-2">
               {starters.map((template) => (
                 <StarterCard
@@ -218,72 +167,33 @@ export function StartHere({ spec, onApply, onDismiss }: {
   )
 }
 
-/**
- * One card.
- *
- * Clicking opens `TemplateDetail` — the rail's popover, unchanged — rather than
- * applying immediately. What a template is bad at, and why it cannot run here,
- * are written in there, and a card that applies on first click is a card whose
- * caveats nobody reads.
- */
 function StarterCard({ template, familyLabel, onUse }: {
   template: TemplateEntry
   familyLabel: string
   onUse: () => void
 }) {
-  const [open, setOpen] = useState(false)
-  const dead = !template.runnable
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover>
       <PopoverTrigger asChild>
         <button
           data-testid={`starter-${template.id}`}
-          onClick={() => setOpen(true)}
-          // Not `disabled`: an unrunnable card must still open, because the
-          // popover is the only place its reasons are written down.
           className={cn(
-            'flex h-full flex-col gap-1 rounded-lg border p-2.5 text-left transition-colors',
-            dead
-              ? 'border-clay/40 hover:bg-clay/[0.06]'
-              : 'border-border/50 hover:bg-foreground/[0.04]',
+            'group flex flex-col gap-1 rounded-lg border border-border/60 bg-surface-2 p-2.5 text-left transition-colors',
+            'hover:bg-surface-3',
           )}
         >
-          {/* The family label leads on its own line rather than sharing one
-              with the title. Side by side, a `shrink-0` badge takes its width
-              out of the title's before the title gets a say — which at this
-              card size left the title with none. */}
-          <Badge variant={dead ? 'clay' : 'muted'} className="self-start">{familyLabel}</Badge>
-          <span className="text-[13px] font-medium leading-snug">{template.title}</span>
-          <p className="line-clamp-3 text-[11px] leading-snug text-muted-foreground">
-            {dead ? template.blocked_by[0]?.message ?? 'Cannot run here.' : template.rationale}
-          </p>
+          <span className="flex items-center gap-1.5">
+            <span className="min-w-0 flex-1 truncate text-[13px]">{template.title}</span>
+            {!template.runnable && <Badge variant="clay">blocked</Badge>}
+          </span>
+          <span className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+            {familyLabel}
+          </span>
         </button>
       </PopoverTrigger>
-
-      <PopoverContent side="bottom" align="start" className="w-96 p-3">
-        <TemplateDetail
-          template={template}
-          onUse={() => {
-            onUse()
-            setOpen(false)
-          }}
-        />
+      <PopoverContent side="right" align="start" className="w-96 p-3">
+        <TemplateDetail template={template} onUse={onUse} />
       </PopoverContent>
     </Popover>
   )
-}
-
-/** The newest `propose_strategy` result across the transcript, if any. */
-function latestProposal(messages: { tools?: { name: string; result?: unknown }[] }[]) {
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const tools = messages[i].tools ?? []
-    for (let j = tools.length - 1; j >= 0; j -= 1) {
-      const tool = tools[j]
-      if (tool.name === 'propose_strategy' && isProposal(tool.result)) {
-        return tool.result as Proposal
-      }
-    }
-  }
-  return null
 }
