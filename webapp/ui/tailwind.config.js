@@ -54,6 +54,14 @@ export default {
         ring: 'hsl(var(--ring))',
         // Validation-layer fail accent (see --clay in index.css)
         clay: 'hsl(var(--clay))',
+        // Agenda type identity hues (see index.css) — identity only, never verdicts.
+        type: {
+          release: 'hsl(var(--type-release))',
+          process: 'hsl(var(--type-process))',
+          trade: 'hsl(var(--type-trade))',
+          message: 'hsl(var(--type-message))',
+          notification: 'hsl(var(--type-notification))',
+        },
         // Surface levels for layered depth
         surface: {
           1: 'hsl(var(--surface-1))',
