@@ -1,0 +1,194 @@
+family: vibe-curated
+label: Vibe Zoo (curated)
+description: >
+  A first batch curated from the Vibe-Trading Alpha Zoo (MIT licensed) — the
+  academic factor list, Kakushadze's 101 Formulaic Alphas and the GTJA 191
+  set — translated into per-symbol qlib expressions. Every zoo formula that
+  ended in a cross-sectional z-score or rank had that wrapper dropped, so these
+  are the raw per-symbol signals; comparability across instruments comes from
+  each expression being normalised or unitless, not from a per-date rescale.
+  Anything whose core needs the market return, sector membership, fundamentals,
+  a cross-sectional rank, or a recursive/expanding construction was skipped, as
+  were alphas the existing families already carry under another name.
+
+factors:
+  - name: VIBE_CARHART_12_1
+    expression: "($close/(Ref($close,252)+1e-12) - 1) - ($close/(Ref($close,21)+1e-12) - 1)"
+    summary: Carhart (1997) 12-1 momentum — last year's return excluding the most recent month, so winners keep winning without the short-term reversal.
+    window: 252
+    tags: [vibe, momentum, return]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id academic_carhart_mom. Cross-sectional
+      z-score dropped; per-symbol raw signal. Blank for the first trading year
+      of an instrument's history. Cousin of anomaly's MOM_12_1, which writes
+      the same hypothesis as a single lagged ratio.
+
+  - name: VIBE_CMA_VOLGROWTH_60
+    expression: "-1 * (Log(Mean($volume,60)+1) - Ref(Log(Mean($volume,60)+1),60))"
+    summary: Price-only proxy of Fama-French (2015) CMA — shrinking trading activity over the quarter stands in for conservative asset growth.
+    window: 120
+    tags: [vibe, quality, volume]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id academic_cma. Cross-sectional z-score
+      dropped; per-symbol raw signal. A volume-growth proxy for the fundamental
+      investment factor — it never sees a balance sheet.
+
+  - name: VIBE_A101_06_OPENVOL_CORR
+    expression: "-1 * Corr($open,$volume,10)"
+    summary: Kakushadze Alpha 6 — when the opening price and volume have trended together for two weeks the move is crowded, so fade the agreement.
+    window: 10
+    tags: [vibe, volume, reversal]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id alpha101_006. Per-symbol raw signal;
+      the paper applies no cross-sectional wrapper here. Correlates raw volume,
+      unlike volume's PX_VOL_CORR_20 which logs it first.
+
+  - name: VIBE_A101_09_TREND_GATE
+    expression: "If(Min($close-Ref($close,1),5) > 0, ($close-Ref($close,1))/($close+1e-12), If(Max($close-Ref($close,1),5) < 0, ($close-Ref($close,1))/($close+1e-12), -1*($close-Ref($close,1))/($close+1e-12)))"
+    summary: Kakushadze Alpha 9 — follow the daily move while a full week of one-way closes says it is a trend, fade it otherwise.
+    window: 6
+    tags: [vibe, momentum, conditional]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id alpha101_009. Price deltas divided by
+      the close so the signal is comparable across instruments; the paper uses
+      raw dollar deltas.
+
+  - name: VIBE_A101_12_VOLSIGN_REV
+    expression: "-1 * Sign($volume-Ref($volume,1)) * ($close-Ref($close,1))/($close+1e-12)"
+    summary: Kakushadze Alpha 12 — fade the daily price move when volume is rising, follow it when volume is fading.
+    window: 2
+    tags: [vibe, volume, reversal]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id alpha101_012. Price delta divided by
+      the close so the signal is comparable across instruments; the paper uses
+      the raw dollar delta.
+
+  - name: VIBE_A101_23_HIGH_FADE
+    expression: "If(Mean($high,20) < $high, -1*($high-Ref($high,2))/($close+1e-12), 0)"
+    summary: Kakushadze Alpha 23 — when price trades above its 20-day average high, bet that the two-day thrust in the high retraces.
+    window: 20
+    tags: [vibe, momentum, reversal, conditional]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id alpha101_023. High delta divided by
+      the close for cross-instrument comparability. The else-branch is exactly
+      zero, so the factor is flat whenever the high sits below its 20-day mean.
+
+  - name: VIBE_A101_26_HIVOL_AGREE
+    expression: "-1 * Max(Corr(Rank($volume,5),Rank($high,5),5),3)"
+    summary: Kakushadze Alpha 26 — shorts the strongest recent agreement between volume ranks and high-price ranks, a crowding signal.
+    window: 13
+    tags: [vibe, volume, reversal]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id alpha101_026. The paper's ts_rank and
+      ts_max translate to qlib's rolling Rank and Max; nothing here is
+      cross-sectional in the original.
+
+  - name: VIBE_A101_35_RANK_BLEND
+    expression: "Rank($volume,32) * (1 - Rank($close+$high-$low,16)) * (1 - Rank($close/(Ref($close,1)+1e-12) - 1,32))"
+    summary: Kakushadze Alpha 35 — heavy recent volume, a price near the bottom of its range and weak recent returns together mark washed-out names set to bounce.
+    window: 33
+    tags: [vibe, volume, momentum, bounded]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id alpha101_035. The paper's returns are
+      written as $close/Ref($close,1)-1, and its ts_rank is qlib's rolling Rank
+      percentile — per-symbol, not cross-sectional.
+
+  - name: VIBE_A101_53_CLV_ACCEL
+    expression: "-1 * Delta((($close-$low)-($high-$close))/($close-$low+1e-12),9)"
+    summary: Kakushadze Alpha 53 — bets against the nine-day shift in where the close sits inside the daily range.
+    window: 9
+    tags: [vibe, reversal, microstructure]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id alpha101_053. The paper's denominator
+      really is close-low, not high-low; kept as written with an epsilon guard,
+      so days where the close sits on the low can spike the ratio.
+
+  - name: VIBE_A101_54_RANGE_POW
+    expression: "-1 * (($close-$low)/($high-$low+0.001)) * Power($open/($close+1e-12),5)"
+    summary: Kakushadze Alpha 54 — a candle-shape reversal that fades closes near the top of the day's range, hardest when the open sat far above the close.
+    window: 1
+    tags: [vibe, reversal, microstructure]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id alpha101_054. Rewritten algebraically
+      from -((low-close)*open^5)/((low-high)*close^5) to
+      (close-low)/(high-low) * (open/close)^5 with the paper's 0.001 range
+      epsilon, which avoids a signed zero denominator.
+
+  - name: VIBE_G191_02_CLV_TURN
+    expression: "-1 * Delta((($close-$low)-($high-$close))/($high-$low+1e-12),1)"
+    summary: GTJA 2 — fades the one-day change in where the close sits within the high-low range.
+    window: 1
+    tags: [vibe, reversal, microstructure]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id gtja191_002. Per-symbol raw signal.
+      The one-day cousin of VIBE_A101_53_CLV_ACCEL, with the conventional
+      high-low denominator.
+
+  - name: VIBE_G191_22_STRETCH_MOM
+    expression: "EMA(($close-Mean($close,6))/(Mean($close,6)+1e-12) - Ref(($close-Mean($close,6))/(Mean($close,6)+1e-12),3),0.0833333333)"
+    summary: GTJA 22 — smoothed momentum of the stretch away from the six-day average, reading whether the deviation is growing or closing.
+    window: 12
+    tags: [vibe, reversal, smoothed]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id gtja191_022. The paper's SMA(x,12,1)
+      is Wilder-style smoothing, written here as the float window 0.0833333333 —
+      qlib reads a window below 1 as an EWM alpha, so its true reach is far
+      longer than 12 days.
+
+  - name: VIBE_G191_46_MA_FAN
+    expression: "(Mean($close,3)+Mean($close,6)+Mean($close,12)+Mean($close,24))/(4*$close+1e-12)"
+    summary: GTJA 46 — the average of four moving averages over today's price; above one means price sits below its trend fan, a mean-reversion setup.
+    window: 24
+    tags: [vibe, reversal, trend]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id gtja191_046. Per-symbol raw signal,
+      already unitless. The four-horizon composite is what distinguishes it
+      from trend's single-window SMA ratios.
+
+  - name: VIBE_G191_76_ILLIQ_CV
+    expression: "Std(Abs($close/(Ref($close,1)+1e-12)-1)/($volume+1e-12),20)/(Mean(Abs($close/(Ref($close,1)+1e-12)-1)/($volume+1e-12),20)+1e-12)"
+    summary: GTJA 76 — how unstable price impact per unit of volume has been over the month, a noisiness-of-illiquidity reading.
+    window: 21
+    tags: [vibe, volatility, volume, liquidity]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id gtja191_076. Per-symbol raw signal.
+      A coefficient of variation, so the raw share-volume units cancel and the
+      result is scale-free.
+
+  - name: VIBE_G191_93_GAP_STRESS
+    expression: "Sum(If($open >= Ref($open,1), 0, Greater($open-$low,$open-Ref($open,1))), 20)/($close+1e-12)"
+    summary: GTJA 93 — accumulated downside gap-and-drop distance over the month, a running tally of selling stress.
+    window: 21
+    tags: [vibe, microstructure, downside]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id gtja191_093. Divided by the close so
+      the accumulated dollar distance is comparable across instruments; the
+      paper leaves it in price units.
+
+  - name: VIBE_G191_110_BUY_PRESSURE
+    expression: "Sum(Greater($high-Ref($close,1),0),20)/(Sum(Greater(Ref($close,1)-$low,0),20)+1e-12)"
+    summary: GTJA 110 — a month of upward range beyond yesterday's close against downward range below it, buying versus selling pressure.
+    window: 21
+    tags: [vibe, momentum, range]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id gtja191_110. Per-symbol raw signal;
+      the paper's x100 scaling dropped — a ratio above 1 already reads as
+      buying pressure.
+
+  - name: VIBE_G191_118_RANGE_TILT
+    expression: "Sum($high-$open,20)/(Sum($open-$low,20)+1e-12)"
+    summary: GTJA 118 — the month's climb above the open against the drop below it, asking which side of the open the day's trading happens on.
+    window: 20
+    tags: [vibe, reversal, range]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id gtja191_118. Per-symbol raw signal;
+      the paper's x100 scaling dropped.
+
+  - name: VIBE_G191_145_VOL_MACD
+    expression: "(Mean($volume,9)-Mean($volume,26))/(Mean($volume,12)+1e-12)"
+    summary: GTJA 145 — a volume MACD, short-run average volume against long-run, scaled by the medium-run so it is unitless.
+    window: 26
+    tags: [vibe, volume, oscillator]
+    caveat: >
+      Adapted from Vibe-Trading (MIT), id gtja191_145. Per-symbol raw signal;
+      the paper's x100 scaling dropped.

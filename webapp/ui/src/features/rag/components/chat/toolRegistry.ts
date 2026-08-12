@@ -83,6 +83,33 @@ const TOOL_REGISTRY: Record<string, ToolMeta> = {
   tool_search: { name: 'Tool Search', icon: Search, family: 'Planning' },
   hybrid_search: { name: 'Document Search', icon: FileSearch, family: 'Knowledge Base' },
   append_file: { name: 'Write File', icon: FilePlus, family: 'Workspace' },
+
+  // Vibe-Trading MCP tools (rag-api MCP_SERVERS → vibe-mcp sidecar). The
+  // include filter in rag/backend/.env decides which of these are live.
+  search_symbol: { name: 'Symbol Search', icon: Search, family: 'Vibe Markets' },
+  get_market_data: { name: 'Market Data', icon: BarChart3, family: 'Vibe Markets' },
+  get_stock_profile: { name: 'Company Profile', icon: FileText, family: 'Vibe Markets' },
+  get_financial_statements: { name: 'Financials', icon: Receipt, family: 'Vibe Markets' },
+  get_options_chain: { name: 'Options Chain', icon: Layers, family: 'Vibe Markets' },
+  get_sec_filings: { name: 'SEC Filings', icon: FileSearch, family: 'Vibe Markets' },
+  get_stock_news: { name: 'Stock News', icon: Globe, family: 'Vibe Markets' },
+  screen_market: { name: 'Market Screener', icon: TextSearch, family: 'Vibe Markets' },
+  get_macro_series: { name: 'Macro Series', icon: BarChart3, family: 'Vibe Markets' },
+  get_sector_info: { name: 'Sector Info', icon: Rows3, family: 'Vibe Markets' },
+  alpha_zoo: { name: 'Alpha Zoo', icon: Database, family: 'Vibe Research' },
+  alpha_bench: { name: 'Alpha Benchmark', icon: BarChart3, family: 'Vibe Research' },
+  extract_shadow_strategy: { name: 'Extract Shadow Strategy', icon: GitFork, family: 'Vibe Shadow' },
+  run_shadow_backtest: { name: 'Shadow Backtest', icon: BarChart3, family: 'Vibe Shadow' },
+  scan_shadow_signals: { name: 'Scan Shadow Signals', icon: TextSearch, family: 'Vibe Shadow' },
+  render_shadow_report: { name: 'Shadow Report', icon: FileText, family: 'Vibe Shadow' },
+  trading_connections: { name: 'Broker Connections', icon: Users, family: 'Vibe Brokers' },
+  trading_select_connection: { name: 'Select Broker', icon: Users, family: 'Vibe Brokers' },
+  trading_account: { name: 'Broker Account', icon: Receipt, family: 'Vibe Brokers' },
+  trading_positions: { name: 'Broker Positions', icon: Rows3, family: 'Vibe Brokers' },
+  trading_orders: { name: 'Broker Orders', icon: ListChecks, family: 'Vibe Brokers' },
+  trading_history: { name: 'Trade History', icon: BookOpen, family: 'Vibe Brokers' },
+  trading_quote: { name: 'Broker Quote', icon: BarChart3, family: 'Vibe Brokers' },
+  trading_check: { name: 'Pre-trade Check', icon: ListChecks, family: 'Vibe Brokers' },
 }
 
 function titleCaseToolName(toolName: string): string {

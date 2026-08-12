@@ -27,6 +27,191 @@ def _build_subprocess_env() -> dict[str, str]:
     return env
 
 
+class MCPHttpServerConnection:
+    """A single MCP server reached over streamable HTTP (JSON-RPC POSTs).
+
+    Raw httpx rather than the ``mcp`` SDK: the SDK is not in this image's
+    requirements (the stdio class below imports it lazily and no stdio server
+    has been configured so far), while httpx is already a pinned dependency.
+    The protocol subset needed — initialize, tools/list, tools/call — is three
+    request shapes. First consumer: the Vibe-Trading sidecar at
+    ``http://vibe-mcp:8900/mcp`` (see MCP_SERVERS in .env).
+
+    ``include`` filters discovery: entries are exact tool names, or prefixes
+    when ending with ``*`` (``trading_*``). The vibe server exposes 65 tools
+    against a ``catalog_max_tools`` of 50, so an unfiltered connect would
+    flood the catalog.
+    """
+
+    _PROTOCOL_VERSION = "2025-03-26"
+
+    def __init__(self, name: str, url: str, include: Optional[list[str]] = None):
+        self.name = name
+        self.url = url
+        self.include = include or []
+        self._session_id: Optional[str] = None
+        self._request_id = 0
+        self._lock = asyncio.Lock()
+        self.tools: dict[str, dict] = {}
+        self.connected = False
+
+    def _wanted(self, tool_name: str) -> bool:
+        if not self.include:
+            return True
+        for pattern in self.include:
+            if pattern.endswith("*"):
+                if tool_name.startswith(pattern[:-1]):
+                    return True
+            elif tool_name == pattern:
+                return True
+        return False
+
+    async def connect(self) -> list[dict]:
+        """Handshake, discover tools, return the (filtered) tool list."""
+        import httpx
+
+        try:
+            async with self._lock:
+                await self._initialize()
+                result = await self._rpc("tools/list", {})
+            discovered = []
+            for tool in result.get("tools", []):
+                if not self._wanted(tool.get("name", "")):
+                    continue
+                tool_info = {
+                    "name": tool["name"],
+                    "description": tool.get("description", ""),
+                    "input_schema": tool.get("inputSchema", {}),
+                }
+                self.tools[tool["name"]] = tool_info
+                discovered.append(tool_info)
+            self.connected = True
+            logger.info(
+                f"MCP server '{self.name}' connected over http: "
+                f"{len(discovered)} tools kept of {len(result.get('tools', []))}"
+            )
+            return discovered
+        except (httpx.HTTPError, RuntimeError, KeyError) as e:
+            logger.error(f"Failed to connect to MCP server '{self.name}': {e}")
+            self.connected = False
+            self._session_id = None
+            raise
+
+    @traceable(name="mcp_client.call_tool", run_type="tool")
+    async def call_tool(self, tool_name: str, arguments: dict) -> str:
+        """Call a tool; returns text for the LLM, errors as JSON strings."""
+        import httpx
+
+        if not self.connected:
+            return json.dumps({
+                "error": "not_connected",
+                "message": f"MCP server '{self.name}' is not connected",
+            })
+        try:
+            async with self._lock:
+                try:
+                    result = await self._rpc(
+                        "tools/call", {"name": tool_name, "arguments": arguments}
+                    )
+                except _McpSessionExpired:
+                    # Server restarted; one transparent re-handshake.
+                    self._session_id = None
+                    await self._initialize()
+                    result = await self._rpc(
+                        "tools/call", {"name": tool_name, "arguments": arguments}
+                    )
+        except (httpx.HTTPError, RuntimeError) as e:
+            logger.error(f"MCP tool call failed: {self.name}/{tool_name}: {e}")
+            return json.dumps({"error": "mcp_call_failed", "message": str(e)})
+
+        parts = [
+            block.get("text", "")
+            for block in result.get("content", [])
+            if block.get("type") == "text"
+        ]
+        text = "\n".join(p for p in parts if p)
+        if not text and result.get("structuredContent") is not None:
+            text = json.dumps(result["structuredContent"])
+        if result.get("isError"):
+            return json.dumps({"error": "mcp_tool_error", "message": text})
+        return text
+
+    async def _initialize(self) -> None:
+        init = await self._post({
+            "jsonrpc": "2.0", "id": self._next_id(), "method": "initialize",
+            "params": {
+                "protocolVersion": self._PROTOCOL_VERSION,
+                "capabilities": {},
+                "clientInfo": {"name": "aion-rag", "version": "1.0"},
+            },
+        }, expect_session=True)
+        if "error" in init:
+            raise RuntimeError(f"MCP initialize failed: {init['error']}")
+        await self._post(
+            {"jsonrpc": "2.0", "method": "notifications/initialized"},
+            notification=True,
+        )
+
+    async def _rpc(self, method: str, params: dict) -> dict:
+        message = await self._post({
+            "jsonrpc": "2.0", "id": self._next_id(),
+            "method": method, "params": params,
+        })
+        if "error" in message:
+            raise RuntimeError(f"MCP {method} error: {message['error']}")
+        return message.get("result", {})
+
+    async def _post(
+        self,
+        body: dict,
+        *,
+        expect_session: bool = False,
+        notification: bool = False,
+    ) -> dict:
+        import httpx
+
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+            "MCP-Protocol-Version": self._PROTOCOL_VERSION,
+        }
+        if self._session_id:
+            headers["mcp-session-id"] = self._session_id
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=5.0)) as client:
+            response = await client.post(self.url, json=body, headers=headers)
+        if response.status_code == 404 and self._session_id:
+            raise _McpSessionExpired()
+        if expect_session:
+            self._session_id = response.headers.get("mcp-session-id")
+        if notification:
+            return {}
+        response.raise_for_status()
+        if response.headers.get("content-type", "").startswith("text/event-stream"):
+            message: dict = {}
+            for line in response.text.splitlines():
+                if line.startswith("data:"):
+                    try:
+                        message = json.loads(line[5:].strip())
+                    except json.JSONDecodeError:
+                        continue
+            return message
+        return response.json()
+
+    def _next_id(self) -> int:
+        self._request_id += 1
+        return self._request_id
+
+    async def disconnect(self):
+        self._session_id = None
+        self.connected = False
+        self.tools.clear()
+        logger.info(f"MCP server '{self.name}' disconnected")
+
+
+class _McpSessionExpired(RuntimeError):
+    """The HTTP MCP server no longer recognises our session id."""
+
+
 class MCPServerConnection:
     """Manages a single MCP server connection via stdio transport."""
 
@@ -181,6 +366,11 @@ class MCPClientManager:
         Config format: JSON array of objects with name, command, args fields.
         Example: '[{"name":"github","command":"npx","args":["-y","@modelcontextprotocol/server-github"]}]'
 
+        Entries with a "url" field connect over streamable HTTP instead of
+        stdio, with an optional "include" tool filter (exact names, or
+        prefixes ending in "*"):
+        '[{"name":"vibe","url":"http://vibe-mcp:8900/mcp","include":["trading_*","alpha_zoo"]}]'
+
         Legacy format (deprecated): comma-separated "name:command:args" entries.
         Example: "github:npx:-y @modelcontextprotocol/server-github"
         """
@@ -205,12 +395,20 @@ class MCPClientManager:
                 return
             for item in parsed:
                 try:
-                    server_configs.append((
-                        item["name"],
-                        item["command"],
-                        item.get("args", []),
-                        item.get("loading", "deferred"),
-                    ))
+                    if item.get("url"):
+                        server_configs.append({
+                            "name": item["name"],
+                            "url": item["url"],
+                            "include": item.get("include", []),
+                            "loading": item.get("loading", "deferred"),
+                        })
+                    else:
+                        server_configs.append({
+                            "name": item["name"],
+                            "command": item["command"],
+                            "args": item.get("args", []),
+                            "loading": item.get("loading", "deferred"),
+                        })
                 except (KeyError, TypeError) as e:
                     logger.warning(f"Skipping invalid MCP server config entry {item!r}: {e}")
         else:
@@ -227,10 +425,20 @@ class MCPClientManager:
                 name = parts[0].strip()
                 command = parts[1].strip()
                 args = parts[2].strip().split() if len(parts) > 2 else []
-                server_configs.append((name, command, args, "deferred"))
+                server_configs.append({
+                    "name": name, "command": command, "args": args,
+                    "loading": "deferred",
+                })
 
-        for name, command, args, loading_mode in server_configs:
-            server = MCPServerConnection(name, command, args)
+        for cfg in server_configs:
+            name = cfg["name"]
+            loading_mode = cfg["loading"]
+            if cfg.get("url"):
+                server = MCPHttpServerConnection(
+                    name, cfg["url"], include=cfg.get("include") or None
+                )
+            else:
+                server = MCPServerConnection(name, cfg["command"], cfg["args"])
             self._servers[name] = server
 
             try:

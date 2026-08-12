@@ -50,7 +50,8 @@ LIBRARY_DIR = Path(__file__).parent / "factor_library"
 
 #: Palette order. Trend and momentum first because they are what people look
 #: for; the anomalies last because they are the ones that need the most warm-up.
-FAMILY_ORDER = ("trend", "momentum", "volatility", "volume", "candle", "anomaly")
+FAMILY_ORDER = ("trend", "momentum", "volatility", "volume", "candle", "anomaly",
+                "vibe-curated")
 
 _FIELD = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)")
 

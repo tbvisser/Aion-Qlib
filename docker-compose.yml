@@ -184,5 +184,80 @@ services:
       - --port
       - "5000"
 
+  # Vibe-Trading sidecar (HKUDS/Vibe-Trading, MIT — THIRD_PARTY_NOTICES.md).
+  # Own image for the same reason as rag-api: its LangChain-era dependency tree
+  # conflicts with the qlib image's pins. The qlib API proxies a whitelisted
+  # subset at /api/vibe/* (webapp/api/routers/vibe.py); live order placement is
+  # deliberately not in that whitelist. Config: vibe/.env (gitignored) — its
+  # API_AUTH_KEY must match VIBE_API_TOKEN in webapp/.env, because the proxy
+  # connects over the docker network and vibe rejects non-loopback callers
+  # without a key. State persists in vibe-home (~/.vibe-trading).
+  vibe-api:
+    build:
+      context: ./vibe
+    image: ${AION_VIBE_IMAGE:-aion-vibe:dev}
+    container_name: qlib-vibe-api
+    env_file:
+      - path: vibe/.env
+        required: false
+    volumes:
+      - vibe-home:/home/vibe
+    ports:
+      - "127.0.0.1:8899:8000"
+    # Mirrors upstream's own compose hardening — this container will eventually
+    # hold broker credentials. (No read-only rootfs yet: write paths outside
+    # ~/.vibe-trading are unverified; revisit after first bring-up.)
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 4g
+    cpus: 2
+    command:
+      - vibe-trading
+      - serve
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    healthcheck:
+      # Loopback requests pass vibe's peer-IP check without a key, so this
+      # works before vibe/.env exists.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Same image, MCP transport: 64 read-only research/trading tools over
+  # streamable HTTP at http://vibe-mcp:8900/mcp. Internal-only (no host port);
+  # consumers are the qlib API proxy and, in a later phase, rag-api. The
+  # allowed-hosts env answers vibe's DNS-rebinding guard for the service name.
+  vibe-mcp:
+    image: ${AION_VIBE_IMAGE:-aion-vibe:dev}
+    container_name: qlib-vibe-mcp
+    depends_on:
+      - vibe-api
+    env_file:
+      - path: vibe/.env
+        required: false
+    environment:
+      VIBE_TRADING_MCP_ALLOWED_HOSTS: vibe-mcp,localhost,127.0.0.1
+    volumes:
+      - vibe-home:/home/vibe
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 4g
+    cpus: 2
+    command:
+      - vibe-trading-mcp
+      - --transport
+      - http
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8900"
+
 volumes:
   rag-model-cache:
+  vibe-home:
