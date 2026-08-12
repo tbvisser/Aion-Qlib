@@ -30,7 +30,6 @@ import {
 import { RunCompareModal } from '@/components/runs/RunCompareModal'
 import { RunLog } from '@/components/runs/RunLog'
 import { RunStatusIcon } from '@/components/runs/RunStatusIcon'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { isActive, useRunStream } from '@/hooks/useRunStream'
 import { useRunReports } from '@/hooks/useRunReports'
@@ -404,19 +403,39 @@ function FinishedBody({ run, report, metrics, changed }: {
   )
 }
 
+/**
+ * Column headings.
+ *
+ * The reference this panel is modelled on shows Net Profit / PF / Win Rate.
+ * None of those exist here and none can be invented: qlib's backtest is
+ * cross-sectional and emits no per-trade fills, so there is no trade ledger to
+ * compute a profit factor or a win rate from. These are the three honest
+ * equivalents, all from `excess_return_with_cost`.
+ */
+const METRIC_HEAD: Record<MetricKey, string> = {
+  annualised: 'Ann. return',
+  ir: 'Info ratio',
+  maxDrawdown: 'Max DD',
+  volatility: 'Volatility',
+}
+
 const METRIC_LABEL: Record<MetricKey, string> = {
-  ir: 'Information ratio, net of cost',
+  ir: 'Information ratio, excess of benchmark and net of cost',
   annualised: 'Annualised excess return, net of cost',
   maxDrawdown: 'Maximum drawdown of the excess curve',
   volatility: 'Volatility of the excess curve',
 }
 
 /**
- * One metric cell.
+ * One metric cell: a heading over a number.
+ *
+ * The heading is the point. Three unlabelled figures in a row —
+ * `0.94  27.7%  -43.5%` — are unreadable to anyone who has not memorised the
+ * column order, which is nobody, including the person who wrote it.
  *
  * Fixed width, always. Reports arrive four at a time, and a ledger that
- * reflows every column as they trickle in is unreadable while it settles —
- * so a pending cell is `···` at exactly the width of the number that replaces it.
+ * reflows as they trickle in is unreadable while it settles — so a pending
+ * cell is `···` at exactly the width of the number that replaces it.
  */
 function Metric({ run, report, name, value }: {
   run: Run
@@ -435,21 +454,28 @@ function Metric({ run, report, name, value }: {
       ? '—'
       : name === 'ir'
         ? value.toFixed(2)
-        : `${(value * 100).toFixed(1)}%`
+        : `${value > 0 ? '+' : ''}${(value * 100).toFixed(1)}%`
 
   return (
-    <span
+    <div
       title={pending ? 'Loading results…' : value === null
         ? 'No results recorded for this run.' : METRIC_LABEL[name]}
-      className={cn(
-        'tnum w-12 shrink-0 text-right font-mono text-[10px]',
-        pending ? 'text-muted-foreground/40'
-          : tone === 'positive' ? 'text-primary'
-            : tone === 'negative' ? 'text-clay' : 'text-muted-foreground',
-      )}
+      className="min-w-0 flex-1"
     >
-      {text}
-    </span>
+      <div className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        {METRIC_HEAD[name]}
+      </div>
+      <div
+        className={cn(
+          'tnum truncate font-mono text-[13px]',
+          pending ? 'text-muted-foreground/40'
+            : tone === 'positive' ? 'text-primary'
+              : tone === 'negative' ? 'text-clay' : 'text-muted-foreground',
+        )}
+      >
+        {text}
+      </div>
+    </div>
   )
 }
 
@@ -483,12 +509,6 @@ function Elapsed({ run }: { run: Run }) {
   return (
     <span className="tnum shrink-0 font-mono text-[10px] text-muted-foreground">{mm}:{ss}</span>
   )
-}
-
-function statusTone(status: Run['status']): 'primary' | 'clay' | 'muted' {
-  if (status === 'succeeded') return 'primary'
-  if (status === 'failed') return 'clay'
-  return 'muted'
 }
 
 /** Collapsed/expanded survives a reload, but a fresh run always opens the panel. */
