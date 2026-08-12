@@ -1,9 +1,14 @@
-import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowUp, CalendarDays } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { History, MessageSquarePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { AionMark } from '@/components/AionMark'
+import { AgendaWidget } from '@/components/dashboard/AgendaWidget'
 import { MarketHoursWidget } from '@/components/MarketHoursWidget'
+import { ChatSurface } from '@/features/rag/components/chat/ChatSurface'
+import { WelcomeComposer } from '@/features/rag/components/chat/WelcomeComposer'
+import { type ComposerMode } from '@/features/rag/components/chat/ComposerMenu'
+import { createThread } from '@/features/rag/lib/api'
 import { getGreetingHeadline, getFirstName } from '@/lib/greeting'
 import { navItemFor, type SectionKey } from '@/components/layout/NavItems'
 
@@ -16,79 +21,150 @@ const HOME_SHORTCUTS = HOME_SHORTCUT_KEYS
   .map(navItemFor)
   .filter((item): item is NonNullable<typeof item> => Boolean(item))
 
+/** What the welcome composer handed to the thread it just created. */
+interface PendingHandoff {
+  threadId: string
+  message: string
+  attachments?: File[]
+  mode?: ComposerMode
+}
+
 /**
  * Home screen, matching the Aion Platform's dashboard: centered greeting,
- * composer, shortcut pills and the market-hours strip.
- *
- * The platform's composer also carries attachment, mode and voice controls.
- * They are omitted rather than rendered inert — this app has no backend for
- * any of them, and dead controls on the page's primary element would mislead.
+ * composer, shortcut pills and the market-hours strip — and, once a thread
+ * exists, the chat itself. `/dashboard` is the idle home; `/dashboard/:threadId`
+ * is that same home turned over to the conversation.
  */
 export function DashboardPage() {
+  const { threadId } = useParams<{ threadId?: string }>()
   const navigate = useNavigate()
-  const [input, setInput] = useState('')
+  const location = useLocation()
+  const [creating, setCreating] = useState(false)
+  const [welcomeFocusRequest, setWelcomeFocusRequest] = useState(0)
+  // What the composer handed off to the thread it created. Read once, by the
+  // thread it names — see the guard below.
+  const [pendingHandoff, setPendingHandoff] = useState<PendingHandoff | null>(null)
+  const locationStateHandledRef = useRef(false)
 
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    const question = input.trim()
-    if (!question) return
-    // ChatPage picks this up from location state and sends it once on mount.
-    navigate('/chats', { state: { initialMessage: question } })
+  // Drop the handoff as soon as the route moves off the thread it was meant
+  // for (including back to the idle home). ChatView resets its "already sent"
+  // ref on every threadId change, so a handoff left lying around would be
+  // re-sent into whichever thread is opened next.
+  useEffect(() => {
+    setPendingHandoff(prev => (prev && prev.threadId === threadId ? prev : null))
+  }, [threadId])
+
+  const handoff = pendingHandoff && pendingHandoff.threadId === threadId ? pendingHandoff : null
+
+  // A kickoff prompt handed over by another page (Skills' "Use skill" and
+  // "Create with AI", the skill editor's "Try in Chat") arrives as location
+  // state. Mount-only: the ref keeps StrictMode's double-invoked effect from
+  // creating two threads, since replaceState below is invisible to the router.
+  useEffect(() => {
+    const stateMessage = (location.state as { initialMessage?: string } | null)?.initialMessage
+    if (!stateMessage || locationStateHandledRef.current) return
+    locationStateHandledRef.current = true
+
+    // Clear the location state so it doesn't re-trigger on re-render.
+    window.history.replaceState({}, '')
+
+    setCreating(true)
+    createThread()
+      .then((newThread) => {
+        setPendingHandoff({ threadId: newThread.id, message: stateMessage })
+        navigate(`/dashboard/${newThread.id}`, { replace: true })
+      })
+      .catch((error) => {
+        console.error('Failed to create thread from location state:', error)
+      })
+      .finally(() => {
+        setCreating(false)
+      })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleWelcomeSubmit = async ({
+    message,
+    attachments,
+    mode,
+  }: { message: string; attachments: File[]; mode: ComposerMode }) => {
+    setCreating(true)
+    try {
+      const newThread = await createThread()
+      setPendingHandoff({ threadId: newThread.id, message, attachments, mode })
+      // Pushed, not replaced: Back from a fresh thread returns to the home screen.
+      navigate(`/dashboard/${newThread.id}`)
+    } catch (error) {
+      console.error('Failed to create thread:', error)
+      // Re-throw so the composer keeps the user's message and attachments.
+      throw error
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  if (threadId) {
+    return (
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex h-12 shrink-0 items-center justify-between border-b border-border/50 px-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setWelcomeFocusRequest(request => request + 1)
+              navigate('/dashboard')
+            }}
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+            New Chat
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-foreground hover:text-foreground"
+            onClick={() => navigate('/chats')}
+          >
+            <History className="h-4 w-4" />
+            History
+          </Button>
+        </div>
+
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+          <ChatSurface
+            threadId={threadId}
+            initialMessage={handoff?.message}
+            initialAttachments={handoff?.attachments}
+            initialMode={handoff?.mode}
+          />
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="relative h-full">
-      {/* Calendar affordance, matching the platform's collapsed widget. This app
-          has no events API, so it is a placeholder: no count badge, no expand. */}
+      {/* Calendar corner, matching the platform's collapsed widget — live now
+          that the macro calendar API exists. */}
       <div className="absolute right-4 top-4 z-10 hidden lg:block">
-        <button
-          type="button"
-          data-testid="dashboard-calendar-collapsed"
-          title="Calendar — not available yet"
-          aria-label="Calendar — not available yet"
-          disabled
-          className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-border/50 bg-card text-muted-foreground shadow-card opacity-60"
-        >
-          <CalendarDays className="h-4 w-4" />
-        </button>
+        <AgendaWidget />
       </div>
 
       <div className="flex h-full flex-col items-center justify-center">
         <div className="mb-8 flex items-center justify-center gap-3">
-          <img src="/brand/aion-symbol-mint.svg" alt="AION" className="h-8 w-auto" />
+          <AionMark className="h-8" />
           <h1 className="font-serif text-3xl tracking-tight text-foreground/90 md:text-4xl">
             {getGreetingHeadline()}, {getFirstName()}
           </h1>
         </div>
 
-        <form onSubmit={submit} className="w-full max-w-2xl px-4">
-          <div className="relative rounded-2xl border border-border/50 bg-surface-2 px-3 pb-2 pt-3 transition-colors focus-within:border-border">
-            <Textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  submit(e as unknown as FormEvent)
-                }
-              }}
-              placeholder="Ask about the data, test a factor, or run a backtest"
-              rows={2}
-              className="max-h-[40vh] min-h-[56px] resize-none overflow-y-auto border-0 bg-transparent px-1 py-0 text-base leading-6 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-            />
-            <div className="mt-1 flex items-center justify-end">
-              <Button
-                type="submit"
-                size="icon"
-                aria-label="Send message"
-                className="btn-press h-9 w-9 rounded-xl bg-primary text-primary-foreground transition-all duration-200 hover:bg-primary/90"
-                disabled={!input.trim()}
-              >
-                <ArrowUp className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </form>
+        <div className="flex w-full max-w-2xl flex-col items-center">
+          <WelcomeComposer
+            onSubmit={handleWelcomeSubmit}
+            busy={creating}
+            placeholder="Ask about the data, test a factor, or run a backtest"
+            focusToken={welcomeFocusRequest}
+          />
+        </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2 px-4">
           {HOME_SHORTCUTS.map((item) => (

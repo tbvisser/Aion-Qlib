@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { api, type AssetClassKey, type Bar, type Instrument } from '@/lib/api'
 import { useHealth } from '@/hooks/useHealth'
 import { cn } from '@/lib/utils'
+import { DataSourcesPanel } from '@/components/markets/DataSourcesPanel'
 
 const RANGES = [
   { label: '3M', days: 90 },
@@ -249,6 +250,10 @@ export function MarketsPage() {
               )}
             </CardContent>
           </Card>
+
+          <div className="mt-4">
+            <DataSourcesPanel />
+          </div>
         </div>
       </div>
     </>

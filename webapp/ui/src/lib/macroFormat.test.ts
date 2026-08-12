@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  SERIES_STROKES, daysBetween, formatChange, formatIsoDate, formatLevel,
-  isSignificant, significance, toneFor, zTint,
+  SERIES_STROKES, addMonths, daysBetween, formatChange, formatIsoDate,
+  formatLevel, isSignificant, mondayIndex, monthLabel, monthOf, significance,
+  toneFor, zTint,
 } from './macroFormat'
 import { decimate, mergeCurves } from './curves'
 
@@ -213,5 +214,29 @@ describe('decimate', () => {
     for (const p of decimate(points, 100, y)) {
       expect(p.v === null || p.v === 5).toBe(true)
     }
+  })
+})
+
+describe('month helpers', () => {
+  it('monthOf is a pure slice', () => {
+    expect(monthOf('2026-08-11')).toBe('2026-08')
+  })
+
+  it('addMonths crosses year boundaries in both directions', () => {
+    expect(addMonths('2026-08', 1)).toBe('2026-09')
+    expect(addMonths('2026-01', -1)).toBe('2025-12')
+    expect(addMonths('2026-12', 1)).toBe('2027-01')
+    expect(addMonths('2026-08', -14)).toBe('2025-06')
+  })
+
+  it('monthLabel names the month', () => {
+    expect(monthLabel('2026-08')).toBe('Aug 2026')
+    expect(monthLabel('2025-12')).toBe('Dec 2025')
+  })
+
+  it('mondayIndex is 0 for Monday and 6 for Sunday', () => {
+    expect(mondayIndex('2026-06-01')).toBe(0) // a Monday
+    expect(mondayIndex('2026-02-01')).toBe(6) // a Sunday
+    expect(mondayIndex('2026-08-11')).toBe(1) // a Tuesday
   })
 })

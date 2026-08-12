@@ -57,3 +57,22 @@ export function formatDuration(ms: number): string {
   const rest = minutes % 60
   return rest ? `${hours}h ${rest}m` : `${hours}h`
 }
+
+/**
+ * A running clock: `0:07`, `4:23`, `1:02:15`.
+ *
+ * The opposite call to `formatDuration`'s. That one rounds hard because it
+ * reports a median of a handful of samples and should not claim more than it
+ * knows; this one is a stopwatch on work happening right now, where the second
+ * hand *is* the evidence that something is still moving. Seconds always show,
+ * minutes pad only once there are hours to line them up against.
+ */
+export function formatStopwatch(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000))
+  const seconds = total % 60
+  const minutes = Math.floor(total / 60) % 60
+  const hours = Math.floor(total / 3600)
+
+  const mm = hours > 0 ? String(minutes).padStart(2, '0') : String(minutes)
+  return `${hours > 0 ? `${hours}:` : ''}${mm}:${String(seconds).padStart(2, '0')}`
+}

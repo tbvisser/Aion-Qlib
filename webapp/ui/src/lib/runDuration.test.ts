@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Run, RunStatus } from './api'
-import { formatDuration, medianDuration } from './runDuration'
+import { formatDuration, formatStopwatch, medianDuration } from './runDuration'
 
 /** A run that started at t=0 and lasted `seconds`. */
 const run = (
@@ -96,5 +96,26 @@ describe('formatDuration', () => {
 
   it('never claims more precision than a median of a few samples has', () => {
     expect(formatDuration(707_000)).not.toMatch(/\d+m \d+s/)
+  })
+})
+
+describe('formatStopwatch', () => {
+  it('keeps the seconds a live clock is watched for', () => {
+    expect(formatStopwatch(0)).toBe('0:00')
+    expect(formatStopwatch(7_000)).toBe('0:07')
+    expect(formatStopwatch(263_000)).toBe('4:23')
+  })
+
+  it('pads minutes only once hours give them a column to line up in', () => {
+    expect(formatStopwatch(120_000)).toBe('2:00')
+    expect(formatStopwatch(3_735_000)).toBe('1:02:15')
+  })
+
+  it('floors rather than rounds, so the clock never runs ahead of the run', () => {
+    expect(formatStopwatch(1_999)).toBe('0:01')
+  })
+
+  it('shows zero rather than a negative for a clock skewed into the future', () => {
+    expect(formatStopwatch(-5_000)).toBe('0:00')
   })
 })

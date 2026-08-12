@@ -5,6 +5,7 @@ import {
   type MacroRegimeResponse, type MacroSeriesData, type MacroSeriesResponse,
   type MacroSnapshot, type MacroSubjectKind, type PlaybookLens,
 } from '@/lib/api'
+import { addDaysIso, todayIso } from '@/lib/macroFormat'
 
 /**
  * Macro data hooks.
@@ -77,6 +78,83 @@ export function useMacroCalendar(country: string) {
     () => api.macroCalendar({ country }), [country],
   )
   return { calendar: data, error, loading }
+}
+
+const AGENDA_POLL_MS = 15 * 60_000
+
+/**
+ * The forward-looking slice of the calendar, for the Dashboard agenda and the
+ * Inbox's "this week" panel.
+ *
+ * `from: today` matters: the backend sorts ascending and applies `limit` at
+ * the far end, so the desk's default −21d window would spend the budget on
+ * last week. 15-minute refresh — the cache is file-backed and moves at data
+ * -release granularity, so anything faster is just load.
+ *
+ * `to` is bounded and the limit generous for the same reason the sibling
+ * hooks are: US releases run about fourteen a day, so an unbounded window on
+ * a small budget spends it inside three days and every consumer counting
+ * "the next seven days" reports the cap instead of the count.
+ */
+export function useAgendaCalendar(country = 'US') {
+  const { data, error, loading, refresh } = useResource<MacroCalendar>(
+    () => api.macroCalendar({
+      from: todayIso(), to: addDaysIso(todayIso(), 7), country, limit: 1000,
+    }), [country],
+  )
+  useEffect(() => {
+    const id = setInterval(() => void refresh(), AGENDA_POLL_MS)
+    return () => clearInterval(id)
+  }, [refresh])
+  return { calendar: data, error, loading, refresh }
+}
+
+/**
+ * The Inbox agenda's calendar. Without a window: two weeks back through a
+ * week ahead. With one (the month grid's visible range): that exact span —
+ * releases are the one lane that can be fetched month-complete for any month.
+ * The generous limit means no realistic window is ever truncated.
+ */
+export function useInboxCalendar(
+  country = 'US',
+  window?: { from: string; to: string },
+) {
+  const from = window?.from ?? addDaysIso(todayIso(), -14)
+  const to = window?.to ?? addDaysIso(todayIso(), 7)
+  const { data, error, loading, refresh } = useResource<MacroCalendar>(
+    () => api.macroCalendar({ from, to, country, limit: 1000 }),
+    [country, from, to],
+  )
+  useEffect(() => {
+    const id = setInterval(() => void refresh(), AGENDA_POLL_MS)
+    return () => clearInterval(id)
+  }, [refresh])
+  return { calendar: data, error, loading, refresh }
+}
+
+/**
+ * A single month's releases for the Dashboard popover grid, fetched only
+ * while the popover is open (`enabled`), keyed on the viewed month.
+ */
+export function useMonthCalendar(
+  window: { from: string; to: string },
+  country = 'US',
+  enabled = true,
+) {
+  const { data, error, loading, refresh } = useResource<MacroCalendar>(
+    () => api.macroCalendar({ from: window.from, to: window.to, country, limit: 1000 }),
+    // `enabled` must be a dep: useResource captures it in its refresh
+    // closure, so an enabled flip that doesn't rebuild the callback would
+    // never fetch — the popover would sit on its placeholder forever.
+    [window.from, window.to, country, enabled],
+    enabled,
+  )
+  useEffect(() => {
+    if (!enabled) return
+    const id = setInterval(() => void refresh(), AGENDA_POLL_MS)
+    return () => clearInterval(id)
+  }, [refresh, enabled])
+  return { calendar: data, error, loading, refresh }
 }
 
 export function useCountryIndicators(country: string) {

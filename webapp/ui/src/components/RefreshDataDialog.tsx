@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { JobProgress } from '@/components/JobProgress'
 import { api, ApiError, type DataStatus, type IngestJob } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -181,32 +182,17 @@ export function RefreshDataDialog({ onFinished }: { onFinished?: () => void }) {
 
 function JobPanel({ job }: { job: IngestJob }) {
   const { progress } = job
-  const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : null
 
   return (
     <div className="space-y-3 py-2">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground/70">
-          {progress.stage}
-        </span>
-        <span className="tnum font-mono text-xs text-muted-foreground">
-          {progress.total ? `${progress.done} / ${progress.total}` : ''}
-        </span>
-      </div>
-
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn(
-            'h-full rounded-full transition-all duration-500',
-            job.status === 'error' ? 'bg-destructive' : 'bg-primary',
-            // An indeterminate stage (no total) still needs to look alive.
-            pct === null && job.status === 'running' && 'animate-subtle-pulse',
-          )}
-          style={{ width: job.status === 'running' ? `${pct ?? 8}%` : '100%' }}
-        />
-      </div>
-
-      <p className="text-sm text-muted-foreground">{progress.message}</p>
+      <JobProgress
+        stage={progress.stage}
+        message={progress.message}
+        done={progress.done}
+        total={progress.total}
+        running={job.status === 'running'}
+        failed={job.status === 'error'}
+      />
 
       {job.status === 'error' && <Callout tone="error">{job.error}</Callout>}
 

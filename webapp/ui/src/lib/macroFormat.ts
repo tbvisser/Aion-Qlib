@@ -183,6 +183,77 @@ export function todayIso(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
+/** "2026-08-11" → "2026-08". A pure slice — never a Date. */
+export function monthOf(iso: string): string {
+  return iso.slice(0, 7)
+}
+
+/** "YYYY-MM" shifted by whole months, via UTC arithmetic. */
+export function addMonths(month: string, n: number): string {
+  const [y, m] = month.split('-').map(Number)
+  const shifted = new Date(Date.UTC(y, m - 1 + n, 1))
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+/** "2026-08" → "Aug 2026", for the calendar header. */
+export function monthLabel(month: string): string {
+  const [y, m] = month.split('-')
+  return `${MONTHS[Number(m) - 1] ?? month} ${y}`
+}
+
+/** Monday-first weekday index, 0 (Mon) … 6 (Sun), via UTC arithmetic. */
+export function mondayIndex(iso: string): number {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7
+}
+
+/** An ISO date shifted by whole days, via UTC arithmetic — never local parsing. */
+export function addDaysIso(iso: string, days: number): string {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  const shifted = new Date(Date.UTC(y, m - 1, d + days))
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}`
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** 'Mon'…'Sun' for an ISO date, via UTC arithmetic — never local parsing. */
+export function isoWeekday(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+}
+
+/** The last day of a "YYYY-MM" month, as an ISO date. */
+export function monthEndIso(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  // Day 0 of the next month is this month's last day.
+  const end = new Date(Date.UTC(y, m, 0))
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${end.getUTCFullYear()}-${pad(end.getUTCMonth() + 1)}-${pad(end.getUTCDate())}`
+}
+
+/**
+ * The viewer-local calendar day of a full ISO *instant*.
+ *
+ * The counterpart of the never-parse rule above: a bare date must never go
+ * through `new Date`, but an instant (with time and zone) is exactly what
+ * `Date` is for, and the agenda buckets instants by the viewer's own day —
+ * consistent with `todayIso()` being viewer-local.
+ */
+export function isoToLocalDay(instantIso: string): string {
+  const at = new Date(instantIso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`
+}
+
+/** 'Today', 'Tomorrow', else "13 Aug" — group labels for agenda views. */
+export function agendaDayLabel(iso: string, today = todayIso()): string {
+  const diff = daysBetween(today, iso)
+  if (diff === 0) return 'Today'
+  if (diff === 1) return 'Tomorrow'
+  return formatIsoDayMonth(iso)
+}
+
 /** Whole days between two ISO dates, positive when `b` is later. */
 export function daysBetween(a: string, b: string): number {
   const toUtc = (iso: string) => {
