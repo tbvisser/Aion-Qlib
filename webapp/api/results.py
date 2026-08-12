@@ -156,7 +156,57 @@ def build_report(experiment_name: str) -> dict[str, Any] | None:
             str(k): _clean(v.iloc[0]) for k, v in indicators.iterrows()
         }
 
+    report["sanity"] = _sanity(report["risk"].get("excess_return_with_cost") or {})
+
     return report
+
+
+#: Where a number stops being a result and starts being a fault.
+#:
+#: Loose on purpose. These are not "good strategy" thresholds -- a real one can
+#: be terrible -- they are the line past which the arithmetic says the input was
+#: broken. 10 is 1,000%/yr compounding; a drawdown past -1 is more than the whole
+#: account; daily excess volatility of 5 is 500% a day.
+_MAX_ANNUALISED = 10.0
+_MAX_DRAWDOWN = -1.0
+_MAX_VOLATILITY = 5.0
+
+
+def _sanity(excess: dict[str, float | None]) -> dict[str, Any]:
+    """Whether the portfolio numbers can be read as a result at all.
+
+    Decided here rather than in each of the three surfaces that print these
+    metrics, so they cannot disagree about the same run.
+
+    What this catches is not a bad strategy but a broken input: an unfiltered
+    universe whose tail carries prints off by orders of magnitude, a book of one
+    name, and nothing capping a daily move. qlib compounds that to exit 0 and a
+    cheerful number, so nothing else in the pipeline objects.
+
+    Reasons name what is wrong, not the threshold that tripped -- a reader needs
+    to know the run is unusable and roughly why, not this module's constants.
+    """
+    reasons: list[str] = []
+
+    annualised = excess.get("annualized_return")
+    if annualised is not None and abs(annualised) > _MAX_ANNUALISED:
+        reasons.append(
+            f"An annualised excess return of {annualised * 100:,.0f}% is not a "
+            f"result. A single bad print filled at full size compounds like this.")
+
+    drawdown = excess.get("max_drawdown")
+    if drawdown is not None and drawdown < _MAX_DRAWDOWN:
+        reasons.append(
+            f"A maximum drawdown of {drawdown * 100:,.0f}% is more than the whole "
+            f"account, which a long-only book cannot lose.")
+
+    volatility = excess.get("std")
+    if volatility is not None and volatility > _MAX_VOLATILITY:
+        reasons.append(
+            f"Daily excess-return volatility of {volatility:,.1f} is not a market; "
+            f"the return series is dominated by data errors.")
+
+    return {"implausible": bool(reasons), "reasons": reasons}
 
 
 def prediction_sample(experiment_name: str, limit: int = 50) -> dict[str, Any] | None:

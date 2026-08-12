@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  routeWarnings, unroutedWarnings, warningsFor, WINDOW_WARNING_PREFIXES,
+  advisoryFor, blockingFor, isAdvisoryWarning, routeWarnings, unroutedWarnings,
+  warningsFor, EXECUTION_WARNING_ROUTES, WINDOW_WARNING_PREFIXES,
 } from './routeWarning'
 
 // The exact strings the backend emits. If `StrategySpec.validate_windows` or
@@ -20,6 +21,84 @@ const EMPTY_SET = "Replacing the handler's features needs at least one of your o
   + 'there is nothing for the model to look at.'
 
 const WINDOW_WARNINGS = [TRAIN_ORDER, VALID_OVERLAP, TEST_OVERLAP, TEST_ORDER, CLAMP]
+
+// `StrategySpec.validate_execution`, verbatim. Unlike the window warnings these
+// go to three different cards, because they are three different edits.
+const JUNK_UNIVERSE = "Universe 'crypto' is 1913 names, most of them thinly traded, "
+  + "and a single bad print in that tail can dominate a backtest. 'crypto_top100' "
+  + 'is the curated list.'
+const ONE_NAME = 'Holding one name makes the result a property of the single '
+  + 'highest-scoring symbol each day rather than of the signal. With n_drop 0 the '
+  + 'book never rotates out of a bad fill either.'
+const NO_FILL_GUARD = 'Nothing caps a daily move on this store, so a bad tick is '
+  + 'filled at full size. limit_threshold is the guard, as a fraction (0.5 blocks '
+  + 'moves beyond 50% in a day).'
+
+describe('execution warnings', () => {
+  it('sends each one to the stage that owns the field it is about', () => {
+    expect(routeWarnings([JUNK_UNIVERSE])[0].stage).toBe('universe')
+    expect(routeWarnings([ONE_NAME])[0].stage).toBe('portfolio')
+    expect(routeWarnings([NO_FILL_GUARD])[0].stage).toBe('costs')
+  })
+
+  it('has one route per branch of validate_execution', () => {
+    expect(EXECUTION_WARNING_ROUTES).toHaveLength(3)
+  })
+
+  /**
+   * The column rule is a substring match, so it runs *after* these. Without that
+   * ordering a user's column named `names` would drag an unfiltered-universe
+   * warning onto the Features card, which is not where the fix is.
+   */
+  it('beats the column rule, so a column name cannot steal one', () => {
+    const columns = [{ name: 'names' }, { name: 'signal' }, { name: 'guard' }]
+    expect(routeWarnings([JUNK_UNIVERSE], columns)[0].stage).toBe('universe')
+    expect(routeWarnings([ONE_NAME], columns)[0].stage).toBe('portfolio')
+    expect(routeWarnings([NO_FILL_GUARD], columns)[0].stage).toBe('costs')
+  })
+
+  it('does not claim a window warning', () => {
+    for (const warning of WINDOW_WARNINGS) {
+      expect(routeWarnings([warning])[0].stage).toBe('periods')
+    }
+  })
+
+  /**
+   * The severity, which is the whole reason these are a separate tier. A spec
+   * that trades an unfiltered universe one name at a time runs perfectly well —
+   * calling it a blocker would claim otherwise, and (via `stageEdges`) would
+   * draw every stage after it as a run that stops.
+   */
+  it('is advisory, where a window or feature warning blocks', () => {
+    for (const warning of [JUNK_UNIVERSE, ONE_NAME, NO_FILL_GUARD]) {
+      expect(routeWarnings([warning])[0].advisory).toBe(true)
+      expect(isAdvisoryWarning(warning)).toBe(true)
+    }
+    for (const warning of [...WINDOW_WARNINGS, EMPTY_SET]) {
+      expect(routeWarnings([warning])[0].advisory).toBe(false)
+      expect(isAdvisoryWarning(warning)).toBe(false)
+    }
+  })
+
+  it('separates the two tiers for one stage', () => {
+    // Contrived: both land on `costs` only if a blocker ever routes there. Uses
+    // two execution warnings on different stages to prove the split is per-tier
+    // and not per-stage.
+    const routed = routeWarnings([NO_FILL_GUARD, TEST_OVERLAP])
+    expect(advisoryFor(routed, 'costs')).toEqual([NO_FILL_GUARD])
+    expect(blockingFor(routed, 'costs')).toEqual([])
+    expect(blockingFor(routed, 'periods')).toEqual([TEST_OVERLAP])
+    expect(advisoryFor(routed, 'periods')).toEqual([])
+  })
+
+  it('still reaches the card: advisory is a severity, not a silencer', () => {
+    const routed = routeWarnings([JUNK_UNIVERSE, ONE_NAME, NO_FILL_GUARD])
+    expect(warningsFor(routed, 'universe')).toEqual([JUNK_UNIVERSE])
+    expect(warningsFor(routed, 'portfolio')).toEqual([ONE_NAME])
+    expect(warningsFor(routed, 'costs')).toEqual([NO_FILL_GUARD])
+    expect(unroutedWarnings(routed)).toEqual([])
+  })
+})
 
 describe('window warnings', () => {
   it('routes every branch of validate_windows to the periods card', () => {

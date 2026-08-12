@@ -266,7 +266,8 @@ class RunManager:
 
         if code == 0:
             run.update(status="succeeded", phase="Done", exit_code=0,
-                       finished_at=datetime.now(timezone.utc).isoformat())
+                       finished_at=datetime.now(timezone.utc).isoformat(),
+                       metrics=_metrics_snapshot(run))
         else:
             tail = _last_error(run.log_path)
             run.update(status="failed", phase="Failed", exit_code=code,
@@ -315,6 +316,42 @@ class RunManager:
             return [], offset
         lines = run.log_path.read_text(errors="replace").splitlines()
         return lines[offset:offset + limit], min(len(lines), offset + limit)
+
+
+def _metrics_snapshot(run: Run) -> dict[str, Any] | None:
+    """The run's own copy of its headline metrics, taken once at completion.
+
+    Metrics live in the MLflow file store under `examples/mlruns`, and until now
+    that was the only copy: every render re-read it, and clearing that directory
+    silently turned every historical run's metrics into em dashes with nothing on
+    disk to fall back to. `RunManager.delete` already refuses to touch `mlruns`
+    for the mirror-image reason; this closes the other direction.
+
+    Deliberately only the small stuff -- the risk table, the signal metrics and
+    the sanity verdict, not the curves. A snapshot is for keeping a finished run
+    readable in a list, and the curves are large and re-derivable.
+
+    A failure here is not a failed run. The run succeeded; only the bookkeeping
+    did, so this returns None and the report route falls back to reading MLflow.
+    """
+    try:
+        from . import results
+
+        experiment = results.resolve_experiment(
+            run.meta["id"], run.meta.get("experiment_name"))
+        report = results.build_report(experiment)
+        if report is None:
+            return None
+        return {
+            "risk": report.get("risk") or {},
+            "metrics": report.get("metrics") or {},
+            "sanity": report.get("sanity") or {},
+            "period": report.get("period"),
+            "indicators": report.get("indicators") or {},
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+        }
+    except Exception:
+        return None
 
 
 def _phase_for(line: str) -> str | None:

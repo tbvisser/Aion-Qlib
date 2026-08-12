@@ -16,8 +16,8 @@ describe('nav shape', () => {
     ])
   })
 
-  it('carries all nineteen destinations', () => {
-    expect(items).toHaveLength(19)
+  it('carries all twenty destinations', () => {
+    expect(items).toHaveLength(20)
   })
 
   it('gives every destination a distinct key and route', () => {
