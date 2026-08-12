@@ -10,7 +10,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from .. import marketdata, qlib_session, results, strategy_explain
 from ..config import get_settings
-from ..runner import RunManager
+from ..runner import RunBusy, RunManager
 from ..strategies import (
     HANDLERS,
     StrategySpec,
@@ -232,6 +232,17 @@ def cancel_run(run_id: str) -> dict:
     if not _runs.cancel(run_id):
         raise HTTPException(status_code=409, detail="Run is not cancellable")
     return {"ok": True}
+
+
+@router.delete("/runs/{run_id}", status_code=204)
+def delete_run(run_id: str) -> None:
+    """Remove a finished run. Its MLflow artifacts stay on disk -- see RunManager.delete."""
+    try:
+        deleted = _runs.delete(run_id)
+    except RunBusy:
+        raise HTTPException(status_code=409, detail="Cancel the run before deleting it") from None
+    if not deleted:
+        raise HTTPException(status_code=404, detail="No such run")
 
 
 @router.get("/runs/{run_id}/log")

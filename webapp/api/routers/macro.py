@@ -305,9 +305,17 @@ def macro_calendar(
     start = from_ or (today - pd.Timedelta(days=21)).strftime("%Y-%m-%d")
     end = to or (today + pd.Timedelta(days=30)).strftime("%Y-%m-%d")
     rows = macro_cache.releases(start, end, country, type, limit)
+    for row in rows:
+        row["importance"] = _importance(row["event_key"])
     cutoff = today.strftime("%Y-%m-%d")
     return {
         **status,
+        # `from`/`to` below echo the resolved *query* window, shadowing the
+        # cache's own coverage from `status` — so that coverage is re-exposed
+        # here. The Inbox month grid uses it to say "outside the cached
+        # window" instead of implying a quiet month.
+        "cache_from": status.get("from"),
+        "cache_to": status.get("to"),
         "from": start,
         "to": end,
         "country": country or None,
@@ -324,6 +332,29 @@ def macro_calendar_types(country: str = "US", limit: int = Query(60, ge=1, le=40
         return {"available": False, "reason": status.get("reason"), "types": []}
     return {"available": True, "country": country or None,
             "types": macro_cache.event_types(country)[:limit]}
+
+
+@router.get("/macro/calendar/history")
+def macro_calendar_history(
+    event_key: str,
+    country: str = "US",
+    limit: int = Query(24, ge=4, le=120),
+) -> dict:
+    """Trailing prints of one indicator, for the release-detail history chart.
+
+    Release-dated on purpose (``macro_cache.release_history``), not the
+    session-shifted event-study series — the chart answers "what printed on
+    each date", not "when could the market react".
+    """
+    status = macro_cache.calendar_status()
+    if not status["available"]:
+        return {"available": False, "reason": status.get("reason"),
+                "event_key": event_key, "country": country or None, "points": []}
+    points = macro_cache.release_history(event_key, country, limit)
+    for point in points:
+        point["importance"] = _importance(point["event_key"])
+    return {"available": True, "event_key": event_key,
+            "country": country or None, "points": points}
 
 
 @router.get("/macro/indicators")
@@ -660,6 +691,12 @@ HEADLINE_EVENTS: tuple[str, ...] = (
     "michigan_consumer_sentiment", "michigan_inflation_expectations",
     "fed_interest_rate_decision", "initial_jobless_claims",
 )
+
+
+def _importance(event_key: str | None) -> str:
+    """Two tiers for now; EODHD supplies no importance so membership in the
+    desk's own headline list is the honest proxy."""
+    return "headline" if event_key in HEADLINE_EVENTS else "standard"
 
 
 def _event_candidates(country: str, limit: int = 12) -> list[dict]:

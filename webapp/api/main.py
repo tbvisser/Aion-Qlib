@@ -16,7 +16,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import qlib_session
 from .config import get_settings
-from .routers import chat, data, factors, health, ingest, macro, portfolios, runs
+from .routers import (activity, chat, data, factors, health, ingest, macro, vibe,
+                      portfolios, runs)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
@@ -47,6 +48,8 @@ app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(ingest.router, prefix="/api", tags=["ingest"])
 app.include_router(macro.router, prefix="/api", tags=["macro"])
 app.include_router(portfolios.router, prefix="/api", tags=["portfolios"])
+app.include_router(activity.router, prefix="/api", tags=["activity"])
+app.include_router(vibe.router, prefix="/api", tags=["vibe"])
 
 
 @app.on_event("startup")

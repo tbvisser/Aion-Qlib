@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -43,6 +44,10 @@ _PHASE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"backtest loop|Create new exchange", re.I), "Running backtest"),
     (re.compile(r"portfolio analysis|port_analysis", re.I), "Analysing portfolio"),
 ]
+
+
+class RunBusy(Exception):
+    """A run that can still write to its own directory cannot be deleted."""
 
 
 class Run:
@@ -120,6 +125,23 @@ class RunManager:
         if not meta_path.exists():
             return None
         run = Run(run_id, directory, json.loads(meta_path.read_text()))
+        # A run reaches _load only when this process has no handle on it, so a
+        # disk record still saying queued/running is a run some earlier API
+        # process left behind: its subprocess is untracked and will never
+        # report back. Settle it now rather than serving "running" forever.
+        # (Assumes one API process owns runs_dir — true today with a single
+        # uvicorn worker. With --workers > 1 this would falsely fail a
+        # sibling worker's live runs.)
+        if run.meta.get("status") in ("queued", "running"):
+            run.update(
+                status="failed", phase="Interrupted",
+                error="Interrupted by an API restart",
+                error_hint=(
+                    "The API process restarted while this run was in flight, so "
+                    "its subprocess is no longer tracked. Start the run again."
+                ),
+                finished_at=datetime.now(timezone.utc).isoformat(),
+            )
         self._runs[run_id] = run
         return run
 
@@ -264,6 +286,23 @@ class RunManager:
                 os.killpg(os.getpgid(process.pid), signal.SIGTERM)
             except (ProcessLookupError, PermissionError):
                 process.terminate()
+        return True
+
+    def delete(self, run_id: str) -> bool:
+        """Remove a finished run's directory. False when there was no such run.
+
+        Only the run directory goes. Its MLflow experiment (`aion-<id>`) and
+        artifacts stay under `examples/mlruns` -- reaching those needs qlib
+        imported, and a delete that can 503 because `require_qlib` failed is
+        worse than one that is honest about what it removes.
+        """
+        run = self.get(run_id)   # validates the id; run.dir cannot escape runs_dir
+        if run is None:
+            return False
+        if run.meta.get("status") in ("queued", "running"):
+            raise RunBusy(run_id)
+        shutil.rmtree(run.dir, ignore_errors=True)
+        self._runs.pop(run_id, None)
         return True
 
     # -- presentation -----------------------------------------------------
