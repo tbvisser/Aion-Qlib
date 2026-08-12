@@ -188,6 +188,27 @@ class StartRunRequest(BaseModel):
     strategy_id: str | None = None
 
 
+def _without_snapshot(meta: dict) -> dict:
+    """Run metadata as the wire carries it: everything except the metrics copy.
+
+    The snapshot exists so a finished run stays readable when `examples/mlruns`
+    is gone (see `runner._metrics_snapshot`), and the report route reads it off
+    disk on the way past. Nothing that lists runs needs it, and shipping a risk
+    table per row would put ~1.6KB x 100 on a payload the builder panel polls.
+
+    What does travel is `summary`: the one `excess_return_with_cost` row out of
+    that table, five numbers, so a card can print a run's headline figures
+    without a `/report` round-trip each. It is the same slice `runMetrics.ts`
+    already reads off a full report, under the same keys — a caller that knows
+    one knows the other.
+    """
+    out = {k: v for k, v in meta.items() if k != "metrics"}
+    excess = ((meta.get("metrics") or {}).get("risk") or {}).get("excess_return_with_cost")
+    if excess:
+        out["summary"] = excess
+    return out
+
+
 @router.post("/runs")
 def start_run(req: StartRunRequest) -> dict:
     provider_uri, region = _store_context(req.spec)
@@ -205,18 +226,24 @@ def start_run(req: StartRunRequest) -> dict:
         # next attempt without re-reading a spec that has since been edited.
         # Widened over time: older runs lack the newer keys, and the UI renders
         # those as an em dash rather than as "unchanged".
+        # `feature_mode` rides along with `handler` because on its own `handler`
+        # misreports the run: under "replace" the handler's feature set is not
+        # used at all, and a panel that reads `handler` alone will name Alpha158
+        # for a run that never loaded it.
         extra={"model": req.spec.model, "handler": req.spec.handler,
+               "feature_mode": req.spec.feature_mode,
+               "feature_count": len(req.spec.features or []),
                "universe": req.spec.universe, "benchmark": req.spec.benchmark,
                "data_store": req.spec.data_store,
                "topk": req.spec.topk, "n_drop": req.spec.n_drop,
                "open_cost": req.spec.open_cost, "close_cost": req.spec.close_cost},
     )
-    return dict(run.meta)
+    return _without_snapshot(run.meta)
 
 
 @router.get("/runs")
 def list_runs(limit: int = 100) -> dict:
-    return {"runs": _runs.list(limit=limit)}
+    return {"runs": [_without_snapshot(m) for m in _runs.list(limit=limit)]}
 
 
 @router.get("/runs/{run_id}")
@@ -224,7 +251,7 @@ def get_run(run_id: str) -> dict:
     run = _runs.get(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="No such run")
-    return dict(run.meta)
+    return _without_snapshot(run.meta)
 
 
 @router.post("/runs/{run_id}/cancel")
@@ -307,9 +334,29 @@ def run_report(run_id: str) -> dict:
     qlib_session.require_qlib()
     experiment_name = results.resolve_experiment(run_id, run.meta.get("experiment_name"))
     report = results.build_report(experiment_name)
+
+    # MLflow first, the run's own snapshot second. Live is authoritative because
+    # it carries the curves and reflects anything re-logged since; the snapshot
+    # exists so that clearing `examples/mlruns` costs a chart rather than every
+    # number a finished run ever reported. See `runner._metrics_snapshot`.
     if report is None:
-        raise HTTPException(status_code=404, detail="No results recorded for this run")
-    report["run"] = dict(run.meta)
+        snapshot = run.meta.get("metrics")
+        if not snapshot:
+            raise HTTPException(status_code=404, detail="No results recorded for this run")
+        report = {
+            "recorder_id": None,
+            "experiment_name": experiment_name,
+            "metrics": snapshot.get("metrics") or {},
+            "curves": {},
+            "risk": snapshot.get("risk") or {},
+            "sanity": snapshot.get("sanity") or {},
+            "indicators": snapshot.get("indicators") or {},
+            "from_snapshot": True,
+        }
+        if snapshot.get("period"):
+            report["period"] = snapshot["period"]
+
+    report["run"] = _without_snapshot(run.meta)
     return report
 
 
