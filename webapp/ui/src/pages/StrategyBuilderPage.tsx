@@ -619,7 +619,6 @@ export function StrategyBuilderPage() {
                 models={models}
                 explain={explain}
                 coverage={coverage}
-                universeCount={universeCount}
                 onStoresChanged={() => void refreshStores()}
                 onOpenFeatureCanvas={openFeatureCanvas}
                 unfinished={unfinished.length}

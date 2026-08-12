@@ -108,7 +108,7 @@ export function BacktestsPanel({
   return (
     <div
       data-testid="backtests-panel"
-      className="absolute right-3 top-3 z-20 flex max-h-[calc(100%-1.5rem)] w-[27rem] flex-col"
+      className="absolute right-3 top-3 z-20 flex max-h-[calc(100%-1.5rem)] w-[30rem] flex-col"
     >
       <button
         data-testid="backtests-toggle"
@@ -126,9 +126,16 @@ export function BacktestsPanel({
 
       {open && (
         <div className="mt-2 min-h-0 space-y-4 overflow-y-auto rounded-xl border border-border/50 bg-card p-3 shadow-card">
-          {groups.length === 0 && (
+          {groups.length === 0 ? (
             <p className="px-1 py-4 text-[11px] text-muted-foreground">
               Nothing run yet. Backtests started here land in this list.
+            </p>
+          ) : (
+            // Said once, at the top, rather than in every column heading. All
+            // three figures come from `excess_return_with_cost`, and repeating
+            // the qualifier three times per row would crowd out the numbers.
+            <p className="-mb-1 px-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/50">
+              excess of benchmark · net of cost
             </p>
           )}
 

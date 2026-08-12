@@ -28,9 +28,9 @@ export function CoverageBanner({ coverage }: { coverage?: StrategyCoverage }) {
 
   // The proxy sentence is deliberately *not* here. Both stores carry a proxy
   // column, so it would be a banner on every strategy forever — which is the
-  // failure this component's docblock warns about. It belongs with "what this
-  // does", where it qualifies what the features mean, and `StrategySummary`
-  // renders it as a footnote.
+  // failure this component's docblock warns about. `StoreInspector` renders it
+  // as a footnote underneath instead: it is a fact about the store, and there
+  // it is read only by someone who opened the store.
   if (!dead.length && !partial.length) return null
 
   // Worst first. The linear case is the only one that would have cost a run.
