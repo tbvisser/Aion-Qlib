@@ -30,6 +30,7 @@ import type {
   DataStore, ModelsResponse, Run, StrategyPreview, StrategySpec,
 } from '@/lib/api'
 import { applyStore, selectableUniverses } from '@/lib/storeSwitch'
+import { isAdvisoryWarning } from '@/lib/strategyGraph/routeWarning'
 
 export interface RunConfirmDialogProps {
   open: boolean
@@ -59,12 +60,15 @@ export function RunConfirmDialog({
   const [warnings, setWarnings] = useState(initialBlockers)
   const [preview, setPreview] = useState<StrategyPreview | null>(null)
   const [checking, setChecking] = useState(false)
+  /** The preview refusing the draft outright — a 422, a network failure. */
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
     setDraft(spec)
     setWarnings(initialBlockers)
     setPreview(null)
+    setPreviewError(null)
   }, [open])
 
   useEffect(() => {
@@ -77,12 +81,30 @@ export function RunConfirmDialog({
           if (cancelled) return
           setPreview(r)
           setWarnings(r.warnings)
+          setPreviewError(null)
         })
-        .catch(() => undefined)
+        // A failed preview must not be silence: the same failure at Start
+        // would come back as a page-level error long after the reason was
+        // knowable, and stale warnings under an enabled button say "checked,
+        // fine" about a draft nobody checked.
+        .catch((e) => {
+          if (!cancelled) {
+            setPreviewError(e instanceof Error ? e.message : 'Could not check this strategy')
+          }
+        })
         .finally(() => { if (!cancelled) setChecking(false) })
     }, 300)
     return () => { cancelled = true; clearTimeout(t) }
   }, [open, draft, onPreview])
+
+  // The preview's `warnings` carries both severities in one list. Only the
+  // blocking tier may hold the Start button — `validate_execution` describes a
+  // run that finishes and means nothing, and the canvas already renders it as
+  // advisory. Reading the whole list as blockers here disabled Start for every
+  // crypto strategy without a limit_threshold, which is exactly the strategy
+  // the advisory tier exists to let run.
+  const blockers = warnings.filter((w) => !isAdvisoryWarning(w))
+  const advisories = warnings.filter(isAdvisoryWarning)
 
   const store = stores.find((s) => s.key === draft.data_store)
   const count = useUniverseCount(draft.data_store, draft.universe)
@@ -168,9 +190,21 @@ export function RunConfirmDialog({
             </Notice>
           )}
 
-          {warnings.length > 0 && (
+          {previewError && (
+            <Notice tone="destructive" icon={false}>{previewError}</Notice>
+          )}
+
+          {blockers.length > 0 && (
             <Notice tone="clay">
-              {warnings.map((w) => <p key={w}>{w}</p>)}
+              {blockers.map((w) => <p key={w}>{w}</p>)}
+            </Notice>
+          )}
+
+          {/* Worth reading, never a reason to hold the launch — the muted tone
+              is the same one the stage cards give this tier. */}
+          {advisories.length > 0 && (
+            <Notice tone="muted" icon={false}>
+              {advisories.map((w) => <p key={w}>{w}</p>)}
             </Notice>
           )}
 
@@ -188,8 +222,8 @@ export function RunConfirmDialog({
           <Button
             size="sm"
             data-testid="start-backtest"
-            disabled={busy || checking || warnings.length > 0}
-            title={warnings.length ? warnings.join('\n') : undefined}
+            disabled={busy || checking || blockers.length > 0 || previewError !== null}
+            title={blockers.length ? blockers.join('\n') : undefined}
             onClick={() => void onStart(draft)}
           >
             {busy ? 'Starting…' : 'Start backtest'}
