@@ -344,8 +344,16 @@ export function StrategyBuilderPage() {
     const features = toSpecFeatures(canvas.features)
     setSpec((prev) => {
       const next = features.length ? features : null
+      // The mode follows the last column out. The server normalises `[]` to
+      // null and refuses `replace` with nothing to replace, so leaving the
+      // mode behind made every preview 422 — while the Extend/Replace
+      // control, rendered only when columns exist, had already left the
+      // screen and taken the way out with it.
+      const feature_mode = next === null ? 'extend' : prev.feature_mode
       return JSON.stringify(prev.features) === JSON.stringify(next)
-        ? prev : { ...prev, features: next }
+        && prev.feature_mode === feature_mode
+        ? prev
+        : { ...prev, features: next, feature_mode }
     })
   }, [canvas])
 

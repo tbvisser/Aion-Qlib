@@ -5,11 +5,12 @@
  * separately, so the number that decides whether a strategy survives its own
  * turnover was never on screen.
  */
-import { X } from 'lucide-react'
+import { useState } from 'react'
 
 import { BpsInput, Field, NumberInput, Section } from '@/components/builder/FormControls'
-import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { roundTripBps } from '@/lib/bps'
+import { parseNumberField } from '@/lib/numberField'
 import type { InspectorProps } from './types'
 
 export function CostsInspector({ spec, setSpec }: InspectorProps) {
@@ -43,24 +44,62 @@ export function CostsInspector({ spec, setSpec }: InspectorProps) {
         />
       </Field>
 
-      {/* Not editable, but no longer invisible. A template or the assistant can
-          carry a limit in, and until now only the run summary ever reported it
-          — so the first anyone knew was after four minutes of compute. */}
-      {spec.limit_threshold !== null && (
-        <Field label="Price limit" hint="Carried in with this strategy, not set here">
-          <div className="flex items-center gap-2">
-            <Badge variant="clay">{spec.limit_threshold}</Badge>
-            <button
-              type="button"
-              onClick={() => setSpec((prev) => ({ ...prev, limit_threshold: null }))}
-              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <X className="h-3 w-3" />
-              Clear
-            </button>
-          </div>
-        </Field>
-      )}
+      <Field
+        label="Price limit"
+        hint="The daily move beyond which a fill is refused, as a fraction — 0.5 blocks moves over 50%. Empty means no limit."
+      >
+        <LimitInput
+          value={spec.limit_threshold}
+          onChange={(limit_threshold) => setSpec((prev) => ({ ...prev, limit_threshold }))}
+        />
+      </Field>
     </Section>
+  )
+}
+
+/**
+ * The one nullable number on the spec. Empty is a real value — no limit — so
+ * this cannot be `NumberInput`, whose empty field is an error.
+ *
+ * It used to render only when a template had already carried a value in, as a
+ * read-only badge with a Clear button. The costs advisory on crypto stores
+ * tells the reader to set this field; an advisory pointing at a control that
+ * does not exist is advice that cannot be followed.
+ */
+function LimitInput({ value, onChange }: {
+  value: number | null
+  onChange: (v: number | null) => void
+}) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const parsed = draft === null ? null : parseNumberField(draft, { min: 0 })
+
+  return (
+    <div className="space-y-1">
+      <Input
+        type="number"
+        value={draft ?? (value === null ? '' : value)}
+        min={0}
+        step={0.05}
+        placeholder="No limit"
+        onChange={(e) => {
+          const text = e.target.value
+          if (text.trim() === '') {
+            setDraft(null)
+            onChange(null)
+            return
+          }
+          setDraft(text)
+          const next = parseNumberField(text, { min: 0 })
+          if (next.ok) onChange(next.value)
+        }}
+        onBlur={() => {
+          if (draft !== null && parseNumberField(draft, { min: 0 }).ok) setDraft(null)
+        }}
+        className="tnum font-mono text-xs"
+      />
+      {parsed && !parsed.ok && (
+        <p className="text-[11px] leading-relaxed text-clay">{parsed.error}</p>
+      )}
+    </div>
   )
 }
