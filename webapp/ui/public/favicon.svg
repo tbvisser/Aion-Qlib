@@ -1,11 +1,9 @@
-<!-- AION favicon. Ink tile + mint glyph: reads correctly against both light and
-     dark browser chrome. Hex is hardcoded by necessity — a favicon is rendered
-     outside the document and cannot resolve CSS custom properties.
-     Colours: Ink #0C1110, Mint #7DDF9A (public/brand/aion-tokens.css).
-     The path is the kit symbol verbatim; only the viewBox is transformed. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="22" fill="#0C1110" />
-  <g transform="translate(22,22) scale(0.08511) translate(-148,-44)" fill="#7DDF9A">
-    <path d="M558.13,101.33h-162.78c-15.96,0-30.62,8.78-38.15,22.85l-92.55,173.02h243.78l-74.16,143.31-178.26.04c-41.72.01-80.08,22.85-99.97,59.52l-45.32,83.53h249.22l74.33-143.09,102.4.04c42.82.01,82.01,24.08,101.4,62.26l41.02,80.79h163.63l-246.47-459.46c-7.53-14.05-22.18-22.81-38.12-22.81Z" />
-  </g>
+<!-- AION favicon. Mint glyph on a transparent ground, per brand direction —
+     matches the in-app mark. Hex is hardcoded by necessity: a favicon is
+     rendered outside the document and cannot resolve CSS custom properties.
+     Colour: Mint #7DDF9A (public/brand/aion-tokens.css).
+     The path is the kit symbol verbatim; the viewBox pads the 658×546 glyph
+     to a centered square so browsers don't distort it. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="148 44 658 658" fill="#7DDF9A">
+  <path d="M558.13,101.33h-162.78c-15.96,0-30.62,8.78-38.15,22.85l-92.55,173.02h243.78l-74.16,143.31-178.26.04c-41.72.01-80.08,22.85-99.97,59.52l-45.32,83.53h249.22l74.33-143.09,102.4.04c42.82.01,82.01,24.08,101.4,62.26l41.02,80.79h163.63l-246.47-459.46c-7.53-14.05-22.18-22.81-38.12-22.81Z" />
 </svg>
