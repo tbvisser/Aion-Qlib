@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import type { Run, RunReport } from './api'
 import {
-  best, changedSince, excessOf, metricRow, metricTone, rankValue, runDiff,
+  best, changedSince, excessOf, featureSetOf, formatRunPercent, metricRow,
+  metricTone, rankValue, runDiff, sanityOf, PLAUSIBLE_PERCENT,
 } from './runMetrics'
 
 const run = (id: string, extra: Partial<Run> = {}): Run => ({
@@ -35,6 +36,89 @@ const report = (excess: Record<string, number | null>): RunReport => ({
   curves: {},
   period: { start: '2022-01-03', end: '2023-12-29', days: 500 },
   run: run('x'),
+})
+
+describe('formatRunPercent', () => {
+  /**
+   * The whole point of the clamp is that it changes nothing for a run anyone
+   * would want to read. If these drift, every normal backtest's display drifted.
+   */
+  it('formats an ordinary return exactly as it always did', () => {
+    expect(formatRunPercent(0.124)).toBe('+12.4%')
+    expect(formatRunPercent(-0.31)).toBe('-31.0%')
+    expect(formatRunPercent(0)).toBe('0.0%')
+  })
+
+  it('keeps each surface\'s own digits and sign convention', () => {
+    // The report view shows two decimals and no leading plus.
+    expect(formatRunPercent(0.124, 2, false)).toBe('12.40%')
+    // The compare table shows one and no plus.
+    expect(formatRunPercent(0.124, 1, false)).toBe('12.4%')
+  })
+
+  /**
+   * The ETH Breakout run: qlib reported an annualised excess return of 75,327,
+   * which printed as `+7532752.7%` and broke the column it sat in. Six digits of
+   * a broken number are not six digits of precision.
+   */
+  it('clamps a number that is not a result', () => {
+    expect(formatRunPercent(75327.527354)).toBe('>1,000%')
+    expect(formatRunPercent(-3.762962 * 1000)).toBe('<-1,000%')
+  })
+
+  it('clamps just outside the band and not just inside it', () => {
+    expect(formatRunPercent(PLAUSIBLE_PERCENT / 100)).toBe('+1000.0%')
+    expect(formatRunPercent((PLAUSIBLE_PERCENT + 1) / 100)).toBe('>1,000%')
+  })
+})
+
+describe('sanityOf', () => {
+  it('reads the backend\'s verdict', () => {
+    const bad = { ...report({}), sanity: { implausible: true, reasons: ['nope'] } }
+    expect(sanityOf(bad)).toEqual({ implausible: true, reasons: ['nope'] })
+  })
+
+  /**
+   * A report built before the check existed was never judged, and "not judged"
+   * must not render as a warning — an old run cannot suddenly grow a verdict
+   * nobody computed for it.
+   */
+  it('treats an unjudged report as plausible rather than suspect', () => {
+    expect(sanityOf(report({}))).toEqual({ implausible: false, reasons: [] })
+    expect(sanityOf(null)).toEqual({ implausible: false, reasons: [] })
+    expect(sanityOf(undefined)).toEqual({ implausible: false, reasons: [] })
+  })
+})
+
+describe('featureSetOf', () => {
+  /**
+   * The defect this exists for: the ETH Breakout run set `feature_mode: replace`
+   * with four custom factors, so Alpha158 was never loaded — and the panel said
+   * "Feature set: Alpha158" anyway.
+   */
+  it('does not name the handler when the handler was replaced', () => {
+    expect(featureSetOf(run('a', { feature_mode: 'replace', feature_count: 4 })))
+      .toBe('4 custom columns')
+    expect(featureSetOf(run('a', { feature_mode: 'replace', feature_count: 1 })))
+      .toBe('1 custom column')
+  })
+
+  it('counts the additions when the handler was extended', () => {
+    expect(featureSetOf(run('a', { feature_mode: 'extend', feature_count: 3 })))
+      .toBe('Alpha158 + 3')
+    expect(featureSetOf(run('a', { feature_mode: 'extend', feature_count: 0 })))
+      .toBe('Alpha158')
+  })
+
+  /**
+   * Runs launched before `feature_mode` was recorded. The handler name is all
+   * that was written down, so it is the only honest answer — guessing a mode
+   * would invent a fact about a finished run.
+   */
+  it('falls back to the handler when the mode was never recorded', () => {
+    expect(featureSetOf(run('a'))).toBe('Alpha158')
+    expect(featureSetOf(run('a', { handler: undefined }))).toBe('—')
+  })
 })
 
 describe('metricRow', () => {

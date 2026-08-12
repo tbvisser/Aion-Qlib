@@ -820,6 +820,15 @@ export interface Run {
    */
   model?: string
   handler?: string
+  /**
+   * Whether the custom factors extended the handler's features or replaced them.
+   *
+   * Load-bearing alongside `handler`: under "replace" the handler's own feature
+   * set was never loaded, so naming it on its own misreports what the run saw.
+   * Absent on runs started before this was recorded — see `featureSetOf`.
+   */
+  feature_mode?: 'extend' | 'replace'
+  feature_count?: number
   universe?: string
   benchmark?: string
   data_store?: string
@@ -827,11 +836,33 @@ export interface Run {
   n_drop?: number
   open_cost?: number
   close_cost?: number
+  /**
+   * The run's headline figures, so a list can print them without one
+   * `/report` call per row.
+   *
+   * This is the `excess_return_with_cost` row of the full risk table, under
+   * the same keys `runMetrics.ts#excessOf` reads off a report — pass it to
+   * `summaryRow()` to get the same `MetricRow` a report would have produced.
+   * Absent on a run that has not finished, and on runs that finished before
+   * the snapshot existed.
+   */
+  summary?: Record<string, number | null>
 }
 
 export interface CurvePoint {
   date: string
   value: number | null
+}
+
+/**
+ * Whether the portfolio numbers can be read as a result at all.
+ *
+ * Decided by the backend (`api/results._sanity`) rather than per component, so
+ * the ledger, the report and the compare modal cannot disagree about one run.
+ */
+export interface RunSanity {
+  implausible: boolean
+  reasons: string[]
 }
 
 export interface RunReport {
@@ -842,6 +873,10 @@ export interface RunReport {
   curves: Partial<Record<'strategy' | 'benchmark' | 'net_of_cost' | 'excess' | 'drawdown', CurvePoint[]>>
   indicators?: Record<string, number | null>
   period?: { start: string; end: string; days: number }
+  /** Absent on runs whose report predates the check. */
+  sanity?: RunSanity
+  /** True when MLflow was unreadable and the run's own snapshot was used. */
+  from_snapshot?: boolean
   run: Run
 }
 

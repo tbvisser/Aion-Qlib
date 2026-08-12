@@ -18,6 +18,7 @@ import { MacroDeskPage } from '@/pages/MacroDeskPage'
 import { PortfoliosPage } from '@/pages/PortfoliosPage'
 import { AccountsPage } from '@/pages/AccountsPage'
 import { InboxPage } from '@/pages/InboxPage'
+import { ArtifactsPage } from '@/pages/ArtifactsPage'
 import { VibeAgentPage } from '@/pages/VibeAgentPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { SkillsPage } from '@/features/rag/pages/SkillsPage'
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/dashboard/:threadId" element={<DashboardPage />} />
           <Route path="/inbox" element={<InboxPage />} />
+          <Route path="/artifacts" element={<ArtifactsPage />} />
           <Route path="/vibe-agent" element={<VibeAgentPage />} />
           <Route path="/chats" element={<ChatsHistoryPage />} />
           <Route path="/chats/quick" element={<ChatPage />} />

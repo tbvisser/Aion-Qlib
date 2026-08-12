@@ -11,7 +11,7 @@
  * report leads with, and it is the honest one: gross of cost, a high-turnover
  * strategy can look excellent while losing money.
  */
-import type { Run, RunReport } from '@/lib/api'
+import type { Run, RunReport, RunSanity } from '@/lib/api'
 import { changedKeys, showValue } from '@/lib/specDiff'
 
 export interface MetricRow {
@@ -32,6 +32,66 @@ export function excessOf(report?: RunReport | null): Record<string, number> {
   return (report?.risk?.['excess_return_with_cost'] ?? {}) as Record<string, number>
 }
 
+/**
+ * Whether this run's numbers are readable as a result.
+ *
+ * An accessor rather than components reaching into `report.sanity`, so the
+ * absent case -- a report built before the check existed -- has one answer
+ * instead of three. Absent means "not judged", which reads as plausible: an old
+ * run must not suddenly grow a warning nobody computed.
+ */
+export function sanityOf(report?: RunReport | null): RunSanity {
+  return report?.sanity ?? { implausible: false, reasons: [] }
+}
+
+/**
+ * A percentage a person can read.
+ *
+ * Past a certain size the digits stop carrying information: `+7,532,752.7%` is
+ * not a more precise `>1000%`, it is the same fact about a broken run with six
+ * meaningless digits attached, and it is wide enough to break the column it sits
+ * in. Anything inside the band formats exactly as it always did, so no ordinary
+ * run's display changes.
+ */
+export const PLAUSIBLE_PERCENT = 1000
+
+/**
+ * `digits` and `sign` exist so the three surfaces that print these metrics keep
+ * the conventions they already had -- the ledger signs its returns and shows one
+ * decimal, the report shows two and no sign -- while sharing the one clamp.
+ * Named `formatRunPercent` rather than `formatPercent` because `macroFormat`
+ * exports one of those already and they are not interchangeable.
+ */
+export function formatRunPercent(value: number, digits = 1, sign = true): string {
+  const percent = value * 100
+  if (Math.abs(percent) > PLAUSIBLE_PERCENT) {
+    return `${percent > 0 ? '>' : '<-'}${PLAUSIBLE_PERCENT.toLocaleString()}%`
+  }
+  return `${sign && percent > 0 ? '+' : ''}${percent.toFixed(digits)}%`
+}
+
+/**
+ * What the run's model actually saw, in the builder's own words.
+ *
+ * `run.handler` alone misreports a `replace` run: the handler's feature set was
+ * never loaded, so a panel that prints it names Alpha158 for a run built from
+ * four custom factors. The phrasing mirrors what `strategyGraph/glance.ts` puts
+ * on the Features card, so the ledger and the canvas agree.
+ *
+ * Runs started before `feature_mode` was recorded fall back to the handler name.
+ * That is the honest answer for them: what was recorded is all that is known.
+ */
+export function featureSetOf(run: Run): string {
+  const handler = run.handler ?? '—'
+  if (!run.feature_mode) return handler
+  const count = run.feature_count ?? 0
+  if (run.feature_mode === 'replace') {
+    if (!count) return handler
+    return count === 1 ? '1 custom column' : `${count} custom columns`
+  }
+  return count ? `${handler} + ${count}` : handler
+}
+
 export function metricRow(run: Run, report?: RunReport | null): MetricRow {
   const excess = excessOf(report)
   return {
@@ -42,6 +102,28 @@ export function metricRow(run: Run, report?: RunReport | null): MetricRow {
     maxDrawdown: num(excess['max_drawdown']),
     volatility: num(excess['std']),
     period: report?.period ?? null,
+  }
+}
+
+/**
+ * The same row, built from the compact `summary` a run list carries instead of
+ * from a fetched report.
+ *
+ * `Run.summary` is literally the `excess_return_with_cost` slice `excessOf`
+ * pulls out of a report, so the two paths agree by construction. `period` is
+ * the one thing the slice cannot carry — a card that shows metrics without a
+ * date range is fine; a ledger that needs the range should fetch the report.
+ */
+export function summaryRow(run: Run): MetricRow {
+  const excess = run.summary ?? {}
+  return {
+    runId: run.id,
+    label: run.name,
+    ir: num(excess['information_ratio']),
+    annualised: num(excess['annualized_return']),
+    maxDrawdown: num(excess['max_drawdown']),
+    volatility: num(excess['std']),
+    period: null,
   }
 }
 

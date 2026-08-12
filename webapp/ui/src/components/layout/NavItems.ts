@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, MessageSquare, Inbox,
+  LayoutDashboard, MessageSquare, Shapes, Inbox,
   Folder, Network, Library,
   Briefcase, Users, LineChart, Wallet,
   CandlestickChart, Landmark,
@@ -24,7 +24,7 @@ import type { LucideIcon } from 'lucide-react'
 // will do and which existing piece folds into them. Hiding them made the app
 // look finished and the plan invisible.
 export type SectionKey =
-  | 'dashboard' | 'chat' | 'inbox' | 'vibe-agent'
+  | 'dashboard' | 'chat' | 'artifacts' | 'inbox' | 'vibe-agent'
   | 'documents' | 'explorer' | 'corpus'
   | 'book' | 'accounts' | 'investors' | 'indicators'
   | 'markets' | 'macro'
@@ -56,6 +56,7 @@ export const mainNavSections: NavSection[] = [
     items: [
       { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard', built: true },
       { key: 'chat', label: 'Chats', icon: MessageSquare, route: '/chats', built: true },
+      { key: 'artifacts', label: 'Artifacts', icon: Shapes, route: '/artifacts', built: true },
       { key: 'inbox', label: 'Inbox', icon: Inbox, route: '/inbox', built: true },
       // The Vibe-Trading sidecar's own agent/swarm console. Its API forbids
       // framing (CSP frame-ancestors 'none'), so this destination is a status
