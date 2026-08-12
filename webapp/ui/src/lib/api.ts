@@ -7,6 +7,36 @@
  * the browser: EODHD and OpenRouter are called server-side only.
  */
 
+/**
+ * FastAPI's array-form validation detail, as sentences that name the field.
+ *
+ * A Pydantic refusal arrives as `[{loc: ["body", "topk"], msg: "..."}]`, which
+ * the structured-refusal branch in `request` does not recognise — so before
+ * this existed, clearing a numeric field surfaced as a bare "422 Unprocessable
+ * Entity" with no word about which field to fix.
+ *
+ * Returns null when the shape is not FastAPI's, so the caller keeps the
+ * status line instead of inventing a message.
+ */
+export function validationMessage(detail: unknown): string | null {
+  if (!Array.isArray(detail)) return null
+  const sentences = detail
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null
+      const { loc, msg } = entry as { loc?: unknown; msg?: unknown }
+      if (typeof msg !== 'string' || !msg) return null
+      // Pydantic wraps custom validators: "Value error, <the actual sentence>".
+      const text = msg.replace(/^Value error, /, '')
+      const field = (Array.isArray(loc) ? loc : [])
+        .filter((part) => part !== 'body')
+        .map(String)
+        .join('.')
+      return field ? `${field}: ${text}` : text
+    })
+    .filter((s): s is string => Boolean(s))
+  return sentences.length ? sentences.join(' ') : null
+}
+
 /** A failed request, carrying the backend's structured detail rather than discarding it. */
 export class ApiError extends Error {
   readonly status: number
@@ -37,6 +67,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       detail = body?.detail ?? body
       if (typeof detail === 'string') {
         message = detail
+      } else if (Array.isArray(detail)) {
+        // FastAPI's own request-validation shape, one entry per bad field.
+        message = validationMessage(detail) ?? message
       } else if (detail && typeof detail === 'object') {
         // Structured refusals — a lookahead expression, a draft that failed
         // validation — carry {message, errors[]}. Falling through to
