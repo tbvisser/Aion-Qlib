@@ -9,6 +9,7 @@
 import { Check, Copy, LayoutGrid, Redo2, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { hasHole } from '@/lib/factorExpr/serialize'
 import { cn } from '@/lib/utils'
@@ -62,20 +63,20 @@ export function ExpressionBar({
       >
         {expression}
       </code>
+      {/* `clay` for both verdicts and `muted` while the server is still
+          thinking: an unfinished column and a refused one are the same kind of
+          news -- something about this expression is not right yet -- and
+          neither is an error, which is why `Badge` declines to offer one. */}
       {incomplete ? (
-        <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-clay">
-          unfinished
-        </span>
+        <Badge variant="clay" className="shrink-0">unfinished</Badge>
       ) : status ? (
-        <span
+        <Badge
           data-testid="expr-status"
-          className={cn(
-            'shrink-0 font-mono text-[10px] uppercase tracking-wider',
-            status === 'checking' ? 'text-muted-foreground/70' : 'text-clay',
-          )}
+          variant={status === 'checking' ? 'muted' : 'clay'}
+          className="shrink-0"
         >
           {status}
-        </span>
+        </Badge>
       ) : null}
       <Button variant="ghost" size="sm" onClick={onUndo} disabled={!canUndo}
               title="Undo — across the whole feature set" className="shrink-0">

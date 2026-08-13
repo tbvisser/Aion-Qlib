@@ -30,12 +30,16 @@ import {
 import { RunCompareModal } from '@/components/runs/RunCompareModal'
 import { RunLog } from '@/components/runs/RunLog'
 import { RunStatusIcon } from '@/components/runs/RunStatusIcon'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { isActive, useRunStream } from '@/hooks/useRunStream'
 import { useRunReports } from '@/hooks/useRunReports'
 import type { Run, RunReport } from '@/lib/api'
 import { groupRuns } from '@/lib/runGroups'
-import { changedSince, metricRow, metricTone, type MetricKey } from '@/lib/runMetrics'
+import {
+  changedSince, featureSetOf, formatRunPercent, metricRow, metricTone, sanityOf,
+  type MetricKey,
+} from '@/lib/runMetrics'
 import { cn } from '@/lib/utils'
 
 const OPEN_KEY = 'aion.backtests.open'
@@ -375,10 +379,31 @@ function FinishedBody({ run, report, metrics, changed }: {
         value={metrics.period ? `${metrics.period.start} → ${metrics.period.end}` : '—'}
       />
       <Detail label="Model" value={run.model ?? '—'} />
-      <Detail label="Feature set" value={run.handler ?? '—'} />
+      <Detail label="Feature set" value={featureSetOf(run)} />
       <Detail label="Universe" value={run.universe ?? '—'} />
       {changed && <Detail label="Changed" value={changed} />}
       <Detail label="Started" value={new Date(run.created_at).toLocaleString()} />
+
+      {/* The verdict lives here rather than on the collapsed row on purpose: that
+          row is fixed-width so the ledger does not reflow as reports trickle in,
+          and a badge appearing on arrival is exactly that reflow. Collapsed, an
+          implausible run is already clay in all three columns. Expanded, it says
+          why -- which is what a reader needs to go and fix the spec. */}
+      {sanityOf(report).implausible && (
+        <div className="mt-1.5 space-y-1 rounded-md border border-clay/40 bg-clay/5 px-2 py-1.5">
+          <div className="flex items-center gap-1.5">
+            <Badge variant="clay">implausible</Badge>
+            <span className="text-muted-foreground/70">
+              exit 0, but the numbers are not a result
+            </span>
+          </div>
+          {sanityOf(report).reasons.map((reason) => (
+            <div key={reason} className="leading-snug text-muted-foreground">
+              {reason}
+            </div>
+          ))}
+        </div>
+      )}
 
       {run.error_hint && (
         <p className="pt-1 font-sans text-[11px] leading-relaxed text-clay">{run.error_hint}</p>
@@ -455,18 +480,23 @@ function Metric({ run, report, name, value }: {
   const pending = report === undefined && run.status === 'succeeded'
   const tone = metricTone(name, value)
 
+  const sanity = sanityOf(report)
+
   const text = pending
     ? '···'
     : value === null
       ? '—'
       : name === 'ir'
         ? value.toFixed(2)
-        : `${value > 0 ? '+' : ''}${(value * 100).toFixed(1)}%`
+        : formatRunPercent(value)
 
   return (
     <div
       title={pending ? 'Loading results…' : value === null
-        ? 'No results recorded for this run.' : METRIC_LABEL[name]}
+        ? 'No results recorded for this run.'
+        : sanity.implausible
+          ? `${METRIC_LABEL[name]}\n\n${sanity.reasons.join('\n\n')}`
+          : METRIC_LABEL[name]}
       className="min-w-0 flex-1"
     >
       <div className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
@@ -475,9 +505,13 @@ function Metric({ run, report, name, value }: {
       <div
         className={cn(
           'tnum truncate font-mono text-[13px]',
+          // An implausible run's numbers read clay whatever their sign. A mint
+          // `+7,532,752%` looks like the best backtest ever run; it is a broken
+          // one, and the tooltip says which part broke.
           pending ? 'text-muted-foreground/40'
-            : tone === 'positive' ? 'text-primary'
-              : tone === 'negative' ? 'text-clay' : 'text-muted-foreground',
+            : sanity.implausible && value !== null ? 'text-clay'
+              : tone === 'positive' ? 'text-primary'
+                : tone === 'negative' ? 'text-clay' : 'text-muted-foreground',
         )}
       >
         {text}

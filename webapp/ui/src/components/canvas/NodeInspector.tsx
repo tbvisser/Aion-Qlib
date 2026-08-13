@@ -31,7 +31,10 @@ interface Props {
  */
 export function NodeInspector({ node, empty, ...rest }: Props & { empty: React.ReactNode }) {
   return (
-    <div className="min-h-0 w-72 shrink-0 overflow-y-auto border-l border-border/50 p-4">
+    // `w-80`, the width `StageInspector` takes on the other canvas. The two
+    // rails sit in the same slot of the same page one click apart, and 32px of
+    // difference between them reads as the pane resizing itself.
+    <div className="min-h-0 w-80 shrink-0 overflow-y-auto border-l border-border/50 p-4">
       {node === null ? empty : <Selected node={node} {...rest} />}
     </div>
   )

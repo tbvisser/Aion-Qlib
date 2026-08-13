@@ -18,14 +18,20 @@ import type { FactorEvaluation } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { icRows, icTone } from './icVerdict'
 
-const AXIS_TICK = {
-  fontSize: 10, fontFamily: 'IBM Plex Mono', fill: 'hsl(var(--muted-foreground))',
+const FONT_FAMILY = {
+  mono: 'IBM Plex Mono',
+  sans: "'Hanken Grotesk', system-ui, sans-serif",
 }
 
-export function IcMetrics({ result, compact }: {
+const AXIS_TICK_FOR = (font: 'mono' | 'sans') => ({
+  fontSize: 10, fontFamily: FONT_FAMILY[font], fill: 'hsl(var(--muted-foreground))',
+})
+
+export function IcMetrics({ result, compact, font = 'mono' }: {
   result: FactorEvaluation
   /** Two columns and smaller type, for a 288px rail. */
   compact?: boolean
+  font?: 'sans' | 'mono'
 }) {
   return (
     <div className={cn('grid gap-2', compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4')}>
@@ -37,14 +43,18 @@ export function IcMetrics({ result, compact }: {
             className="rounded-lg border border-border/50 p-2"
             data-testid={`ic-${row.key}`}
           >
-            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+            <div className={cn(
+              'text-[10px] uppercase tracking-wider text-muted-foreground/70',
+              font === 'sans' ? 'font-sans' : 'font-mono',
+            )}>
               {row.label}
             </div>
             <div className={cn(
-              'tnum mt-0.5 font-mono',
+              'tnum mt-0.5',
               compact ? 'text-sm' : 'text-xl',
               tone === 'unknown' ? 'text-muted-foreground'
                 : tone === 'strong' ? 'text-primary' : 'text-foreground',
+              font === 'sans' ? 'font-sans' : 'font-mono',
             )}>
               {row.value == null ? '—' : row.value.toFixed(4)}
             </div>
@@ -55,9 +65,10 @@ export function IcMetrics({ result, compact }: {
   )
 }
 
-export function IcChart({ result, height = 220 }: {
+export function IcChart({ result, height = 220, font = 'mono' }: {
   result: FactorEvaluation
   height?: number
+  font?: 'sans' | 'mono'
 }) {
   const data = result.series.map((p) => ({ date: p.date.slice(0, 7), ic: p.ic ?? 0 }))
   if (!data.length) {
@@ -68,13 +79,15 @@ export function IcChart({ result, height = 220 }: {
     )
   }
 
+  const axisTick = AXIS_TICK_FOR(font)
+
   return (
     <>
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data} margin={{ top: 4, right: 8, bottom: 4, left: -16 }}>
           <CartesianGrid stroke="hsl(var(--border) / 0.4)" vertical={false} />
-          <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={28} tick={AXIS_TICK} />
-          <YAxis tickLine={false} axisLine={false} tick={AXIS_TICK} />
+          <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={28} tick={axisTick} />
+          <YAxis tickLine={false} axisLine={false} tick={axisTick} />
           <Tooltip
             cursor={{ fill: 'hsl(var(--muted) / 0.4)' }}
             contentStyle={{
@@ -82,7 +95,7 @@ export function IcChart({ result, height = 220 }: {
               border: '1px solid hsl(var(--border))',
               borderRadius: 8,
               fontSize: 11,
-              fontFamily: 'IBM Plex Mono',
+              fontFamily: FONT_FAMILY[font],
             }}
             formatter={(v: number) => [v.toFixed(4), 'IC']}
           />
@@ -96,7 +109,7 @@ export function IcChart({ result, height = 220 }: {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <p className="mt-2 font-mono text-[11px] text-muted-foreground">
+      <p className={cn('mt-2 text-[11px] text-muted-foreground', font === 'sans' ? 'font-sans' : 'font-mono')}>
         {result.observations.toLocaleString()} observations over{' '}
         {result.days.toLocaleString()} days · {result.horizon}d horizon
       </p>

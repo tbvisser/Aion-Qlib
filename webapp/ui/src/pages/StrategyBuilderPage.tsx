@@ -22,11 +22,13 @@ import { RunConfirmDialog } from '@/components/builder/RunConfirmDialog'
 import { RunReportModal } from '@/components/runs/RunReportModal'
 import { loadTemplates } from '@/hooks/useTemplates'
 import { StartHere } from '@/components/builder/StartHere'
+import { StrategyImport } from '@/components/builder/StrategyImport'
 import { StrategyMenu } from '@/components/builder/StrategyMenu'
 import { UnsavedChangesDialog } from '@/components/builder/UnsavedChangesDialog'
 import { BuilderRail } from '@/components/canvas/BuilderRail'
 import { FactorCanvas, type FeatureSetSnapshot } from '@/components/canvas/FactorCanvas'
 import { PipelineCanvas } from '@/components/pipeline/PipelineCanvas'
+import { COMPAT_FIELDS } from '@/components/pipeline/inspectors/compat'
 import { StageInspector } from '@/components/pipeline/StageInspector'
 import { StageStrip } from '@/components/pipeline/StageStrip'
 import { Badge } from '@/components/ui/badge'
@@ -43,14 +45,19 @@ import { useUniverseCount } from '@/hooks/useStoreUniverses'
 import { useUnsavedGuard } from '@/hooks/useUnsavedGuard'
 import {
   DEFAULT_STRATEGY, api,
-  type DataStore, type FeatureMode, type ModelsResponse, type Run,
-  type StoredStrategy, type StrategyCoverage, type StrategyExplain, type StrategySpec,
+  type DataStore, type FeatureMode, type FieldOptions, type ModelsResponse, type Run,
+  type SpecDefect, type StoredStrategy, type StrategyCoverage, type StrategyExplain,
+  type StrategySpec,
 } from '@/lib/api'
-import { mergeBlockers } from '@/lib/blockers'
+import { mergeBlockers, mergeDefects } from '@/lib/blockers'
 import { blocking, toSpecFeatures } from '@/lib/factorExpr/featureSet'
 import { dirtyFields } from '@/lib/strategyDirty'
 import { nextCopyName } from '@/lib/strategyNames'
-import { routeWarnings, unroutedWarnings, warningsFor } from '@/lib/strategyGraph/routeWarning'
+import { fieldOf } from '@/lib/strategyOptions'
+import { applyStore } from '@/lib/storeSwitch'
+import {
+  routeDefects, routeWarnings, unroutedWarnings,
+} from '@/lib/strategyGraph/routeWarning'
 import { firstBlockedStage, stageStatus } from '@/lib/strategyGraph/stageStatus'
 import type { StageId } from '@/lib/strategyGraph/stages'
 import { cn } from '@/lib/utils'
@@ -100,13 +107,26 @@ export function StrategyBuilderPage() {
   const [baseline, setBaseline] = useState<StrategySpec>(DEFAULT_STRATEGY)
   const [models, setModels] = useState<ModelsResponse | null>(null)
   const [stores, setStores] = useState<DataStore[]>([])
-  const { saved, save: writeStrategy, remove: removeStrategy } = useStrategies()
+  const {
+    saved, save: writeStrategy, remove: removeStrategy,
+    setVisibility: setStrategyVisibility,
+  } = useStrategies()
   const [currentId, setCurrentId] = useState<string | undefined>()
   /** Bumped to send the rail to its templates half. */
   const [templatesNonce, setTemplatesNonce] = useState(0)
   const [runConfirmOpen, setRunConfirmOpen] = useState(false)
   const [yamlText, setYamlText] = useState('')
   const [warnings, setWarnings] = useState<string[]>([])
+  /**
+   * The typed half of the same answer.
+   *
+   * `undefined` means the server did not send any — an older build — and the
+   * page falls back to inferring severity and placement from `warnings`. An
+   * empty array is a real answer and must not be confused with that.
+   */
+  const [defects, setDefects] = useState<SpecDefect[] | undefined>()
+  /** What each field may be set to, judged against the rest of the spec. */
+  const [options, setOptions] = useState<Record<string, FieldOptions> | undefined>()
   /** Advisory store facts from the same preview call. Never a blocker. */
   const [coverage, setCoverage] = useState<StrategyCoverage | undefined>()
   /** The prediction target and the store's real date range, from the same call. */
@@ -229,6 +249,8 @@ export function StrategyBuilderPage() {
       const r = await api.previewStrategy(spec)
       setYamlText(r.yaml)
       setWarnings(r.warnings)
+      setDefects(r.defects)
+      setOptions(r.options)
       setCoverage(r.coverage)
       setExplain(r.explain)
       setError(null)
@@ -368,18 +390,71 @@ export function StrategyBuilderPage() {
   // One list, nothing said twice. The rules and the reasons for them live in
   // `lib/blockers`, where a test can hold them: this used to be inline, and the
   // live server-validation wiring quietly made the old rule insufficient.
-  const blockers = mergeBlockers(warnings, featureErrors.map((i) => ({
+  const canvasIssues = featureErrors.map((i) => ({
     message: i.message,
     columnName: canvas?.features.find((f) => f.id === i.columnId)?.name,
-  })))
+  }))
 
-  // Which stage card each blocker belongs on, and what badge each card wears.
-  // Routing consumes `mergeBlockers`' output rather than replacing it — saying
-  // the same thing twice is what `lib/blockers` exists to prevent.
+  /**
+   * Which stage card each problem belongs on, and what badge each card wears.
+   *
+   * Two roads to the same shape. When the server sends `defects` — a code, the
+   * field it is about, and its severity — routing is a lookup and the tier is
+   * read off the wire. When it does not, the old prefix tables infer both from
+   * the message text; that path is what every server before this shipped, and
+   * it cannot mention an unknown universe or benchmark at all.
+   *
+   * Merged before routing either way, because saying the same thing twice is
+   * what `lib/blockers` exists to prevent.
+   */
   const routed = useMemo(
-    () => routeWarnings(blockers, canvas?.features ?? []),
-    [blockers.join(' '), canvas?.features],
+    () => (defects
+      ? routeDefects(mergeDefects(defects, canvasIssues), canvas?.features ?? [])
+      : routeWarnings(mergeBlockers(warnings, canvasIssues), canvas?.features ?? [])),
+    [defects, warnings.join(' '), canvasIssues.map((i) => i.message).join(' '),
+     canvas?.features],
   )
+
+  // Only the blocking tier may be counted: an advisory describes a run that
+  // will finish and mean nothing, and a header chip reading "3 blocking" on a
+  // strategy that runs fine is how a reader learns to ignore the chip. Both
+  // tiers still route to a card.
+  const blockers = useMemo(
+    () => routed.filter((r) => !r.advisory).map((r) => r.message), [routed])
+
+  /**
+   * The blocking messages the inspector prints at the top of its rail.
+   *
+   * Everything routed to the stage *except* what the field's own control now
+   * shows beneath itself. The notice is what guarantees no message is lost, so
+   * it keeps everything it is not certain is already on screen — including
+   * every message from the legacy `warnings` path, which carries no field.
+   */
+  const stageBlocking = useMemo(
+    () => (selectedStage
+      ? routed
+        .filter((r) => r.stage === selectedStage && !r.advisory
+                       && !COMPAT_FIELDS.has(fieldOf(r.path ?? '')))
+        .map((r) => r.message)
+      : []),
+    [routed, selectedStage])
+
+  /**
+   * Take one of a field's resolutions.
+   *
+   * Routed through `applyStore` when the patch moves the store, because that
+   * one is a cascade rather than an assignment: setting `data_store` alone
+   * leaves the universe, the benchmark and the end date pointing at the store
+   * it just left, which trades one blocker for three.
+   */
+  const applyPatch = useCallback((patch: Record<string, unknown>) => {
+    setSpec((prev) => {
+      const next = { ...prev, ...patch } as StrategySpec
+      return typeof patch.data_store === 'string'
+        ? applyStore(next, stores, patch.data_store)
+        : next
+    })
+  }, [stores])
   const status = useMemo(
     () => stageStatus(routed, { coverage, unfinished: unfinished.length }),
     [routed, coverage, unfinished.length],
@@ -447,6 +522,7 @@ export function StrategyBuilderPage() {
             onNew={() => applySpec(DEFAULT_STRATEGY)}
             onDuplicate={duplicate}
             onDelete={(s) => void deleteSaved(s)}
+            onSetVisibility={(s, v) => void setStrategyVisibility(s.id, v)}
             onBrowseTemplates={() => {
               setPane('pipeline')
               setTemplatesNonce((n) => n + 1)
@@ -486,6 +562,11 @@ export function StrategyBuilderPage() {
               <Bot className="h-4 w-4" />
               Assistant
             </Button>
+            {/* Beside the YAML view on purpose: that dialog is the way a
+                strategy leaves this app, and until now there was no way back.
+                Goes through `applySpec`, so it inherits the unsaved-changes
+                guard rather than being a fifth route around it. */}
+            <StrategyImport onApply={applySpec} />
             <YamlDialog yaml={yamlText} />
             {/* Save is in the strategy menu, not here. There is no reason to
                 save a strategy before you know whether it worked, and a Save
@@ -514,11 +595,12 @@ export function StrategyBuilderPage() {
             the canvas in both panes and the assistant keeps its full-height rail. */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <StageStrip
-            selected={selectedStage}
-            onSelect={(id) => { setPane('pipeline'); setSelectedStage(id) }}
-            status={status}
             pane={pane}
             onBackToPipeline={() => setPane('pipeline')}
+            // Which column, not just which stage. The factor canvas is the one
+            // place in the builder you are two levels down, and the tab strip
+            // that says which column is inside the pane the crumb sits above.
+            activeColumn={canvas?.activeName}
           />
 
           {error && (
@@ -627,11 +709,14 @@ export function StrategyBuilderPage() {
                 models={models}
                 explain={explain}
                 coverage={coverage}
+                options={options}
+                defects={defects}
+                applyPatch={applyPatch}
                 onStoresChanged={() => void refreshStores()}
                 onOpenFeatureCanvas={openFeatureCanvas}
                 unfinished={unfinished.length}
                 notes={selectedStage ? status[selectedStage].notes : []}
-                blocking={selectedStage ? warningsFor(routed, selectedStage) : []}
+                blocking={stageBlocking}
               />
             </div>
 

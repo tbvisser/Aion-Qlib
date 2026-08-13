@@ -7,6 +7,7 @@ import {
 import { api, type RunReport } from '@/lib/api'
 import { CURVE_STYLE, mergeCurves } from '@/lib/curves'
 import { monthlyReturns } from '@/lib/monthlyReturns'
+import { formatRunPercent, sanityOf } from '@/lib/runMetrics'
 import { cn } from '@/lib/utils'
 
 const MONTHS = [
@@ -39,8 +40,33 @@ export function RunReportView({ report }: { report: RunReport }) {
   const drawdown = report.curves.drawdown ?? []
   const months = monthlyReturns(report.curves.excess ?? report.curves.strategy ?? [])
 
+  const sanity = sanityOf(report)
+
   return (
     <div className="space-y-10">
+      {/* Ahead of the numbers, not after them. Everything below this is
+          arithmetic on a broken input, and a reader who scrolls the charts first
+          has already drawn a conclusion. Clay rather than destructive: the run
+          finished, so this is a verdict about the spec, not an error. */}
+      {sanity.implausible && (
+        <div className="space-y-2 rounded-lg border border-clay/40 bg-clay/5 px-4 py-3">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-clay">
+            Implausible result
+          </div>
+          <div className="text-[13px] text-muted-foreground">
+            The run finished cleanly, but these numbers cannot be read as a
+            result. Everything below is arithmetic on the same input.
+          </div>
+          <ul className="space-y-1">
+            {sanity.reasons.map((reason) => (
+              <li key={reason} className="text-[13px] leading-snug text-muted-foreground">
+                {reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <Section n="01" title="Performance" caption="engine-computed, net of cost">
         <div className="grid grid-cols-2 border-l border-t border-border/50 lg:grid-cols-4">
           <Metric label="Ann. excess return" value={excess['annualized_return']} percent />
@@ -182,7 +208,10 @@ function Metric({
   negative?: boolean
 }) {
   const display = text ?? (
-    value == null ? '—' : percent ? `${(value * 100).toFixed(2)}%` : value.toFixed(digits)
+    value == null ? '—'
+      // Clamped past +/-1000%: the extra digits of a broken run are not precision.
+      : percent ? formatRunPercent(value, 2, false)
+        : value.toFixed(digits)
   )
   const tone =
     value == null || text ? ''

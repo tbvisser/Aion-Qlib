@@ -28,12 +28,31 @@
   border-color: hsl(var(--primary));
 }
 
+/* A *filled* slot on an expression card, and its output dot. Small and inert on
+   the same reasoning as the pipeline's handles below: FactorCanvas sets
+   `nodesConnectable={false}`, so a 9px dot that lit mint under the pointer was
+   advertising a connection nobody can make. Cards are still joined by dropping
+   a block into a slot, never by dragging between dots. */
+.react-flow__handle.aion-expr-handle {
+  width: 6px;
+  height: 6px;
+  background: hsl(var(--border));
+  border-color: hsl(var(--border));
+  pointer-events: none;
+}
+
 /* An unfilled series slot. Clay, not destructive: still building is not an
-   error, and the two must never look the same. */
+   error, and the two must never look the same.
+
+   Deliberately *not* shrunk to `aion-expr-handle`'s 6px: this dot is the card's
+   content rather than a port -- it is how a hole announces itself from across
+   the canvas -- and a 1px dashed ring has nothing left to say at 6px. Inert all
+   the same, so the mint hover above cannot make a hole look connectable. */
 .react-flow__handle.aion-handle-empty {
   border-style: dashed;
   border-color: hsl(var(--clay) / 0.7);
   background: transparent;
+  pointer-events: none;
 }
 
 .react-flow__edge-path {
@@ -110,6 +129,93 @@
 .react-flow__edge.aion-edge-blocked .react-flow__edge-path {
   stroke: hsl(var(--clay) / 0.7);
   stroke-dasharray: 5 4;
+}
+
+/* A healthy chain edge, tinted with the phase of the stage it flows into --
+   the same `--type-*` identity token as that card's base rule, so the line and
+   the card it points at can never disagree. Wide and bright enough to read as
+   the pipeline's spine against a 15%-lightness canvas; the generic border-hued
+   edge rule above is FactorCanvas's and stays untouched.
+
+   Each phase carries its own hover/selected override: these rules tie with the
+   generic mint hover rule on specificity, so source order decides, and without
+   the override a later base rule would freeze the edge at rest -- and a mint
+   hover would make a phase edge lie about its family. Brighter same-hue is the
+   honest hover. */
+.react-flow__edge.aion-edge-phase-data .react-flow__edge-path { stroke: hsl(var(--type-release) / 0.55); stroke-width: 2; }
+.react-flow__edge.aion-edge-phase-data:hover .react-flow__edge-path,
+.react-flow__edge.aion-edge-phase-data.selected .react-flow__edge-path { stroke: hsl(var(--type-release) / 0.9); stroke-width: 2; }
+
+.react-flow__edge.aion-edge-phase-shape .react-flow__edge-path { stroke: hsl(var(--type-process) / 0.55); stroke-width: 2; }
+.react-flow__edge.aion-edge-phase-shape:hover .react-flow__edge-path,
+.react-flow__edge.aion-edge-phase-shape.selected .react-flow__edge-path { stroke: hsl(var(--type-process) / 0.9); stroke-width: 2; }
+
+.react-flow__edge.aion-edge-phase-fit .react-flow__edge-path { stroke: hsl(var(--type-notification) / 0.55); stroke-width: 2; }
+.react-flow__edge.aion-edge-phase-fit:hover .react-flow__edge-path,
+.react-flow__edge.aion-edge-phase-fit.selected .react-flow__edge-path { stroke: hsl(var(--type-notification) / 0.9); stroke-width: 2; }
+
+.react-flow__edge.aion-edge-phase-execute .react-flow__edge-path { stroke: hsl(var(--type-trade) / 0.55); stroke-width: 2; }
+.react-flow__edge.aion-edge-phase-execute:hover .react-flow__edge-path,
+.react-flow__edge.aion-edge-phase-execute.selected .react-flow__edge-path { stroke: hsl(var(--type-trade) / 0.9); stroke-width: 2; }
+
+/* -- The ring -------------------------------------------------------------- */
+
+/* The spoke's anchor: the node's own centre.
+ *
+ * A radial layout has no fixed sides, and a *third* per-angle handle collides
+ * with `in` or `out` on three of the seven cards -- the radial and tangential
+ * bearings are only ~64 degrees apart, and card aspect pushes them onto the same
+ * side. A centre anchor plus a `straight` edge is a true radius at every bearing
+ * with no angle maths at all, and since edges paint beneath nodes, all that shows
+ * is the segment crossing the gap.
+ *
+ * `opacity: 0`, never `display: none`: React Flow measures handles with
+ * getBoundingClientRect, which a display:none box has none of, so the anchor
+ * would silently measure at the node's top-left and every spoke would converge
+ * on a corner. (The same trap as `invisible` vs `hidden` on the canvas panes.)
+ * `min-width`/`min-height` are overridden because base.css floors handles at 5px. */
+.react-flow__handle.aion-core-handle {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Hub -> card: membership, not flow. Solid and faint against the chain's stroke,
+   and never dashed -- on this canvas a dash means exactly one thing, which is a
+   run that stops. */
+.react-flow__edge.aion-edge-spoke .react-flow__edge-path {
+  stroke: hsl(var(--muted-foreground) / 0.25);
+  stroke-width: 1;
+}
+
+/* The generic hover/selected rule above would light a spoke mint. A spoke is not
+   a thing you can hover: it is inert in the data too (`interactionWidth: 0`),
+   and this stops a stray pointer from suggesting otherwise. */
+.react-flow__edge.aion-edge-spoke:hover .react-flow__edge-path,
+.react-flow__edge.aion-edge-spoke.selected .react-flow__edge-path {
+  stroke: hsl(var(--muted-foreground) / 0.25);
+  stroke-width: 1;
+}
+
+/* Feature chip -> features card: membership again, one level down. Tinted with
+   the shape phase so a tether says whose satellites these are, and fainter than
+   the chain so it can never be read as flow. Never dashed, for the same reason
+   a spoke never is: a dash on this canvas means a run that stops. */
+.react-flow__edge.aion-edge-feature .react-flow__edge-path {
+  stroke: hsl(var(--type-process) / 0.3);
+  stroke-width: 1;
+}
+
+/* Inert, like the spokes: without this the generic hover rule lights it mint. */
+.react-flow__edge.aion-edge-feature:hover .react-flow__edge-path,
+.react-flow__edge.aion-edge-feature.selected .react-flow__edge-path {
+  stroke: hsl(var(--type-process) / 0.3);
+  stroke-width: 1;
 }
 
 /* xyflow is MIT and asks that the attribution stays. Toned down to sit with the
