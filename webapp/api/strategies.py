@@ -13,6 +13,7 @@ from __future__ import annotations
 import importlib
 import re
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
@@ -20,7 +21,7 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .marketdata import store_calendar_end
+from .marketdata import store_calendar_end, store_for, store_symbols
 
 # Only models whose dependencies are actually installed. The torch-based
 # benchmarks (GRU, LSTM, Transformer, ...) need the `rl` extras, so offering
@@ -101,6 +102,42 @@ def available_models() -> list[dict]:
     return out
 
 
+#: A defect either stops a run or merely makes it meaningless.
+#:
+#: The distinction is not cosmetic and it is not inferable from the text. A
+#: blocking defect is one `POST /runs` refuses; an advisory one describes a run
+#: that will reach exit 0 and mean nothing -- an unfiltered universe, a book of
+#: one name, an unguarded crypto store. The UI counts only the first kind, and
+#: used to guess which was which by matching message prefixes, so a reworded
+#: string silently changed a strategy's status.
+Severity = Literal["blocking", "advisory"]
+
+
+@dataclass(frozen=True)
+class SpecDefect:
+    """One thing wrong with a spec, in the caller's coordinates.
+
+    Deliberately the same shape as `factorlab.expressions.ExpressionDefect`
+    plus a severity: both end up in one list on the wire, and a consumer that
+    has to tell them apart by origin is a consumer that will get it wrong.
+    `path` names a `StrategySpec` field, which is what lets the builder put the
+    message on the stage that owns that field instead of guessing from the words
+    in it. It may carry detail past the field -- `features[2].expression` -- so
+    the *field* is the leading segment, up to the first `.` or `[`. Keeping the
+    detail is what lets a message point at one custom column rather than at the
+    Features stage in general.
+    """
+
+    code: str
+    message: str
+    path: str
+    severity: Severity = "blocking"
+
+    def as_dict(self) -> dict:
+        return {"code": self.code, "message": self.message, "path": self.path,
+                "severity": self.severity}
+
+
 class FeatureColumn(BaseModel):
     """One user-composed factor, as a column the model will see."""
 
@@ -159,8 +196,11 @@ class StrategySpec(BaseModel):
     account: float = Field(100_000_000, gt=0)
     limit_threshold: float | None = Field(
         None,
-        description="Daily move beyond which a fill is impossible. Meaningful for "
-                    "China's price limits; normally null for US equities.",
+        description="Daily move beyond which a fill is impossible. Models China's "
+                    "price limits, and doubles as the only guard against a bad "
+                    "tick being filled at full size: normally null for US "
+                    "equities, worth setting loosely (0.5) on crypto stores, "
+                    "where single prints are off by orders of magnitude.",
     )
 
     features: list[FeatureColumn] | None = Field(
@@ -202,30 +242,107 @@ class StrategySpec(BaseModel):
             raise ValueError(f"'{v}' must be YYYY-MM-DD")
         return v
 
-    def validate_windows(self) -> list[str]:
-        """Ordering problems that would silently produce a meaningless run."""
-        problems: list[str] = []
-        if self.train_end < self.train_start:
-            problems.append("Train end is before train start.")
-        if self.valid_start <= self.train_end:
-            problems.append("Validation overlaps training — the model would be scored on data it saw.")
-        if self.test_start <= self.valid_end:
-            problems.append("Test overlaps validation — results would be optimistic.")
-        if self.test_end < self.test_start:
-            problems.append("Test end is before test start.")
+    def window_defects(self) -> list[SpecDefect]:
+        """Ordering problems that would silently produce a meaningless run.
 
-        # Said out loud rather than clamped in silence. `build_workflow_config`
-        # will end the run a few sessions early to avoid qlib's final-bar
-        # IndexError, and a backtest that quietly stops before the date on the
-        # form is the kind of difference that gets attributed to the strategy.
+        The four ordering checks are fatal. The fifth -- the calendar clamp --
+        is not, and saying so here is what stops it being misfiled: it announces
+        that `build_workflow_config` is about to end the run a few sessions
+        early to avoid qlib's final-bar `IndexError`. The run proceeds. Treating
+        it as fatal once made 31 of 32 curated templates report `runnable:
+        false` over a run that would have worked.
+        """
+        out: list[SpecDefect] = []
+        if self.train_end < self.train_start:
+            out.append(SpecDefect("window_order", "Train end is before train start.",
+                                  "train_end"))
+        if self.valid_start <= self.train_end:
+            out.append(SpecDefect(
+                "window_order",
+                "Validation overlaps training — the model would be scored on data it saw.",
+                "valid_start"))
+        if self.test_start <= self.valid_end:
+            out.append(SpecDefect(
+                "window_order",
+                "Test overlaps validation — results would be optimistic.",
+                "test_start"))
+        if self.test_end < self.test_start:
+            out.append(SpecDefect("window_order", "Test end is before test start.",
+                                  "test_end"))
+
+        # Said out loud rather than clamped in silence. A backtest that quietly
+        # stops before the date on the form is the kind of difference that gets
+        # attributed to the strategy.
         safe_end = store_calendar_end(self.data_store)
         if safe_end and self.test_end > safe_end:
-            problems.append(
+            out.append(SpecDefect(
+                "calendar_clamp",
                 f"Test end {self.test_end} is past the last date this store can safely "
-                f"backtest; the run will end {safe_end} instead.")
+                f"backtest; the run will end {safe_end} instead.",
+                "test_end", "advisory"))
+        return out
+
+    def validate_windows(self) -> list[str]:
+        """`window_defects` as bare messages, for callers that predate it."""
+        return [d.message for d in self.window_defects()]
+
+    def execution_defects(self) -> list[SpecDefect]:
+        """Soft warnings about a spec that will run, but will not mean anything.
+
+        The twin of `validate_windows`, and advisory in the same way: a one-name
+        bet on an unfiltered universe is a legitimate thing to ask a backtest
+        for. It just is not a result, and the difference is invisible on a
+        finished run -- the metrics come back enormous rather than empty, so
+        nothing about the output says "this measured the worst tick in the
+        store" instead of "this made money".
+
+        Every check here fires on a spec that qlib will run to exit 0.
+        """
+        problems: list[SpecDefect] = []
+
+        # An unfiltered universe. `crypto` is ~1,900 Yahoo-style tickers, most of
+        # them micro-caps whose history carries prints that are off by orders of
+        # magnitude; a curated list next to it is almost always what was meant.
+        curated = f"{self.universe}_top100"
+        store = store_for(self.data_store)
+        if store and curated in (store.get("universes") or []):
+            names = len(store_symbols(self.data_store, self.universe))
+            problems.append(SpecDefect(
+                "broad_universe",
+                f"Universe '{self.universe}' is {names} names, most of them thinly "
+                f"traded, and a single bad print in that tail can dominate a "
+                f"backtest. '{curated}' is the curated list.",
+                "universe", "advisory"))
+
+        # A book of one or two names is not a portfolio, it is a bet on whichever
+        # name scores highest -- which on an unfiltered universe is reliably the
+        # one with the most broken data.
+        if self.topk <= 2:
+            held = "one name" if self.topk == 1 else "two names"
+            note = (f"Holding {held} makes the result a property of the single "
+                    f"highest-scoring symbol each day rather than of the signal.")
+            if self.n_drop == 0:
+                note += (" With n_drop 0 the book never rotates out of a bad "
+                         "fill either.")
+            problems.append(SpecDefect("thin_book", note, "topk", "advisory"))
+
+        # qlib fills at the close of whatever the data says, so on a store with
+        # no fill guard a 1000x tick is executed at full size.
+        if self.data_store.startswith("crypto") and self.limit_threshold is None:
+            problems.append(SpecDefect(
+                "no_price_limit",
+                "Nothing caps a daily move on this store, so a bad tick is filled "
+                "at full size. limit_threshold is the guard, as a fraction "
+                "(0.5 blocks moves beyond 50% in a day).",
+                "limit_threshold", "advisory"))
+
         return problems
 
-    def validate_features(self, provider_uri: str | None = None) -> list[str]:
+    def validate_execution(self) -> list[str]:
+        """`execution_defects` as bare messages, for callers that predate it."""
+        return [d.message for d in self.execution_defects()]
+
+    def feature_defects(self, provider_uri: str | None = None) -> list:
         """Custom factors that would run, but shouldn't.
 
         The twin of `validate_windows`, and imported lazily for the same reason
@@ -251,15 +368,26 @@ class StrategySpec(BaseModel):
             if found["exists"]:
                 available = set(found["fields"])
 
-        return [d.message for d in inspect_features(
+        return inspect_features(
             self.features, handler=self.handler, mode=self.feature_mode,
-            available_fields=available)]
+            available_fields=available)
+
+    def validate_features(self, provider_uri: str | None = None) -> list[str]:
+        """`feature_defects` as bare messages, for callers that predate it."""
+        return [d.message for d in self.feature_defects(provider_uri)]
 
 
 class StoredStrategy(StrategySpec):
     id: str
     created_at: str
     updated_at: str
+    #: Who owns this row. The UI compares it against the signed-in user to
+    #: decide whether to offer edit and delete, the same way the RAG document
+    #: and folder menus already do.
+    user_id: str = ""
+    #: 'private' or 'org'. Shared rows are readable by fellow members and still
+    #: only writable by the owner (or an org admin) -- enforced by RLS, not here.
+    visibility: str = "private"
 
 
 #: The loader that produces each handler's own features, for `extend` mode.
