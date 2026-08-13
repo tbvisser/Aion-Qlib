@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { MessageSquarePlus, Trash2, Pencil, Search, X } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { MessageSquarePlus, MessageCircle, Trash2, Pencil, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import {
   AlertDialog,
@@ -18,16 +19,49 @@ import { supabase } from '@/lib/supabase'
 import type { Thread } from '@/features/rag/types'
 import { cn } from '@/lib/utils'
 import { useDebouncedValue } from '@/features/rag/hooks/useDebouncedValue'
-import { formatRelativeDay } from '@/features/rag/lib/dates'
+import { formatRelativeStamp } from '@/lib/time'
 
 const PAGE_SIZE = 50
 
 interface ThreadListProps {
   selectedThreadId: string | null
   onSelectThread: (threadId: string) => void
+  /**
+   * Controlled search, driven by the page header. When given, the built-in
+   * search box is not rendered — two boxes filtering one list is a bug the
+   * user gets to discover.
+   */
+  search?: string
+  /** Drop the built-in New Chat button and search box; the page owns them. */
+  hideChrome?: boolean
+  /**
+   * Multi-select. Present means rows carry a checkbox and a click toggles
+   * rather than navigating — you cannot be picking rows and leaving the page
+   * with the same gesture.
+   */
+  selection?: { ids: readonly string[]; onToggle: (threadId: string) => void }
+  /** Bump to force a re-read, after the page deletes threads out from under us. */
+  reloadKey?: number
+  /**
+   * ISO cutoff: hide anything older, and stop paging once the list reaches it.
+   *
+   * Filtering client-side is exact here rather than approximate, because the
+   * server returns threads in `updated_at`-descending order — everything newer
+   * than a cutoff is a prefix of that list, so the first row that falls before
+   * it proves no later page can contain a match.
+   */
+  since?: string
 }
 
-export function ThreadList({ selectedThreadId, onSelectThread }: ThreadListProps) {
+export function ThreadList({
+  selectedThreadId,
+  onSelectThread,
+  search,
+  hideChrome = false,
+  selection,
+  reloadKey = 0,
+  since,
+}: ThreadListProps) {
   const [threads, setThreads] = useState<Thread[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -35,7 +69,8 @@ export function ThreadList({ selectedThreadId, onSelectThread }: ThreadListProps
   const [hasMore, setHasMore] = useState(false)
   const [offset, setOffset] = useState(0)
 
-  const [searchInput, setSearchInput] = useState('')
+  const [ownSearchInput, setOwnSearchInput] = useState('')
+  const searchInput = search ?? ownSearchInput
   const debouncedSearch = useDebouncedValue(searchInput, 250)
 
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null)
@@ -71,7 +106,7 @@ export function ThreadList({ selectedThreadId, onSelectThread }: ThreadListProps
         if (myId !== requestIdRef.current) return
         setLoading(false)
       })
-  }, [debouncedSearch])
+  }, [debouncedSearch, reloadKey])
 
   const loadMore = useCallback(async () => {
     if (isLoadingMoreRef.current || loading || !hasMore || loadMoreError) return
@@ -182,32 +217,36 @@ export function ThreadList({ selectedThreadId, onSelectThread }: ThreadListProps
 
   const isSearching = debouncedSearch.trim().length > 0
 
+  // See the `since` prop: the cutoff is a prefix of a recency-ordered list, so
+  // truncating at the first row past it is the whole filter — and once it has
+  // bitten, there is nothing further worth fetching.
+  const cutIndex = since ? threads.findIndex((t) => t.updated_at < since) : -1
+  const visibleThreads = cutIndex === -1 ? threads : threads.slice(0, cutIndex)
+  const canLoadMore = hasMore && cutIndex === -1
+
   const deletingSelectedThread = Boolean(threadToDelete && deletingThreadId === threadToDelete.id)
 
-  // Day buckets over the pages loaded so far. The server returns threads in
-  // recency order, so walking the list and starting a bucket whenever the day
-  // label changes is enough â€” a page appended at the bottom either extends the
-  // last bucket or opens a new one, and never has to reorder what's above it.
-  const threadsByDay = useMemo(() => {
-    const groups: { label: string; threads: Thread[] }[] = []
-    for (const thread of threads) {
-      const label = formatRelativeDay(thread.updated_at)
-      const current = groups[groups.length - 1]
-      if (current && current.label === label) current.threads.push(thread)
-      else groups.push({ label, threads: [thread] })
-    }
-    return groups
-  }, [threads])
-
+  // One flat, recency-ordered list. Day headers were dropped when every row
+  // gained its own stamp: "16 minutes ago" under a "Today" heading says the
+  // same thing twice, and the flat list is what a search result already had to
+  // be anyway.
   const renderThreadRow = (thread: Thread) => {
     const isEditing = editingThreadId === thread.id
+    const isPicked = selection?.ids.includes(thread.id) ?? false
     return (
       <a
         key={thread.id}
-        href={isEditing ? undefined : `/dashboard/${thread.id}`}
+        href={isEditing || selection ? undefined : `/dashboard/${thread.id}`}
         onClick={(e) => {
           if (isEditing) {
             e.preventDefault()
+            return
+          }
+          // While picking, a click picks. Navigating away mid-selection would
+          // throw away everything already ticked.
+          if (selection) {
+            e.preventDefault()
+            selection.onToggle(thread.id)
             return
           }
           if (e.ctrlKey || e.metaKey || e.shiftKey) return
@@ -215,13 +254,25 @@ export function ThreadList({ selectedThreadId, onSelectThread }: ThreadListProps
           onSelectThread(thread.id)
         }}
         className={cn(
-          "group flex cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors no-underline text-foreground",
-          selectedThreadId === thread.id
-            ? "bg-accent/80 shadow-sm"
-            : "hover:bg-accent/50"
+          'group flex cursor-pointer items-center gap-3 border-b border-border/50 px-3 py-3 text-sm no-underline transition-colors text-foreground',
+          selectedThreadId === thread.id || isPicked
+            ? 'bg-foreground/[0.04]'
+            : 'hover:bg-foreground/[0.03]',
         )}
       >
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        {selection ? (
+          <Checkbox
+            checked={isPicked}
+            onCheckedChange={() => selection.onToggle(thread.id)}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Select ${thread.title}`}
+            className="shrink-0"
+          />
+        ) : (
+          <MessageCircle className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+        )}
+
+        <div className="min-w-0 flex-1">
           {isEditing ? (
             <InlineEdit
               value={thread.title}
@@ -229,23 +280,14 @@ export function ThreadList({ selectedThreadId, onSelectThread }: ThreadListProps
               onCancel={() => setEditingThreadId(null)}
             />
           ) : (
-            <>
-              <span className="truncate">{thread.title}</span>
-              {/* Grouped rows already sit under a day header; the per-row
-                  date only earns its place in the flat search list. */}
-              {isSearching && (
-                <span className="truncate text-xs text-muted-foreground">
-                  {formatRelativeDay(thread.updated_at)}
-                </span>
-              )}
-            </>
+            <span className="block truncate">{thread.title}</span>
           )}
         </div>
-        {!isEditing && (
-          // Collapsed to zero width at rest so the title can use the
-          // full row; expands (and fades in) on hover/focus, letting
-          // the title truncate to make room for the actions.
-          <div className="flex shrink-0 items-center gap-0.5 overflow-hidden max-w-0 pl-1 opacity-0 transition-all duration-200 group-hover:max-w-[4.5rem] group-hover:opacity-100 focus-within:max-w-[4.5rem] focus-within:opacity-100">
+
+        {!isEditing && !selection && (
+          // Collapsed to zero width at rest so the stamp keeps its place;
+          // expands (and fades in) on hover/focus.
+          <div className="flex shrink-0 items-center gap-0.5 overflow-hidden max-w-0 opacity-0 transition-all duration-200 group-hover:max-w-[4.5rem] group-hover:opacity-100 focus-within:max-w-[4.5rem] focus-within:opacity-100">
             <Button
               variant="ghost"
               size="icon"
@@ -270,6 +312,12 @@ export function ThreadList({ selectedThreadId, onSelectThread }: ThreadListProps
             </Button>
           </div>
         )}
+
+        {!isEditing && (
+          <span className="shrink-0 font-mono text-[11px] text-muted-foreground/70">
+            {formatRelativeStamp(thread.updated_at)}
+          </span>
+        )}
       </a>
     )
   }
@@ -277,73 +325,59 @@ export function ThreadList({ selectedThreadId, onSelectThread }: ThreadListProps
   return (
     <>
     <div className="flex h-full flex-col">
-      <div className="p-3 space-y-2">
-        <Button
-          variant="ghost"
-          onClick={handleCreateThread}
-          className="w-full h-10 justify-start rounded-xl border border-foreground/15 bg-transparent transition-all duration-200 btn-press"
-        >
-          <MessageSquarePlus className="mr-2 h-4 w-4" />
-          New Chat
-        </Button>
+      {!hideChrome && (
+        <div className="p-3 space-y-2">
+          <Button
+            variant="ghost"
+            onClick={handleCreateThread}
+            className="w-full h-10 justify-start rounded-xl border border-foreground/15 bg-transparent transition-all duration-200 btn-press"
+          >
+            <MessageSquarePlus className="mr-2 h-4 w-4" />
+            New Chat
+          </Button>
 
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-          <Input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search threads..."
-            aria-label="Search threads"
-            className="pl-9 pr-8 h-9 rounded-xl"
-          />
-          {searchInput && (
-            <button
-              type="button"
-              onClick={() => setSearchInput('')}
-              aria-label="Clear search"
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-accent/50 transition-colors"
-            >
-              <X className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
-          )}
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+            <Input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setOwnSearchInput(e.target.value)}
+              placeholder="Search threads..."
+              aria-label="Search threads"
+              className="pl-9 pr-8 h-9 rounded-xl"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => setOwnSearchInput('')}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-accent/50 transition-colors"
+              >
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="flex-1 overflow-y-auto px-2">
+      <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-muted-foreground text-sm">Loading...</div>
           </div>
-        ) : threads.length === 0 ? (
+        ) : visibleThreads.length === 0 ? (
           <div className="p-4 text-center text-sm text-muted-foreground">
             {isSearching
               ? `No threads match "${debouncedSearch}"`
-              : 'No conversations yet. Start a new chat!'}
+              : since
+                ? 'No conversations in this period.'
+                : 'No conversations yet. Start a new chat!'}
           </div>
         ) : (
           <>
-            {/* Search results are a relevance list, not a timeline: day
-                headers over an arbitrary slice of history would imply the
-                matches are consecutive. Flat while searching. */}
-            {isSearching ? (
-              <div className="space-y-0.5">
-                {threads.map(renderThreadRow)}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {threadsByDay.map((group) => (
-                  <div key={group.label} className="space-y-0.5">
-                    <div className="px-4 pb-0.5 text-xs font-medium text-muted-foreground/80">
-                      {group.label}
-                    </div>
-                    {group.threads.map(renderThreadRow)}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div>{visibleThreads.map(renderThreadRow)}</div>
 
-            {hasMore && (
+            {canLoadMore && (
               <div ref={sentinelRef} className="flex justify-center py-3">
                 {loadMoreError ? (
                   <button
