@@ -4,7 +4,7 @@ import type { ActivityItem, MacroRelease, PortfolioRebalances } from './api'
 import {
   buildAgendaEntries, countByDate, entryUnread, filterEntries, gridRange,
   groupAgenda, heatTier, monthGridWeeks, recencyFloor, resolveSelection,
-  resolveView, runStats30d, splitInFlight, summarizeDays, typeCounts, weekOf,
+  runStats30d, searchEntries, splitInFlight, summarizeDays, typeCounts, weekOf,
   type AgendaSources,
 } from './agenda'
 import { daysBetween, isoToLocalDay } from './macroFormat'
@@ -201,6 +201,34 @@ describe('filter and counts', () => {
     expect(counts.release).toBe(1)
     expect(filterEntries(entries, 'trade').map((e) => e.key)).toEqual(['act:run:a'])
     expect(filterEntries(entries, 'all')).toHaveLength(entries.length)
+  })
+})
+
+describe('searchEntries', () => {
+  const entries = buildAgendaEntries(sources({
+    activity: [item({ id: 'run:a', title: 'Momentum v3' })],
+    calendar: { past: [], upcoming: [release({ type: 'CPI' })], stale: false },
+  }), TODAY)
+
+  it('is not a filter when the query is empty or blank', () => {
+    expect(searchEntries(entries, '')).toBe(entries)
+    expect(searchEntries(entries, '   ')).toBe(entries)
+  })
+
+  it('matches the title case-insensitively', () => {
+    expect(searchEntries(entries, 'momentum').map((e) => e.key)).toEqual(['act:run:a'])
+    expect(searchEntries(entries, 'MOMENTUM')).toHaveLength(1)
+    expect(searchEntries(entries, 'cpi')).toHaveLength(1)
+  })
+
+  it('matches the detail line too — a release found by its country', () => {
+    // The release's title is 'CPI'; 'US' only ever appears in its detail.
+    const found = searchEntries(entries, 'us')
+    expect(found.map((e) => e.type)).toEqual(['release'])
+  })
+
+  it('returns nothing when nothing matches, rather than everything', () => {
+    expect(searchEntries(entries, 'zzzz')).toEqual([])
   })
 })
 
@@ -493,15 +521,6 @@ describe('marquee', () => {
     const summary = summarizeDays([], all).get(TODAY)!
     expect(summary.marquee).toBeNull()
     expect(summary.heat).toBeGreaterThan(0)
-  })
-})
-
-describe('resolveView', () => {
-  it('accepts week and repairs everything else to month', () => {
-    expect(resolveView('week')).toBe('week')
-    expect(resolveView('month')).toBe('month')
-    expect(resolveView(null)).toBe('month')
-    expect(resolveView('quarter')).toBe('month')
   })
 })
 

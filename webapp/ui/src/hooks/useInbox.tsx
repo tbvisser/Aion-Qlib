@@ -7,30 +7,47 @@
  * under it just reads. Poll failures keep the last good data (the RunsPage
  * convention: the API being briefly down should not blank a badge).
  *
- * Cadences: activity every 30s (jobs move in seconds), regime every 15min
- * (it moves at data-release granularity). The InboxPage layers its own 5s
- * refresh on top while mounted.
+ * Cadences: regime every 15min (it moves at data-release granularity), and
+ * activity **adaptively** — every 5s while anything is in flight, every 30s
+ * once the desk is quiet. The Agenda page used to layer its own 5s timer on
+ * top of a flat 30s one here, which meant two timers racing and a page that
+ * had to be mounted for the badge to keep up. Liveness is the real signal, so
+ * it drives the cadence instead.
  */
 import {
-  createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState,
+  createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from 'react'
 
+import { splitInFlight } from '@/lib/agenda'
 import { api, ActivityItem, MacroRegimeResponse } from '@/lib/api'
 import {
   computeUnread, extractLensStates, readLastSeen, readRegimeSeen,
   RegimeSeenMap, writeLastSeen, writeRegimeSeen,
 } from '@/lib/inbox'
 
-const ACTIVITY_POLL_MS = 30_000
+const IDLE_POLL_MS = 30_000
+const LIVE_POLL_MS = 5_000
 const REGIME_POLL_MS = 15 * 60_000
+
+/**
+ * The endpoint's own cap (`/api/activity` refuses more), re-exported so the
+ * summary row that footnotes a truncated feed names the same number the fetch
+ * asked for rather than a second copy of it.
+ */
+export const ACTIVITY_LIMIT = 200
 
 interface InboxContextValue {
   items: ActivityItem[]
   regime: MacroRegimeResponse | null
   unreadCount: number
-  /** Re-fetch the activity feed now (the InboxPage's 5s tick). */
+  /** True when the feed came back at its cap — history may be incomplete. */
+  capped: boolean
+  /** Re-fetch the activity feed now, after an action that changes it. */
   refresh: () => Promise<void>
-  /** Mark everything current as seen; clears the badge. */
+  /**
+   * Mark everything current as seen; clears the badge. Stable across renders,
+   * so a caller can mark on mount and on unmount with an empty dep list.
+   */
   markSeen: () => void
 }
 
@@ -54,9 +71,9 @@ export function InboxProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      // 200 (the endpoint's cap) rather than 50: the Inbox month grid reads
-      // this feed, and 50 events can be less than a fortnight of history.
-      const feed = await api.activity(200)
+      // The cap rather than the default 50: the Agenda's month grid reads this
+      // feed, and 50 events can be less than a fortnight of history.
+      const feed = await api.activity(ACTIVITY_LIMIT)
       if (alive.current) setItems(feed.items)
     } catch {
       /* keep last good data */
@@ -72,23 +89,36 @@ export function InboxProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Anything queued or running means the numbers on screen are still moving.
+  const hasLive = useMemo(() => splitInFlight(items).live.length > 0, [items])
+
+  useEffect(() => {
+    void refreshRegime()
+    const regimeTimer = setInterval(() => void refreshRegime(), REGIME_POLL_MS)
+    return () => clearInterval(regimeTimer)
+  }, [refreshRegime])
+
+  // Re-armed when liveness changes, so a job starting speeds the feed up and
+  // the last one finishing slows it back down.
   useEffect(() => {
     void refresh()
-    void refreshRegime()
-    const activityTimer = setInterval(() => void refresh(), ACTIVITY_POLL_MS)
-    const regimeTimer = setInterval(() => void refreshRegime(), REGIME_POLL_MS)
-    return () => {
-      clearInterval(activityTimer)
-      clearInterval(regimeTimer)
-    }
-  }, [refresh, refreshRegime])
+    const timer = setInterval(() => void refresh(), hasLive ? LIVE_POLL_MS : IDLE_POLL_MS)
+    return () => clearInterval(timer)
+  }, [refresh, hasLive])
+
+  // `regime` is read through a ref so `markSeen` keeps one identity for the
+  // life of the provider: the Agenda marks on mount and on unmount, and a
+  // callback that changed with every poll would fire it on every tick instead
+  // — which is exactly how this used to rewrite localStorage every 5 seconds.
+  const regimeRef = useRef(regime)
+  regimeRef.current = regime
 
   const markSeen = useCallback(() => {
     const now = new Date().toISOString()
     writeLastSeen(now)
     setLastSeen(now)
     setRegimeSeen((prev) => {
-      const current = extractLensStates(regime)
+      const current = extractLensStates(regimeRef.current)
       // Keep the previous acknowledgement where the lens is currently
       // unreadable — otherwise a flaky read would silently reset the baseline.
       const next: RegimeSeenMap = {
@@ -100,15 +130,17 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       writeRegimeSeen(next)
       return next
     })
-  }, [regime])
+  }, [])
 
   const unreadCount = computeUnread(items, lastSeen, regime, regimeSeen)
+  const capped = items.length >= ACTIVITY_LIMIT
 
-  return (
-    <InboxContext.Provider value={{ items, regime, unreadCount, refresh, markSeen }}>
-      {children}
-    </InboxContext.Provider>
+  const value = useMemo(
+    () => ({ items, regime, unreadCount, capped, refresh, markSeen }),
+    [items, regime, unreadCount, capped, refresh, markSeen],
   )
+
+  return <InboxContext.Provider value={value}>{children}</InboxContext.Provider>
 }
 
 export function useInbox(): InboxContextValue {

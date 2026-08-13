@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, MessageSquare, Shapes, Inbox,
+  LayoutDashboard, MessageSquare, Shapes, CalendarDays,
   Folder, Network, Library,
   Briefcase, Users, LineChart, Wallet,
   CandlestickChart, Landmark,
@@ -57,7 +57,7 @@ export const mainNavSections: NavSection[] = [
       { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard', built: true },
       { key: 'chat', label: 'Chats', icon: MessageSquare, route: '/chats', built: true },
       { key: 'artifacts', label: 'Artifacts', icon: Shapes, route: '/artifacts', built: true },
-      { key: 'inbox', label: 'Inbox', icon: Inbox, route: '/inbox', built: true },
+      { key: 'inbox', label: 'Agenda', icon: CalendarDays, route: '/inbox', built: true },
       // The Vibe-Trading sidecar's own agent/swarm console. Its API forbids
       // framing (CSP frame-ancestors 'none'), so this destination is a status
       // + launch page, not an embed — the console opens same-origin on the

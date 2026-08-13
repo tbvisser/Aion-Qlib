@@ -1,5 +1,5 @@
-import { ImportanceBadge } from '@/components/inbox/ImportanceBadge'
-import { ReleaseHistoryChart } from '@/components/inbox/ReleaseHistoryChart'
+import { ImportanceBadge } from '@/components/agenda/ImportanceBadge'
+import { ReleaseHistoryChart } from '@/components/agenda/ReleaseHistoryChart'
 import { useReleaseHistory } from '@/hooks/useReleaseHistory'
 import type { MacroRelease } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -10,6 +10,10 @@ const num = (v: number | null) => (v == null ? '—' : String(v))
  * One release, desk-style: the print's figures with the row's exact honesty
  * rules (surprise only when the backend filled it, "awaiting" never 0), and
  * the indicator's trailing prints as a chart underneath.
+ *
+ * Renders as a bare block, not a card. `EntryList` opens it inside the row's
+ * own sub-panel, and a card nested in that would be a border inside a border
+ * inside a panel.
  */
 export function ReleaseDetailCard({ release, today }: {
   release: MacroRelease
@@ -23,8 +27,8 @@ export function ReleaseDetailCard({ release, today }: {
     : null
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/50 bg-card shadow-card">
-      <div className="border-b border-border/30 px-3 py-2.5">
+    <div className="space-y-3">
+      <div>
         <div className="flex items-center gap-2">
           <h4 className="min-w-0 truncate text-sm font-medium">{release.type ?? 'Release'}</h4>
           <ImportanceBadge tier={release.importance} />
@@ -36,7 +40,7 @@ export function ReleaseDetailCard({ release, today }: {
         </p>
       </div>
 
-      <div className="flex items-baseline gap-4 px-3 py-2.5 font-mono">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 font-mono">
         <Figure label="act">
           {release.actual != null ? (
             <span className={cn('tnum text-base', surpriseTone)}>{num(release.actual)}</span>
@@ -68,7 +72,7 @@ export function ReleaseDetailCard({ release, today }: {
         )}
       </div>
 
-      <div className="border-t border-border/30 px-3 py-2.5">
+      <div className="border-t border-border/40 pt-3">
         {release.event_key === null ? (
           <p className="text-[11px] text-muted-foreground/60">
             No history available for this release type.
@@ -78,7 +82,7 @@ export function ReleaseDetailCard({ release, today }: {
         ) : history.data?.available && history.data.points.length > 0 ? (
           <>
             <ReleaseHistoryChart points={history.data.points} selectedDate={release.date} />
-            <p className="mt-1 font-mono text-[9px] text-muted-foreground/50">
+            <p className="mt-1 font-mono text-[10px] text-muted-foreground/50">
               last {history.data.points.filter((p) => p.actual != null).length} prints
               {release.country ? ` · ${release.country}` : ''}
             </p>
@@ -96,7 +100,7 @@ export function ReleaseDetailCard({ release, today }: {
 function Figure({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <span className="flex flex-col">
-      <span className="text-[9px] uppercase tracking-wider text-muted-foreground/50">{label}</span>
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">{label}</span>
       {children}
     </span>
   )

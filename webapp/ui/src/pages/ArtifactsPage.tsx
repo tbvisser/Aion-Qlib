@@ -279,11 +279,10 @@ function StatRow({ row }: { row: MetricRow }) {
 /**
  * The card's equity curve. Hand-rolled like `components/Sparkline` (a grid of
  * forty Recharts trees is forty resize observers), and scaled min→max like it
- * too — not 0→max as `TileVisuals.AreaCurve` does, because a cumulative
- * return spends real time below zero and clamping it there would redraw
- * losses as gains. Nulls split the segments, so a gap in the data reads as a
- * gap. Colour follows Sparkline's `signed` convention: primary rising, clay
- * falling.
+ * too rather than 0→max, because a cumulative return spends real time below
+ * zero and clamping it there would redraw losses as gains. Nulls split the
+ * segments, so a gap in the data reads as a gap. Colour follows Sparkline's
+ * `signed` convention: primary rising, clay falling.
  */
 function PreviewCurve({ values, className }: { values: (number | null)[]; className?: string }) {
   const W = 120

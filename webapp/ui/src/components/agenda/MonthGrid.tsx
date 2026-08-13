@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
-import { NavButton } from '@/components/inbox/NavButton'
-import { heatStripClass, TYPE_STYLES } from '@/components/inbox/typeStyles'
+import { NavButton } from '@/components/agenda/NavButton'
+import { heatStripClass, TYPE_STYLES } from '@/components/agenda/typeStyles'
 import { Panel } from '@/components/ui/panel'
 import {
   heatTier, monthGridWeeks, type AgendaType, type DaySummary,
@@ -118,7 +118,13 @@ function DayCell({ date, inMonth, isToday, isSelected, summary, onSelect }: {
   const outcome = inMonth ? summary?.runOutcome ?? null : null
   const heat = inMonth ? heatTier(summary?.heat ?? 0) : 0
   const count = summary?.count ?? 0
-  const mix = summary && count > 0 ? typeMix(summary.byType) : []
+  // A bar showing one type at 100% is not a composition, it is a coloured
+  // rule. The macro calendar makes most days releases-only, so unconditionally
+  // drawing this filled the grid with thirty identical full-width bars — the
+  // loudest thing on the page and the least informative. It now appears
+  // exactly when there is a mix, which is when it says something.
+  const allMix = summary && count > 0 ? typeMix(summary.byType) : []
+  const mix = allMix.length > 1 ? allMix : []
 
   return (
     <button

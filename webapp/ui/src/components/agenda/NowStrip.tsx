@@ -3,38 +3,44 @@ import { CalendarClock, Database, FlaskConical } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { JobProgress } from '@/components/JobProgress'
-import { Ring } from '@/components/inbox/TileVisuals'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Panel } from '@/components/ui/panel'
 import { api, type ActivityItem, type ActivityKind } from '@/lib/api'
 import { formatStopwatch } from '@/lib/runDuration'
-import { RUN_PHASES, phaseIndex, stagesComplete } from '@/lib/runPhases'
+import { RUN_PHASES, phaseIndex } from '@/lib/runPhases'
 import { cn } from '@/lib/utils'
 
 /**
- * In-flight work, pinned above the agenda.
+ * In-flight work, pinned in the Agenda's aside.
  *
  * Running and queued items are not "on a day" — they are happening — so they
  * never enter the day groups and are deliberately unaffected by the type
  * filter: operational chrome, not feed content.
  *
- * Each item wears the same tile shape as the KPI row below it — mono label,
- * one display figure, one glyph — because it is answering the same kind of
- * question. Here the figure is a stopwatch and the glyph is how much of the
- * run is behind it, which is the pair a waiting user actually watches.
+ * Each item is a row on the same rhythm as an agenda row, not a card. It used
+ * to be a tile with a 26px stopwatch and a progress ring beside it, which made
+ * sense beside a row of equally loud KPI tiles; with those gone the ring only
+ * repeated what the stage track already says, and in a 340px column three
+ * display figures were the noisiest thing on a page about a calendar.
  */
 export function NowStrip({ live, onChanged }: {
   live: ActivityItem[]
   onChanged: () => void
 }) {
+  // Nothing running is the normal state, and an empty "Now" panel would claim
+  // a permanent third of the aside to say so.
   if (live.length === 0) return null
+
   return (
-    <Panel title="Now" hint="Running and queued work">
-      {/* A lone card goes full width: half a panel of card beside half a panel
-          of nothing reads as a layout bug, not as breathing room. */}
-      <div className={cn('grid gap-3', live.length > 1 && 'sm:grid-cols-2 xl:grid-cols-3')}>
+    <Panel
+      title="Now"
+      hint={live.length === 1 ? '1 in flight' : `${live.length} in flight`}
+      flush
+    >
+      <div className="divide-y divide-border/30">
         {live.map((item) => (
-          <LiveCard key={item.id} item={item} onChanged={onChanged} />
+          <LiveRow key={item.id} item={item} onChanged={onChanged} />
         ))}
       </div>
     </Panel>
@@ -50,14 +56,14 @@ const KIND: Record<ActivityKind, {
   macro_refresh: { label: 'Macro refresh', Icon: CalendarClock },
 }
 
-function LiveCard({ item, onChanged }: { item: ActivityItem; onChanged: () => void }) {
+function LiveRow({ item, onChanged }: { item: ActivityItem; onChanged: () => void }) {
   const [cancelling, setCancelling] = useState(false)
   const running = item.status === 'running'
   const { label, Icon } = KIND[item.kind]
 
   // Runs sit in the queue with only `created_at` stamped; jobs stamp
   // `started_at` at enqueue. Either way this is "since it entered the system",
-  // and the caption under the clock says which of the two it is.
+  // and the caption beside the clock says which of the two it is.
   const elapsed = useElapsed(item.started_at ?? item.created_at)
 
   const cancel = async () => {
@@ -72,34 +78,30 @@ function LiveCard({ item, onChanged }: { item: ActivityItem; onChanged: () => vo
   }
 
   return (
-    <div className={cn(
-      'group relative overflow-hidden rounded-xl border bg-card px-3.5 py-3 shadow-sm',
-      'transition-shadow hover:shadow-card-hover',
-      running ? 'border-primary/25' : 'border-border/50',
-    )}>
-      {/* The live rail: the one edge-to-edge cue that separates a card doing
-          work from one waiting its turn, readable before any text is. */}
+    <div className="relative space-y-1.5 px-3 py-2">
+      {/* The live rail: the one edge-to-edge cue separating a row doing work
+          from one waiting its turn, readable before any text is. */}
       {running && (
         <span
           aria-hidden
-          className="absolute inset-y-0 left-0 w-[2px] animate-subtle-pulse bg-primary/70"
+          className="absolute inset-y-0 left-0 w-0.5 animate-subtle-pulse bg-primary/70"
         />
       )}
 
       <div className="flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
-          {label}
+        <span className="flex min-w-0 items-center gap-1.5">
+          <Icon className={cn(
+            'h-3.5 w-3.5 shrink-0',
+            running ? 'text-primary' : 'text-muted-foreground/60',
+          )} />
+          <span className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+            {label}
+          </span>
         </span>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {running ? (
-            <span className="animate-subtle-pulse rounded bg-primary/10 px-1 font-mono text-[9px] uppercase tracking-wider text-primary">
-              live
-            </span>
-          ) : (
-            <span className="rounded bg-foreground/[0.06] px-1 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-              queued
-            </span>
-          )}
+        <span className="flex shrink-0 items-center gap-1.5">
+          {running
+            ? <Badge variant="primary" className="animate-subtle-pulse">live</Badge>
+            : <Badge variant="muted">queued</Badge>}
           {item.kind === 'run' && (
             <Button
               variant="ghost"
@@ -111,89 +113,44 @@ function LiveCard({ item, onChanged }: { item: ActivityItem; onChanged: () => vo
               {cancelling ? 'Cancelling…' : 'Cancel'}
             </Button>
           )}
-          <span className={cn(
-            'flex h-5 w-5 items-center justify-center rounded',
-            running ? 'bg-primary/10 text-primary' : 'bg-foreground/[0.06] text-muted-foreground',
-          )}>
-            <Icon className="h-3 w-3" />
-          </span>
-        </div>
+        </span>
       </div>
 
-      {item.kind === 'run' ? (
-        <Link
-          to={`/runs/${item.source_id}`}
-          className="mt-1.5 block truncate text-sm font-medium transition-colors hover:text-primary"
-        >
-          {item.title}
-        </Link>
-      ) : (
-        <span className="mt-1.5 block truncate text-sm font-medium">{item.title}</span>
-      )}
-
-      {/* Figure left, glyph right — the KPI tiles' shape, so the two rows read
-          as one instrument panel rather than two unrelated widgets. */}
-      <div className="mt-2.5 flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <div className="tnum text-[26px] font-semibold leading-none">
-            {elapsed === null ? '—' : formatStopwatch(elapsed)}
-          </div>
-          <div className="mt-1.5 truncate text-[11px] text-muted-foreground">
+      <div className="flex items-baseline justify-between gap-2">
+        {item.kind === 'run' ? (
+          <Link
+            to={`/runs/${item.source_id}`}
+            className="min-w-0 truncate text-[13px] font-medium transition-colors hover:text-primary"
+          >
+            {item.title}
+          </Link>
+        ) : (
+          <span className="min-w-0 truncate text-[13px] font-medium">{item.title}</span>
+        )}
+        <span className="tnum shrink-0 font-mono text-[11px] text-muted-foreground">
+          {elapsed === null ? '—' : formatStopwatch(elapsed)}
+          <span className="ml-1 text-muted-foreground/60">
             {running ? 'elapsed' : 'waiting'}
-          </div>
-        </div>
-        <div className="flex shrink-0 items-end">
-          <ProgressRing item={item} />
-        </div>
+          </span>
+        </span>
       </div>
 
       {item.kind === 'run' ? (
         <StageTrack phase={item.phase} running={running} />
       ) : item.progress ? (
-        <div className="mt-3">
-          <JobProgress
-            stage={item.progress.stage}
-            message={item.progress.message}
-            done={item.progress.done}
-            total={item.progress.total}
-            running={running}
-          />
-        </div>
+        <JobProgress
+          stage={item.progress.stage}
+          message={item.progress.message}
+          done={item.progress.done}
+          total={item.progress.total}
+          running={running}
+        />
       ) : (
-        <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
           {item.phase ?? 'Queued'}
         </p>
       )}
     </div>
-  )
-}
-
-/**
- * How much of the work is behind it, as a part-of-whole ring.
- *
- * Runs count stages, because that is the only progress the runner reports;
- * jobs count their own items. Both fall back to an empty track rather than a
- * guess when there is no denominator yet.
- */
-function ProgressRing({ item }: { item: ActivityItem }) {
-  const running = item.status === 'running'
-  const tone = running ? 'text-primary' : 'text-muted-foreground/40'
-
-  if (item.kind === 'run') {
-    return (
-      <Ring
-        value={stagesComplete(item.phase)}
-        total={RUN_PHASES.length}
-        className={tone}
-      />
-    )
-  }
-  return (
-    <Ring
-      value={item.progress?.done ?? 0}
-      total={item.progress?.total ?? 0}
-      className={tone}
-    />
   )
 }
 
@@ -211,13 +168,13 @@ function StageTrack({ phase, running }: { phase: string | null; running: boolean
   const current = phaseIndex(phase)
 
   return (
-    <div className="mt-3 space-y-1.5">
+    <div className="space-y-1">
       <div className="flex gap-1" aria-hidden>
         {RUN_PHASES.map((stage, i) => (
           <span
             key={stage}
             className={cn(
-              'h-1.5 flex-1 rounded-full transition-colors duration-500',
+              'h-1 flex-1 rounded-full transition-colors duration-500',
               current !== null && i < current && 'bg-primary/60',
               current === i && 'bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.6)]',
               current === i && running && 'animate-subtle-pulse',
@@ -245,7 +202,7 @@ function StageTrack({ phase, running }: { phase: string | null; running: boolean
  *
  * The activity feed polls on its own schedule, so a clock derived only from
  * the payload would jump in whole polls and sit frozen between them. Elapsed
- * time is the one thing on this card the browser can keep true without asking.
+ * time is the one thing on this row the browser can keep true without asking.
  */
 function useElapsed(iso: string | null): number | null {
   const [now, setNow] = useState(() => Date.now())

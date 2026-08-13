@@ -1,4 +1,4 @@
-import { TYPE_STYLES } from '@/components/inbox/typeStyles'
+import { TYPE_STYLES } from '@/components/agenda/typeStyles'
 import type { AgendaFilter, AgendaType } from '@/lib/agenda'
 import { cn } from '@/lib/utils'
 
