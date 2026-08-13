@@ -4,21 +4,28 @@
  * The severity distinction is the point, and it is the one `CoverageBanner`
  * already makes at length:
  *
- *   blocked    a preview warning. These gate the Run button today and must
- *              keep gating it -- this change does not introduce a
- *              non-blocking warning tier.
- *   attention  coverage, and unfinished canvas columns. Advisory by
- *              construction. Coverage *never* blocks: the generated config
- *              drops a dead column before training, and an unfinished column
- *              is simply not in the spec yet.
+ *   blocked    a preview warning that says the run should not start --
+ *              everything from `validate_windows` and `inspect_features`.
+ *   attention  coverage, unfinished canvas columns, and `validate_execution`.
+ *              Advisory by construction. Coverage *never* blocks: the generated
+ *              config drops a dead column before training, and an unfinished
+ *              column is simply not in the spec yet. Execution warnings do not
+ *              block either: a one-name bet on an unfiltered universe runs
+ *              perfectly well, it just does not produce a result.
  *   ok         nothing to say.
+ *
+ * The advisory tier of *preview* warnings is new, and the severity has to travel
+ * on the routed warning rather than be re-derived here -- see `RoutedWarning`.
+ * Reading every routed warning as a blocker, which is what this module did while
+ * `validate_execution` did not exist, would tell a reader a runnable strategy
+ * cannot run and break every edge downstream of the card saying so.
  *
  * `checked === false` means the store could not be read -- "no answer", not
  * "no columns" -- so it produces no badges at all rather than a clean bill.
  */
 import type { StrategyCoverage } from '@/lib/api'
 import { STAGE_ORDER, type StageId } from './stages'
-import { warningsFor, type RoutedWarning } from './routeWarning'
+import { advisoryFor, blockingFor, type RoutedWarning } from './routeWarning'
 
 export type StageStatus = 'ok' | 'attention' | 'blocked'
 
@@ -90,11 +97,14 @@ export function stageStatus(
 
   const out = {} as Record<StageId, StageBadge>
   for (const id of STAGE_ORDER) {
-    const blocking = warningsFor(routed, id)
+    const blocking = blockingFor(routed, id)
+    // Execution warnings join coverage in the advisory bucket, ahead of it: they
+    // are about the spec the reader just wrote, not about the store underneath.
+    const notes = [...advisoryFor(routed, id), ...advisory[id]]
     if (blocking.length) {
-      out[id] = { status: 'blocked', notes: [...blocking, ...advisory[id]] }
-    } else if (advisory[id].length) {
-      out[id] = { status: 'attention', notes: advisory[id] }
+      out[id] = { status: 'blocked', notes: [...blocking, ...notes] }
+    } else if (notes.length) {
+      out[id] = { status: 'attention', notes }
     } else {
       out[id] = { status: 'ok', notes: [] }
     }

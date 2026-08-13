@@ -55,6 +55,20 @@ export const STAGE_ORDER = [
   'store', 'universe', 'features', 'periods', 'learner', 'portfolio', 'costs',
 ] as const satisfies readonly StageId[]
 
+const STAGE_ID_SET: ReadonlySet<string> = new Set(STAGE_ORDER)
+
+/**
+ * Whether a canvas node id names a stage.
+ *
+ * The canvas carries ids that are not stages -- the hub, and one per feature
+ * chip -- and a click handler that assumes otherwise hands a bad key to
+ * `stagePositions()`. A guard rather than a cast, so the compiler stops the
+ * next id family from repeating that.
+ */
+export function isStageId(id: string): id is StageId {
+  return STAGE_ID_SET.has(id)
+}
+
 export const STAGES: Readonly<Record<StageId, StageDef>> = {
   store: {
     id: 'store',

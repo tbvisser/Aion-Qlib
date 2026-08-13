@@ -6,7 +6,13 @@
  * the card is how a problem is found, which makes a mis-route worse than no
  * route: it sends the reader to a stage that is fine.
  *
- * Two rules, in order, and no catch-all:
+ * **Prefer `routeDefects`.** The server now names the field each defect is
+ * about and whether it blocks, so routing is a lookup through `STAGE_BY_FIELD`
+ * and severity is read rather than guessed. `routeWarnings` and the prefix
+ * tables below are what came before that, kept as the fallback for an older
+ * server and for a defect whose path names no spec field.
+ *
+ * The fallback is two rules, in order, and no catch-all:
  *
  *   1. An exact prefix from `StrategySpec.validate_windows` -> `periods`.
  *      A prefix table rather than keyword sniffing, because "test" and "train"
@@ -16,12 +22,27 @@
  *      because a bare substring match let a column named `a` swallow
  *      "Test overlaps validation -- results would be optimistic."
  *
- * Anything else routes to `null` and is shown page-level. The invariant
- * `routeWarnings` is tested against is that it never drops a warning: a server
- * string this file has not met must still reach the screen.
+ * Anything else routes to `null` and is shown page-level. The invariant both
+ * routers are tested against is that they never drop a warning: a server string
+ * this file has not met must still reach the screen.
  */
+import type { SpecDefect } from '@/lib/api'
 import { mentionsColumn } from '@/lib/blockers'
-import type { StageId } from './stages'
+import { fieldOf } from '@/lib/strategyOptions'
+import { STAGES, STAGE_ORDER, type StageId } from './stages'
+
+/**
+ * Which stage owns each `StrategySpec` field.
+ *
+ * Inverted from `STAGES[*].owns`, which `stages.test.ts` already asserts covers
+ * every field except `name`. That assertion is what makes this total: a defect
+ * carrying a real field name always has somewhere to land, so the prefix rules
+ * below are a fallback for a server too old to send paths rather than the
+ * primary mechanism they used to be.
+ */
+export const STAGE_BY_FIELD: ReadonlyMap<string, StageId> = new Map(
+  STAGE_ORDER.flatMap((id) => STAGES[id].owns.map((f) => [f as string, id] as const)),
+)
 
 /**
  * The complete output of `StrategySpec.validate_windows`
@@ -79,6 +100,10 @@ export interface RoutedWarning {
    * the canvas saying so.
    */
   advisory: boolean
+  /** The `SpecDefect` path, when the warning came from one. */
+  path?: string
+  /** The `SpecDefect` code, when the warning came from one. */
+  code?: string
 }
 
 /** Only what routing needs, so callers need not build a `FeatureDraft`. */
@@ -114,6 +139,31 @@ export function routeWarnings(
     stage: route(message, columns),
     message,
     advisory: isAdvisoryWarning(message),
+  }))
+}
+
+/**
+ * Every defect, each with the stage it belongs on.
+ *
+ * The same output as `routeWarnings`, arrived at by looking up rather than
+ * guessing: the stage comes from the field the server named, and the severity
+ * is the one the server assigned. Both of those used to be inferred from the
+ * message text, which meant rewording a sentence could move it to another card
+ * or silently change whether a strategy counted as runnable.
+ *
+ * The prefix rules stay as a fallback, for two cases: a path naming something
+ * that is not a spec field, and a server old enough to send a defect without
+ * one. Unrouted still means unrouted — page-level, never a fallback stage.
+ */
+export function routeDefects(
+  defects: readonly SpecDefect[], columns: readonly RoutableColumn[] = [],
+): RoutedWarning[] {
+  return defects.map((d) => ({
+    stage: STAGE_BY_FIELD.get(fieldOf(d.path ?? '')) ?? route(d.message, columns),
+    message: d.message,
+    advisory: d.severity === 'advisory',
+    path: d.path,
+    code: d.code,
   }))
 }
 

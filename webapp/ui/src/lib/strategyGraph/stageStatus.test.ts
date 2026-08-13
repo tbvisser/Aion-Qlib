@@ -97,6 +97,50 @@ describe('blockers', () => {
   })
 })
 
+/**
+ * `validate_execution` is the first tier of preview warning that does not block.
+ *
+ * This module read every routed warning as a blocker while no such tier existed,
+ * so wiring one in produced a card marked "1 blocking", a clay hub and — through
+ * `stageEdges` — every downstream edge drawn as a run that stops, all for a
+ * strategy that runs fine. These pin the severity where it is consumed.
+ */
+describe('execution advisories', () => {
+  const NO_FILL_GUARD = 'Nothing caps a daily move on this store, so a bad tick is '
+    + 'filled at full size. limit_threshold is the guard, as a fraction (0.5 blocks '
+    + 'moves beyond 50% in a day).'
+  const ONE_NAME = 'Holding one name makes the result a property of the single '
+    + 'highest-scoring symbol each day rather than of the signal.'
+
+  it('mark the card for attention, never as blocked', () => {
+    const status = stageStatus(routeWarnings([NO_FILL_GUARD, ONE_NAME]))
+    expect(status.costs.status).toBe('attention')
+    expect(status.costs.notes).toEqual([NO_FILL_GUARD])
+    expect(status.portfolio.status).toBe('attention')
+    expect(status.portfolio.notes).toEqual([ONE_NAME])
+  })
+
+  it('leave the run unblocked, so no edge downstream is broken', () => {
+    const status = stageStatus(routeWarnings([NO_FILL_GUARD, ONE_NAME]))
+    expect(firstBlockedStage(status)).toBeNull()
+  })
+
+  it('sit ahead of coverage on the same stage — the spec before the store', () => {
+    const status = stageStatus(routeWarnings([NO_FILL_GUARD]), {
+      coverage: coverage({ feature_partial_fields: ['vwap'] }),
+    })
+    expect(status.costs.notes).toEqual([NO_FILL_GUARD])
+    expect(status.features.status).toBe('attention')
+  })
+
+  it('still lose to a real blocker on the same stage', () => {
+    const status = stageStatus(routeWarnings([NO_FILL_GUARD, TEST_OVERLAP]))
+    expect(status.periods.status).toBe('blocked')
+    expect(status.costs.status).toBe('attention')
+    expect(firstBlockedStage(status)).toBe('periods')
+  })
+})
+
 describe('firstBlockedStage', () => {
   it('finds the earliest blocked stage in pipeline order', () => {
     const status = stageStatus(routeWarnings([TEST_OVERLAP]))
