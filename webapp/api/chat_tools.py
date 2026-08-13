@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict
 
 from .config import get_settings
 from .factorlab.operators import expression_language_block
-from .strategies import MODEL_SPECS, StrategySpec, StrategyStore, build_workflow_config
+from .strategies import MODEL_SPECS, StrategySpec, build_workflow_config
 from .strategy_gen import templates as strategy_templates
 from .strategy_gen.draft import (
     AssumedParam, DraftError, StrategyDraft, draft_json_schema, lower_draft,
@@ -294,16 +294,24 @@ def system_prompt(profile: str = "general") -> str:
 
 
 def build_registry(
-    run_manager, profile: str = "general", context: BuilderContext | None = None,
+    run_manager, principal, profile: str = "general",
+    context: BuilderContext | None = None,
 ) -> dict[str, Callable[..., dict]]:
     """Bind the tools to the live RunManager so chat-started runs are real runs.
 
     Returns only the profile's own tools. That is the enforcement point for
     "the builder assistant cannot run a backtest": the handler is not there to
     dispatch to, whatever the model asks for.
+
+    ``principal`` is who the assistant is acting for. Every strategy it saves
+    and every run it starts is owned by that person -- an agent is a way of
+    doing your own work, not a shared account, and without this a strategy the
+    assistant created would belong to nobody and be visible to no one.
     """
     settings = get_settings()
-    store = StrategyStore(settings.strategies_dir)
+    from .repositories import StrategyRepo
+
+    store = StrategyRepo(principal)
 
     from . import qlib_session, results
 
@@ -399,6 +407,7 @@ def build_registry(
         config = build_workflow_config(spec, provider_uri, region)
         stored = store.create(spec)
         run = run_manager.start(
+            principal,
             name=spec.name, config=config, kind="backtest", strategy_id=stored.id,
             extra={"model": spec.model, "handler": spec.handler,
                    "universe": spec.universe, "benchmark": spec.benchmark},
@@ -411,7 +420,7 @@ def build_registry(
         }
 
     def get_run_status(run_id: str) -> dict:
-        run = run_manager.get(run_id)
+        run = run_manager.get(principal, run_id)
         if run is None:
             return {"error": f"No run {run_id}"}
         payload = {k: run.meta.get(k) for k in
@@ -428,7 +437,7 @@ def build_registry(
         return {
             "runs": [
                 {k: r.get(k) for k in ("id", "name", "status", "phase", "model", "created_at")}
-                for r in run_manager.list(limit=limit)
+                for r in run_manager.list(principal, limit=limit)
             ]
         }
 

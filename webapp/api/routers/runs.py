@@ -4,30 +4,40 @@ from __future__ import annotations
 import asyncio
 import json
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+import yaml
+from fastapi import APIRouter, Body, Depends, HTTPException
+from pydantic import BaseModel, Field, ValidationError
 from sse_starlette.sse import EventSourceResponse
 
 from .. import marketdata, qlib_session, results, strategy_explain
+from ..auth import Principal, get_principal
 from ..config import get_settings
+from ..repositories import StrategyRepo
 from ..runner import RunBusy, RunManager
 from ..strategies import (
     HANDLERS,
     StrategySpec,
-    StrategyStore,
     available_models,
     build_workflow_config,
     coverage_report,
     render_yaml,
 )
+from ..strategy_gen import compat
+from ..strategy_gen.compat import check_spec, field_options
 from ..strategy_gen.draft import DraftError, lower_draft
 from ..strategy_gen import templates as strategy_templates
 
 router = APIRouter()
 
 _settings = get_settings()
-_store = StrategyStore(_settings.strategies_dir)
+# The RunManager stays a module singleton -- it owns live subprocess handles and
+# the concurrency semaphores, which are process state rather than per-user data.
+# Every method now takes the caller, and reads go through their own RLS context.
 _runs = RunManager(_settings.runs_dir, _settings.repo_root)
+
+
+def _repo(principal: Principal = Depends(get_principal)) -> StrategyRepo:
+    return StrategyRepo(principal)
 
 
 def _store_context(spec=None) -> tuple[str, str]:
@@ -55,42 +65,88 @@ def models() -> dict:
 
 
 @router.get("/strategies")
-def list_strategies() -> dict:
-    return {"strategies": [s.model_dump() for s in _store.list()]}
+def list_strategies(repo: StrategyRepo = Depends(_repo)) -> dict:
+    return {"strategies": [s.model_dump() for s in repo.list()]}
 
 
 @router.post("/strategies")
-def create_strategy(spec: StrategySpec) -> dict:
+def create_strategy(
+    spec: StrategySpec, repo: StrategyRepo = Depends(_repo)
+) -> dict:
     provider_uri, _ = _store_context(spec)
     problems = spec.validate_windows() + spec.validate_features(provider_uri)
     if problems:
         raise HTTPException(status_code=400, detail=" ".join(problems))
-    return _store.create(spec).model_dump()
+    return repo.create(spec).model_dump()
 
 
 @router.get("/strategies/{strategy_id}")
-def get_strategy(strategy_id: str) -> dict:
-    stored = _store.get(strategy_id)
+def get_strategy(
+    strategy_id: str, repo: StrategyRepo = Depends(_repo)
+) -> dict:
+    stored = repo.get(strategy_id)
     if stored is None:
+        # Also the answer for a strategy owned by someone else: confirming the
+        # id exists would leak that a colleague has one by that name.
         raise HTTPException(status_code=404, detail="No such strategy")
     return stored.model_dump()
 
 
 @router.put("/strategies/{strategy_id}")
-def update_strategy(strategy_id: str, spec: StrategySpec) -> dict:
+def update_strategy(
+    strategy_id: str, spec: StrategySpec, repo: StrategyRepo = Depends(_repo)
+) -> dict:
     provider_uri, _ = _store_context(spec)
     problems = spec.validate_windows() + spec.validate_features(provider_uri)
     if problems:
         raise HTTPException(status_code=400, detail=" ".join(problems))
-    stored = _store.update(strategy_id, spec)
+    stored = repo.update(strategy_id, spec)
     if stored is None:
+        if repo.get(strategy_id) is not None:
+            # Visible but not writable: shared with the org by a colleague.
+            raise HTTPException(
+                status_code=403,
+                detail="This strategy belongs to someone else in your organisation.",
+            )
+        raise HTTPException(status_code=404, detail="No such strategy")
+    return stored.model_dump()
+
+
+@router.put("/strategies/{strategy_id}/visibility")
+def set_strategy_visibility(
+    strategy_id: str,
+    visibility: str = Body(..., embed=True),
+    repo: StrategyRepo = Depends(_repo),
+) -> dict:
+    """Share a strategy with the organisation, or take it back.
+
+    Separate from the PUT above because sharing is not editing -- the spec is
+    untouched, and the two deserve different confirmation in the UI.
+    """
+    try:
+        stored = repo.set_visibility(strategy_id, visibility)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if stored is None:
+        if repo.get(strategy_id) is not None:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the owner can change who this strategy is shared with.",
+            )
         raise HTTPException(status_code=404, detail="No such strategy")
     return stored.model_dump()
 
 
 @router.delete("/strategies/{strategy_id}", status_code=204)
-def delete_strategy(strategy_id: str) -> None:
-    if not _store.delete(strategy_id):
+def delete_strategy(
+    strategy_id: str, repo: StrategyRepo = Depends(_repo)
+) -> None:
+    if not repo.delete(strategy_id):
+        if repo.get(strategy_id) is not None:
+            raise HTTPException(
+                status_code=403,
+                detail="This strategy belongs to someone else in your organisation.",
+            )
         raise HTTPException(status_code=404, detail="No such strategy")
 
 
@@ -105,9 +161,29 @@ def preview_strategy(spec: StrategySpec) -> dict:
     # can split them, and the split shows up as a builder drawing an end date
     # the run does not honour.
     safe_end = marketdata.store_calendar_end(spec.data_store)
+
+    # One pass for everything. `check_spec` runs the window, resolution, feature
+    # and execution checks in that order, so dropping the resolution codes
+    # rebuilds the legacy `warnings` list exactly -- window, feature, execution
+    # -- without inspecting the features or censusing the store a second time.
+    defects = check_spec(spec, provider_uri)
+
     return {
         "yaml": render_yaml(spec, provider_uri, region),
-        "warnings": spec.validate_windows() + spec.validate_features(provider_uri),
+        # Untyped, flat, and severity-free: what the wire carried before there
+        # was a `defects` field. Kept byte-identical because more than one
+        # consumer still reads it; `test_preview_warnings_still_mean_what_they_meant`
+        # is what stops it drifting.
+        "warnings": [d.message for d in defects
+                     if d.code not in compat.RESOLUTION_CODES],
+        # The same news, typed: a code, the field it is about, and whether it
+        # blocks. This is what lets the builder put a message on the stage that
+        # owns the field instead of matching prefixes against its wording, and
+        # it is the only one of the two that mentions an unknown benchmark.
+        "defects": [d.as_dict() for d in defects],
+        # What each field may be changed to, judged against the rest of the
+        # spec, so a control can grey out a value it would be refused for.
+        "options": field_options(spec),
         # Advisory, and kept out of `warnings` on purpose -- see `coverage_report`.
         "coverage": coverage_report(spec, provider_uri),
         "explain": {
@@ -121,6 +197,107 @@ def preview_strategy(spec: StrategySpec) -> dict:
                 safe_end if safe_end and spec.test_end > safe_end else spec.test_end
             ),
         },
+    }
+
+
+class ImportRequest(BaseModel):
+    """A strategy file, as text. YAML or JSON -- JSON is a subset of YAML."""
+
+    #: Generous but finite. `StrategySpec` caps features at 32 columns of 2000
+    #: characters, so anything past this is not a strategy.
+    text: str = Field(..., min_length=1, max_length=262_144)
+
+
+#: Written by `StrategyStore`, not chosen by anyone. An imported file keeps its
+#: contents and loses its identity: it becomes an unsaved draft in the builder,
+#: and letting a stale `id` through would make the next Save overwrite whatever
+#: that id points at now.
+_IMPORT_STRIPPED = ("id", "created_at", "updated_at")
+
+
+def _coerce_spec(values: dict) -> tuple[StrategySpec, list[dict]]:
+    """Build a spec out of whatever holds, and report what did not.
+
+    An import loads or it doesn't, and refusing the whole file over one bad
+    field is the behaviour that makes people edit YAML by hand instead. So a
+    field pydantic rejects is dropped to its default and *named*; the rest
+    survives. Nothing is silently corrected -- a dropped field comes back in
+    `rejected` with the value that was refused and the reason.
+
+    Bounded by the number of keys: each pass drops at least one, or re-raises.
+    """
+    values = {k: v for k, v in values.items() if k not in _IMPORT_STRIPPED}
+    values.setdefault("name", "Imported strategy")
+    rejected: list[dict] = []
+
+    for _ in range(len(values) + 1):
+        try:
+            return StrategySpec(**values), rejected
+        except ValidationError as exc:
+            dropped = False
+            for error in exc.errors():
+                loc = error["loc"]
+                key = loc[0] if loc else None
+                if isinstance(key, str) and key in values:
+                    rejected.append({
+                        "path": ".".join(str(p) for p in loc),
+                        "message": error["msg"],
+                        "value": values.pop(key),
+                    })
+                    dropped = True
+            if not dropped:
+                raise
+
+    raise AssertionError("unreachable: every pass drops a key or re-raises")
+
+
+@router.post("/strategies/import")
+def import_strategy(req: ImportRequest) -> dict:
+    """Parse a strategy file into a spec, and say what is wrong with it.
+
+    Parsed here rather than in the browser for two reasons: the UI ships no YAML
+    parser, and `StrategySpec` is the authority on what a strategy *is* -- a
+    second, looser reading of the format in TypeScript would accept files the
+    engine then refuses.
+
+    Nothing is saved and nothing is repaired. The caller gets the spec, the keys
+    that were not part of a strategy, the fields that would not hold their
+    value, and every defect -- which is what lets the builder open the file
+    as-is and mark the conflicting fields rather than rewriting them.
+    """
+    try:
+        parsed = yaml.safe_load(req.text)
+    except yaml.YAMLError as exc:
+        raise HTTPException(status_code=400,
+                            detail=f"This is not valid YAML or JSON: {exc}") from None
+    if not isinstance(parsed, dict):
+        raise HTTPException(
+            status_code=400,
+            detail=f"A strategy file is a mapping of fields; this is "
+                   f"{type(parsed).__name__}.")
+
+    known = set(StrategySpec.model_fields)
+    unknown = sorted(k for k in parsed if k not in known and k not in _IMPORT_STRIPPED)
+
+    try:
+        spec, rejected = _coerce_spec(parsed)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors(include_url=False)) from None
+
+    # Leniently: a store that is not built is a thing to report on the field,
+    # not a reason to refuse the file. `resolution_defects` says so itself.
+    try:
+        provider_uri, _ = marketdata.resolve_store(spec.data_store)
+    except marketdata.StoreError:
+        provider_uri = None
+
+    defects = check_spec(spec, provider_uri)
+    return {
+        "spec": spec.model_dump(),
+        "unknown_fields": unknown,
+        "rejected": rejected,
+        "defects": [d.as_dict() for d in defects],
+        "options": field_options(spec),
     }
 
 
@@ -210,14 +387,29 @@ def _without_snapshot(meta: dict) -> dict:
 
 
 @router.post("/runs")
-def start_run(req: StartRunRequest) -> dict:
+def start_run(req: StartRunRequest,
+              principal: Principal = Depends(get_principal)) -> dict:
     provider_uri, region = _store_context(req.spec)
-    problems = req.spec.validate_windows() + req.spec.validate_features(provider_uri)
+
+    # Every blocking check, not just the windows and the features.
+    #
+    # This used to run two of the four, and the two it skipped were the ones
+    # that resolve a name against the store the run will actually open. Run
+    # `e59f918b7ff5` is what that omission cost: `crypto_365` with benchmark
+    # `SPY`, accepted here, trained for 4m51s, then died in qlib's `Account`
+    # with "The benchmark ['SPY'] does not exist". The check existed the whole
+    # time -- on the draft pipeline, which this endpoint did not call.
+    #
+    # Advisory defects are deliberately not a gate: they describe a run that
+    # finishes and means nothing, which is a legitimate thing to ask for.
+    problems = compat.blocking(compat.check_spec(req.spec, provider_uri))
     if problems:
-        raise HTTPException(status_code=400, detail=" ".join(problems))
+        raise HTTPException(status_code=400,
+                            detail=" ".join(p.message for p in problems))
 
     config = build_workflow_config(req.spec, provider_uri, region)
     run = _runs.start(
+        principal,
         name=req.spec.name,
         config=config,
         kind="backtest",
@@ -242,30 +434,33 @@ def start_run(req: StartRunRequest) -> dict:
 
 
 @router.get("/runs")
-def list_runs(limit: int = 100) -> dict:
-    return {"runs": [_without_snapshot(m) for m in _runs.list(limit=limit)]}
+def list_runs(limit: int = 100,
+              principal: Principal = Depends(get_principal)) -> dict:
+    return {"runs": [_without_snapshot(m) for m in _runs.list(principal, limit=limit)]}
 
 
 @router.get("/runs/{run_id}")
-def get_run(run_id: str) -> dict:
-    run = _runs.get(run_id)
+def get_run(run_id: str, principal: Principal = Depends(get_principal)) -> dict:
+    run = _runs.get(principal, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="No such run")
     return _without_snapshot(run.meta)
 
 
 @router.post("/runs/{run_id}/cancel")
-def cancel_run(run_id: str) -> dict:
-    if not _runs.cancel(run_id):
+def cancel_run(run_id: str,
+               principal: Principal = Depends(get_principal)) -> dict:
+    if not _runs.cancel(principal, run_id):
         raise HTTPException(status_code=409, detail="Run is not cancellable")
     return {"ok": True}
 
 
 @router.delete("/runs/{run_id}", status_code=204)
-def delete_run(run_id: str) -> None:
+def delete_run(run_id: str,
+               principal: Principal = Depends(get_principal)) -> None:
     """Remove a finished run. Its MLflow artifacts stay on disk -- see RunManager.delete."""
     try:
-        deleted = _runs.delete(run_id)
+        deleted = _runs.delete(principal, run_id)
     except RunBusy:
         raise HTTPException(status_code=409, detail="Cancel the run before deleting it") from None
     if not deleted:
@@ -273,8 +468,9 @@ def delete_run(run_id: str) -> None:
 
 
 @router.get("/runs/{run_id}/log")
-def run_log(run_id: str, offset: int = 0, limit: int = 400) -> dict:
-    run = _runs.get(run_id)
+def run_log(run_id: str, offset: int = 0, limit: int = 400,
+            principal: Principal = Depends(get_principal)) -> dict:
+    run = _runs.get(principal, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="No such run")
     lines, next_offset = _runs.tail(run, offset=offset, limit=limit)
@@ -282,7 +478,8 @@ def run_log(run_id: str, offset: int = 0, limit: int = 400) -> dict:
 
 
 @router.get("/runs/{run_id}/events")
-async def run_events(run_id: str, offset: int = 0):
+async def run_events(run_id: str, offset: int = 0,
+                     principal: Principal = Depends(get_principal)):
     """SSE: status/phase changes and new log lines until the run ends.
 
     `offset` is how many log lines the client already holds. EventSource
@@ -290,7 +487,7 @@ async def run_events(run_id: str, offset: int = 0):
     restarted at line 0 re-sent the whole log into a client that appends --
     so a proxy timeout showed up as a duplicated backtest log.
     """
-    run = _runs.get(run_id)
+    run = _runs.get(principal, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="No such run")
 
@@ -298,7 +495,10 @@ async def run_events(run_id: str, offset: int = 0):
         offset_ = max(0, offset)
         last_state: tuple | None = None
         while True:
-            current = _runs.get(run_id)
+            # Re-read under the caller's own context on every tick, so a run
+            # that stops being visible mid-stream -- unshared, or deleted --
+            # ends the stream rather than continuing to leak its log.
+            current = _runs.get(principal, run_id)
             if current is None:
                 break
 
@@ -324,8 +524,9 @@ async def run_events(run_id: str, offset: int = 0):
 
 
 @router.get("/runs/{run_id}/report")
-def run_report(run_id: str) -> dict:
-    run = _runs.get(run_id)
+def run_report(run_id: str,
+               principal: Principal = Depends(get_principal)) -> dict:
+    run = _runs.get(principal, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="No such run")
     if run.meta.get("status") != "succeeded":
@@ -361,8 +562,9 @@ def run_report(run_id: str) -> dict:
 
 
 @router.get("/runs/{run_id}/predictions")
-def run_predictions(run_id: str, limit: int = 50) -> dict:
-    run = _runs.get(run_id)
+def run_predictions(run_id: str, limit: int = 50,
+                    principal: Principal = Depends(get_principal)) -> dict:
+    run = _runs.get(principal, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="No such run")
     qlib_session.require_qlib()

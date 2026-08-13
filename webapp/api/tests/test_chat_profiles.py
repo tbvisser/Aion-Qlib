@@ -17,6 +17,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from webapp.api.auth import Principal
 from webapp.api import chat_tools
 from webapp.api.chat_tools import (
     PROFILES, BuilderContext, build_registry, render_context, system_prompt, tool_schemas,
@@ -44,8 +45,20 @@ class ExplodingRunManager:
         raise AssertionError("the builder assistant listed runs")
 
 
+#: Who the assistant is acting for. Every strategy it saves and every run it
+#: starts is owned by this account -- an agent is a way of doing your own work,
+#: not a shared login. These tests only need the identity to exist.
+FAKE_PRINCIPAL = Principal(
+    user_id="00000000-0000-0000-0000-000000000001",
+    email="tests@example.invalid",
+    org_id="00000000-0000-0000-0000-000000000002",
+    org_role="owner",
+)
+
+
 def builder(context: BuilderContext | None = None):
-    return build_registry(ExplodingRunManager(), profile="builder", context=context)
+    return build_registry(ExplodingRunManager(), FAKE_PRINCIPAL,
+                          profile="builder", context=context)
 
 
 # --------------------------------------------------------------------------
@@ -79,7 +92,7 @@ def test_every_schema_has_a_handler_and_every_handler_a_schema(profile):
     with "Unknown tool"; a handler with no schema is dead code.
     """
     schemas = {t["function"]["name"] for t in tool_schemas(profile)}
-    handlers = set(build_registry(ExplodingRunManager(), profile=profile))
+    handlers = set(build_registry(ExplodingRunManager(), FAKE_PRINCIPAL, profile=profile))
     assert schemas == handlers
 
 

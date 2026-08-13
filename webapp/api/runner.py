@@ -8,6 +8,20 @@ also gives us free cancellation and a clean log per run.
 Runs execute with cwd = <repo>/examples so their MLflow file store lands in
 examples/mlruns -- the same store the qlib-mlflow-ui container already serves,
 and the same one the bundled benchmarks write to.
+
+Who owns a run lives in Postgres (``aion.runs``); its config and log stay on
+disk under ``runs_dir/<run_id>/``. The split is deliberate: a log is an append-
+heavy stream that files handle well and rows do not, and the row is what gates
+access to the file anyway.
+
+Note on identity, because there are two paths and they are not interchangeable.
+Reads and the initial insert run as the caller under
+:func:`webapp.api.db.user_tx`, so row level security decides what is visible and
+which organisation a run may be created in. Everything the *run thread* writes
+afterwards goes through :func:`webapp.api.db.service_tx`, because that thread
+outlives the request that started it -- by the time a two-hour backtest records
+its outcome the user's access token is long expired. It scopes by run id, and
+the ownership check already happened at the door.
 """
 from __future__ import annotations
 
@@ -26,15 +40,24 @@ from typing import Any, Literal
 
 import yaml
 
+from .db import service_tx, user_tx
+
 RunStatus = Literal["queued", "running", "succeeded", "failed", "cancelled"]
 
-#: Backtests allowed to train at once.
+#: Backtests allowed to train at once, across everybody.
 #:
-#: One. `qrun` trains a gradient-booster and then walks a full backtest; two of
-#: those on a laptop do not finish in half the time each, they thrash. The
-#: threads pinned to 1 in `_execute` are per-process, so concurrency here
-#: multiplies rather than shares.
-MAX_CONCURRENT_RUNS = 1
+#: `qrun` trains a gradient-booster and then walks a full backtest; several of
+#: those on one box do not finish in a fraction of the time each, they thrash.
+#: The threads pinned to 1 in `_execute` are per-process, so concurrency here
+#: multiplies rather than shares. Two rather than one only because a single
+#: global slot became a cross-user queue the moment the platform had more than
+#: one user: a colleague's long backtest would hold everyone else's at "Waiting".
+MAX_CONCURRENT_RUNS = 2
+
+#: And at most this many per person, so nobody can take the whole machine by
+#: queueing ten runs. This is the half that makes the global cap fair rather
+#: than first-come-first-served.
+MAX_CONCURRENT_RUNS_PER_USER = 1
 
 # qrun prints these; they are the only reliable progress signal it emits.
 _PHASE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -50,8 +73,26 @@ class RunBusy(Exception):
     """A run that can still write to its own directory cannot be deleted."""
 
 
+#: Lifecycle fields with a column of their own in ``aion.runs``. Anything else
+#: passed to ``Run.update`` is a strategy knob and lands in the ``params`` blob,
+#: which is what keeps the wire shape flat for the UI without the table growing
+#: a column every time the builder gains a setting.
+_RUN_COLUMNS = {
+    "name", "kind", "strategy_id", "status", "phase", "exit_code", "error",
+    "error_hint", "experiment_name", "metrics", "started_at", "finished_at",
+    "visibility",
+}
+
+#: Written as jsonb rather than a scalar.
+_RUN_JSON_COLUMNS = {"metrics"}
+
+#: Written as timestamptz. The meta dict carries ISO strings; Postgres wants a
+#: timestamp, and letting it cast keeps one representation on the wire.
+_RUN_TIME_COLUMNS = {"started_at", "finished_at"}
+
+
 class Run:
-    """In-memory handle plus the on-disk record."""
+    """In-memory handle plus the database record."""
 
     def __init__(self, run_id: str, directory: Path, meta: dict[str, Any]):
         self.id = run_id
@@ -68,17 +109,43 @@ class Run:
     def config_path(self) -> Path:
         return self.dir / "config.yaml"
 
-    @property
-    def meta_path(self) -> Path:
-        return self.dir / "run.json"
-
-    def save(self) -> None:
-        with self._lock:
-            self.meta_path.write_text(json.dumps(self.meta, indent=2))
-
     def update(self, **fields) -> None:
+        """Apply changes in memory and persist them.
+
+        Called from the run thread, so it writes as ``service_role``: this
+        happens long after the request that started the run has returned, and
+        the user's token may no longer be valid. The run id is the scope.
+        """
         self.meta.update(fields)
-        self.save()
+
+        columns: dict[str, Any] = {}
+        params: dict[str, Any] = {}
+        for key, value in fields.items():
+            if key in _RUN_COLUMNS:
+                columns[key] = json.dumps(value) if key in _RUN_JSON_COLUMNS else value
+            else:
+                params[key] = value
+
+        sets = [f"{k} = %s::timestamptz" if k in _RUN_TIME_COLUMNS
+                else f"{k} = %s::jsonb" if k in _RUN_JSON_COLUMNS
+                else f"{k} = %s"
+                for k in columns]
+        values = list(columns.values())
+        if params:
+            # Merge rather than replace: two updates touching different knobs
+            # must not erase each other.
+            sets.append("params = params || %s::jsonb")
+            values.append(json.dumps(params))
+        if not sets:
+            return
+        sets.append("updated_at = NOW()")
+
+        with self._lock:
+            with service_tx() as cur:
+                cur.execute(
+                    f"UPDATE aion.runs SET {', '.join(sets)} WHERE id = %s",
+                    (*values, self.id),
+                )
 
 
 def default_python(repo_root: Path) -> Path:
@@ -106,7 +173,8 @@ class RunManager:
     """Owns the run directory and the live subprocesses."""
 
     def __init__(self, runs_dir: Path, repo_root: Path, venv_python: Path | None = None,
-                 max_concurrent: int = MAX_CONCURRENT_RUNS):
+                 max_concurrent: int = MAX_CONCURRENT_RUNS,
+                 max_per_user: int = MAX_CONCURRENT_RUNS_PER_USER):
         self.runs_dir = runs_dir
         self.repo_root = repo_root
         self.runs_dir.mkdir(parents=True, exist_ok=True)
@@ -117,52 +185,118 @@ class RunManager:
         # reasonable, since nothing said a backtest was already going -- put
         # three qrun subprocesses on the machine, each training a model.
         self._slot = threading.BoundedSemaphore(max(1, max_concurrent))
+        # One semaphore per person, created on first use. Without this the
+        # global cap is pure first-come-first-served and one enthusiastic user
+        # can occupy every slot.
+        self._max_per_user = max(1, max_per_user)
+        self._user_slots: dict[str, threading.BoundedSemaphore] = {}
+        self._user_slots_lock = threading.Lock()
+
+    def _user_slot(self, user_id: str) -> threading.BoundedSemaphore:
+        with self._user_slots_lock:
+            slot = self._user_slots.get(user_id)
+            if slot is None:
+                slot = threading.BoundedSemaphore(self._max_per_user)
+                self._user_slots[user_id] = slot
+            return slot
 
     # -- persistence ------------------------------------------------------
-    def _load(self, run_id: str) -> Run | None:
-        directory = self.runs_dir / run_id
-        meta_path = directory / "run.json"
-        if not meta_path.exists():
-            return None
-        run = Run(run_id, directory, json.loads(meta_path.read_text()))
-        # A run reaches _load only when this process has no handle on it, so a
-        # disk record still saying queued/running is a run some earlier API
-        # process left behind: its subprocess is untracked and will never
-        # report back. Settle it now rather than serving "running" forever.
-        # (Assumes one API process owns runs_dir — true today with a single
-        # uvicorn worker. With --workers > 1 this would falsely fail a
-        # sibling worker's live runs.)
-        if run.meta.get("status") in ("queued", "running"):
-            run.update(
-                status="failed", phase="Interrupted",
-                error="Interrupted by an API restart",
-                error_hint=(
-                    "The API process restarted while this run was in flight, so "
-                    "its subprocess is no longer tracked. Start the run again."
-                ),
-                finished_at=datetime.now(timezone.utc).isoformat(),
-            )
-        self._runs[run_id] = run
-        return run
+    #: Every column _meta_from_row expects. Named once so SELECT and RETURNING
+    #: cannot drift apart -- they must produce the same shape.
+    _FIELDS = (
+        "id, user_id, visibility, name, kind, strategy_id, status, phase, "
+        "exit_code, error, error_hint, experiment_name, params, metrics, "
+        "created_at, started_at, finished_at"
+    )
+    _SELECT = f"SELECT {_FIELDS} FROM aion.runs "
 
-    def get(self, run_id: str) -> Run | None:
+    @staticmethod
+    def _meta_from_row(row: dict) -> dict:
+        """Flatten a row back into the meta shape the UI has always received.
+
+        The strategy knobs (model, handler, universe, costs...) were top-level
+        keys in run.json and stay top-level here; in the table they live in
+        `params` so the schema does not grow a column per builder setting.
+        """
+        def iso(value):
+            return value.isoformat() if value is not None else None
+
+        return {
+            **(row.get("params") or {}),
+            "id": row["id"],
+            "user_id": str(row["user_id"]),
+            "visibility": row["visibility"],
+            "name": row["name"],
+            "kind": row["kind"],
+            "strategy_id": row["strategy_id"],
+            "status": row["status"],
+            "phase": row["phase"],
+            "exit_code": row["exit_code"],
+            "error": row["error"],
+            "error_hint": row["error_hint"],
+            "experiment_name": row["experiment_name"],
+            "metrics": row["metrics"],
+            "created_at": iso(row["created_at"]),
+            "started_at": iso(row["started_at"]),
+            "finished_at": iso(row["finished_at"]),
+        }
+
+    def reconcile_orphans(self) -> int:
+        """Fail runs left `queued`/`running` by a previous API process.
+
+        Their subprocesses are untracked and will never report back, so serving
+        "running" forever is a lie. Called once at startup.
+
+        Assumes one API process owns runs_dir -- true with a single uvicorn
+        worker. With --workers > 1 this would falsely fail a sibling's live runs,
+        which is the same assumption the file-based version made and the reason
+        MAX_CONCURRENT_RUNS is enforced in-process rather than in the database.
+        """
+        with service_tx() as cur:
+            cur.execute(
+                "UPDATE aion.runs SET status = 'failed', phase = 'Interrupted', "
+                "  error = 'Interrupted by an API restart', error_hint = %s, "
+                "  finished_at = NOW(), updated_at = NOW() "
+                "WHERE status IN ('queued', 'running')",
+                ("The API process restarted while this run was in flight, so its "
+                 "subprocess is no longer tracked. Start the run again.",),
+            )
+            return cur.rowcount
+
+    def get(self, principal, run_id: str) -> Run | None:
+        """One run, if this caller may see it.
+
+        RLS answers the ownership question: a run belonging to someone else
+        simply is not in the result, so there is no separate permission check to
+        forget.
+        """
         if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", run_id):
             return None
-        return self._runs.get(run_id) or self._load(run_id)
+        with user_tx(principal.user_id) as cur:
+            cur.execute(self._SELECT + "WHERE id = %s", (run_id,))
+            row = cur.fetchone()
+        if row is None:
+            return None
+        meta = self._meta_from_row(row)
+        # Reuse the live handle when this process owns the subprocess -- it
+        # holds the Popen needed to cancel -- but take the freshly read row as
+        # the truth about status.
+        live = self._runs.get(run_id)
+        if live is not None:
+            live.meta = meta
+            return live
+        return Run(run_id, self.runs_dir / run_id, meta)
 
-    def list(self, limit: int = 100) -> list[dict]:
-        out: list[dict] = []
-        for directory in self.runs_dir.iterdir():
-            if not directory.is_dir():
-                continue
-            run = self.get(directory.name)
-            if run:
-                out.append(self._public(run))
-        out.sort(key=lambda r: r["created_at"], reverse=True)
-        return out[:limit]
+    def list(self, principal, limit: int = 100) -> list[dict]:
+        limit = max(1, min(int(limit), 1000))
+        with user_tx(principal.user_id) as cur:
+            cur.execute(
+                self._SELECT + "ORDER BY created_at DESC LIMIT %s", (limit,)
+            )
+            return [self._meta_from_row(row) for row in cur.fetchall()]
 
     # -- lifecycle --------------------------------------------------------
-    def start(self, *, name: str, config: dict, kind: str = "backtest",
+    def start(self, principal, *, name: str, config: dict, kind: str = "backtest",
               strategy_id: str | None = None, extra: dict | None = None) -> Run:
         run_id = uuid.uuid4().hex[:12]
         directory = self.runs_dir / run_id
@@ -175,37 +309,55 @@ class RunManager:
         # Read back by results.resolve_experiment, which also knows the
         # pre-rename `qlibstudio-` prefix.
         config = {**config, "experiment_name": f"aion-{run_id}"}
+        params = dict(extra or {})
 
-        run = Run(run_id, directory, {
-            "id": run_id,
-            "name": name,
-            "kind": kind,
-            "strategy_id": strategy_id,
-            "status": "queued",
-            "phase": "Queued",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "started_at": None,
-            "finished_at": None,
-            "exit_code": None,
-            "error": None,
-            "experiment_name": config["experiment_name"],
-            **(extra or {}),
-        })
+        # Written as the caller, so the INSERT policy checks org membership. If
+        # this fails nothing else has happened yet.
+        with user_tx(principal.user_id) as cur:
+            cur.execute(
+                "INSERT INTO aion.runs "
+                "  (id, org_id, user_id, name, kind, strategy_id, status, phase, "
+                "   experiment_name, params) "
+                "VALUES (%s, %s, %s, %s, %s, %s, 'queued', 'Queued', %s, %s::jsonb) "
+                f"RETURNING {self._FIELDS}",
+                (run_id, principal.org_id, principal.user_id, name, kind,
+                 strategy_id, config["experiment_name"], json.dumps(params)),
+            )
+            row = cur.fetchone()
+
+        run = Run(run_id, directory, self._meta_from_row(row))
         run.config_path.write_text(yaml.safe_dump(config, sort_keys=False, width=100))
-        run.save()
         self._runs[run_id] = run
 
-        threading.Thread(target=self._execute, args=(run,), daemon=True).start()
+        threading.Thread(
+            target=self._execute, args=(run, principal.user_id), daemon=True
+        ).start()
         return run
 
-    def _execute(self, run: Run) -> None:
-        """Wait for a slot, then run. The wait is what makes `queued` true."""
-        if self._slot.acquire(blocking=False):
-            waited = False
-        else:
-            run.update(phase="Waiting for the running backtest")
-            self._slot.acquire()
+    def _execute(self, run: Run, user_id: str) -> None:
+        """Wait for a slot, then run. The wait is what makes `queued` true.
+
+        Two gates, taken in a fixed order so they cannot deadlock: the caller's
+        own slot first, then a global one. Holding a personal slot while waiting
+        for the machine is harmless -- it only blocks that same person's next
+        run, which is exactly the intent.
+        """
+        user_slot = self._user_slot(user_id)
+        waited = False
+
+        if not user_slot.acquire(blocking=False):
+            run.update(phase="Waiting for your other backtest")
+            user_slot.acquire()
             waited = True
+
+        try:
+            if not self._slot.acquire(blocking=False):
+                run.update(phase="Waiting for a free slot on the machine")
+                self._slot.acquire()
+                waited = True
+        except BaseException:
+            user_slot.release()
+            raise
 
         try:
             # Cancelling a queued run is allowed, and by the time the slot frees
@@ -220,6 +372,7 @@ class RunManager:
             self._run_subprocess(run)
         finally:
             self._slot.release()
+            user_slot.release()
 
     def _run_subprocess(self, run: Run) -> None:
         # cwd = examples/ so mlruns lands in the store the MLflow UI serves.
@@ -274,8 +427,8 @@ class RunManager:
                        error=tail, error_hint=_diagnose(tail),
                        finished_at=datetime.now(timezone.utc).isoformat())
 
-    def cancel(self, run_id: str) -> bool:
-        run = self.get(run_id)
+    def cancel(self, principal, run_id: str) -> bool:
+        run = self.get(principal, run_id)
         if not run or run.meta.get("status") not in ("queued", "running"):
             return False
         run.update(status="cancelled", phase="Cancelled")
@@ -289,28 +442,35 @@ class RunManager:
                 process.terminate()
         return True
 
-    def delete(self, run_id: str) -> bool:
-        """Remove a finished run's directory. False when there was no such run.
+    def delete(self, principal, run_id: str) -> bool:
+        """Remove a finished run. False when there was no such run.
 
-        Only the run directory goes. Its MLflow experiment (`aion-<id>`) and
-        artifacts stay under `examples/mlruns` -- reaching those needs qlib
-        imported, and a delete that can 503 because `require_qlib` failed is
-        worse than one that is honest about what it removes.
+        Only the row and the run directory go. The MLflow experiment
+        (`aion-<id>`) and its artifacts stay under `examples/mlruns` -- reaching
+        those needs qlib imported, and a delete that can 503 because
+        `require_qlib` failed is worse than one that is honest about what it
+        removes.
+
+        The DELETE goes through the caller's own transaction, so RLS decides
+        whether they may remove it. The directory is only unlinked if the row
+        actually went -- otherwise a colleague viewing a shared run could
+        destroy its log while leaving the record intact.
         """
-        run = self.get(run_id)   # validates the id; run.dir cannot escape runs_dir
+        run = self.get(principal, run_id)   # validates the id; dir cannot escape runs_dir
         if run is None:
             return False
         if run.meta.get("status") in ("queued", "running"):
             raise RunBusy(run_id)
+        with user_tx(principal.user_id) as cur:
+            cur.execute("DELETE FROM aion.runs WHERE id = %s", (run_id,))
+            removed = cur.rowcount > 0
+        if not removed:
+            return False
         shutil.rmtree(run.dir, ignore_errors=True)
         self._runs.pop(run_id, None)
         return True
 
     # -- presentation -----------------------------------------------------
-    @staticmethod
-    def _public(run: Run) -> dict:
-        return dict(run.meta)
-
     def tail(self, run: Run, offset: int = 0, limit: int = 400) -> tuple[list[str], int]:
         if not run.log_path.exists():
             return [], offset

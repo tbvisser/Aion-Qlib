@@ -12,13 +12,14 @@ import logging
 from typing import Any, Literal
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sse_starlette.sse import EventSourceResponse
 
 from ..chat_tools import (
     PROFILES, BuilderContext, build_registry, render_context, system_prompt, tool_schemas,
 )
+from ..auth import Principal, get_principal
 from ..config import get_settings
 from .runs import _runs  # the live RunManager, so chat-started runs are real runs
 
@@ -144,12 +145,15 @@ def chat_config(profile: str = "general") -> dict:
 
 
 @router.post("/chat")
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest,
+               principal: Principal = Depends(get_principal)):
     settings = get_settings()
     if not settings.openrouter_api_key:
         raise HTTPException(status_code=503, detail="OPENROUTER_API_KEY is not set in webapp/.env")
 
-    registry = build_registry(_runs, profile=req.profile, context=req.context)
+    # Bound to the caller: a strategy the assistant saves is theirs, and it can
+    # only see runs they could have seen themselves.
+    registry = build_registry(_runs, principal, profile=req.profile, context=req.context)
     tools = tool_schemas(req.profile)
     model = req.model or settings.openrouter_model
 

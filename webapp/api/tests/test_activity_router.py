@@ -31,7 +31,7 @@ def clean_jobs():
 
 @pytest.fixture
 def no_runs(monkeypatch):
-    monkeypatch.setattr(runs_router._runs, "list", lambda limit=100: [])
+    monkeypatch.setattr(runs_router._runs, "list", lambda principal, limit=100: [])
 
 
 def _job(job_id: str, status: str, started: str, **extra) -> dict:
@@ -97,7 +97,8 @@ def test_merges_and_sorts_newest_first(client, monkeypatch):
     macro_router._JOBS["m1"] = _job("m1", "done", "2026-08-11T12:00:00+00:00")
     monkeypatch.setattr(
         runs_router._runs, "list",
-        lambda limit=100: [_run_meta("r1", "succeeded", "2026-08-11T11:00:00+00:00")],
+        lambda principal, limit=100: [
+            _run_meta("r1", "succeeded", "2026-08-11T11:00:00+00:00")],
     )
 
     ids = [i["id"] for i in client.get("/api/activity").json()["items"]]
@@ -108,7 +109,7 @@ def test_limit_truncates(client, monkeypatch):
     for hour in range(5):
         macro_router._JOBS[f"m{hour}"] = _job(
             f"m{hour}", "done", f"2026-08-11T0{hour}:00:00+00:00")
-    monkeypatch.setattr(runs_router._runs, "list", lambda limit=100: [])
+    monkeypatch.setattr(runs_router._runs, "list", lambda principal, limit=100: [])
 
     items = client.get("/api/activity", params={"limit": 2}).json()["items"]
     assert [i["id"] for i in items] == ["macro:m4", "macro:m3"]

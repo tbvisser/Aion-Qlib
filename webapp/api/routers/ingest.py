@@ -25,9 +25,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncIterator
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+
+from ..auth import Principal, require_org_admin
 
 from .. import qlib_session
 from ..config import get_settings
@@ -114,16 +116,16 @@ def data_status() -> dict:
     }
 
 
-@router.post("/data/refresh")
-def start_refresh(req: RefreshRequest) -> dict:
-    settings = get_settings()
-    if not settings.eodhd_api_key:
-        raise HTTPException(
-            status_code=400,
-            detail="EODHD_API_KEY is not set — add it to webapp/.env and restart the API.",
-        )
+def _new_job_id() -> str:
+    return uuid.uuid4().hex[:12]
 
-    job_id = uuid.uuid4().hex[:12]
+
+def _enqueue_job(job_id: str, req: RefreshRequest) -> None:
+    """Create the in-memory job record if no ingest is already running.
+
+    Split out so the scheduled-task scheduler can reuse the same worker path
+    without going through the HTTP router.
+    """
     job = {
         "job_id": job_id,
         "status": "running",
@@ -138,11 +140,29 @@ def start_refresh(req: RefreshRequest) -> dict:
 
     with _jobs_lock:
         if any(j["status"] == "running" for j in _JOBS.values()):
-            raise HTTPException(
-                status_code=409,
-                detail="An ingest is already running. Two writers would corrupt the store.",
-            )
+            raise RuntimeError("An ingest is already running. Two writers would corrupt the store.")
         _JOBS[job_id] = job
+
+
+@router.post("/data/refresh")
+def start_refresh(
+    req: RefreshRequest,
+    _admin: Principal = Depends(require_org_admin),
+) -> dict:
+    # Admin-gated: this rewrites the qlib binary store, which every member of
+    # the organisation reads. It is shared infrastructure, not personal data.
+    settings = get_settings()
+    if not settings.eodhd_api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="EODHD_API_KEY is not set — add it to webapp/.env and restart the API.",
+        )
+
+    job_id = _new_job_id()
+    try:
+        _enqueue_job(job_id, req)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
 
     _executor.submit(_run_job, job_id, req)
     return {"status": "started", "job_id": job_id}

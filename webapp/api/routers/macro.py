@@ -33,12 +33,13 @@ from typing import AsyncIterator, Literal
 
 import numpy as np
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .. import macro, macro_analytics, macro_cache, macro_regime
 from .. import macro_registry as registry
+from ..auth import Principal, get_principal, require_org_admin
 from ..config import get_settings
 from ..macro_analytics import MacroAnalyticsError
 
@@ -373,16 +374,16 @@ class MacroRefreshRequest(BaseModel):
     end: str | None = None
 
 
-@router.post("/macro/refresh")
-def start_macro_refresh(req: MacroRefreshRequest) -> dict:
-    settings = get_settings()
-    if not settings.eodhd_api_key:
-        raise HTTPException(
-            status_code=400,
-            detail="EODHD_API_KEY is not set — add it to webapp/.env and restart the API.",
-        )
+def _new_job_id() -> str:
+    return uuid.uuid4().hex[:12]
 
-    job_id = uuid.uuid4().hex[:12]
+
+def _enqueue_job(job_id: str, req: MacroRefreshRequest) -> None:
+    """Create the in-memory job record if no macro refresh is already running.
+
+    Split out so the scheduled-task scheduler can reuse the same worker path
+    without going through the HTTP router.
+    """
     job = {
         "job_id": job_id, "status": "running", "started_at": _now(),
         "finished_at": None, "params": req.model_dump(),
@@ -392,11 +393,28 @@ def start_macro_refresh(req: MacroRefreshRequest) -> dict:
     }
     with _jobs_lock:
         if any(j["status"] == "running" for j in _JOBS.values()):
-            raise HTTPException(
-                status_code=409,
-                detail="A macro refresh is already running.",
-            )
+            raise RuntimeError("A macro refresh is already running.")
         _JOBS[job_id] = job
+
+
+@router.post("/macro/refresh")
+def start_macro_refresh(
+    req: MacroRefreshRequest,
+    _admin: Principal = Depends(require_org_admin),
+) -> dict:
+    # Admin-gated: rewrites the shared macro parquet cache under webapp/data.
+    settings = get_settings()
+    if not settings.eodhd_api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="EODHD_API_KEY is not set — add it to webapp/.env and restart the API.",
+        )
+
+    job_id = _new_job_id()
+    try:
+        _enqueue_job(job_id, req)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
 
     _executor.submit(_run_refresh, job_id, req)
     return {"status": "started", "job_id": job_id}
@@ -550,7 +568,8 @@ def macro_regime_lenses() -> dict:
 # --------------------------------------------------------------------------
 # Linkage
 # --------------------------------------------------------------------------
-def _returns_for(kind: Subject, subject_id: str, curve: str) -> tuple[pd.Series, dict]:
+def _returns_for(principal: Principal, kind: Subject, subject_id: str,
+                 curve: str) -> tuple[pd.Series, dict]:
     """Daily returns for a strategy, run or portfolio, plus a subject echo.
 
     A strategy resolves to its most recent succeeded run: macro linkage is
@@ -566,9 +585,9 @@ def _returns_for(kind: Subject, subject_id: str, curve: str) -> tuple[pd.Series,
 
     if kind == "portfolio":
         from .. import portfolio_nav
-        from ..portfolios import PortfolioStore
+        from ..repositories import PortfolioRepo
 
-        stored = PortfolioStore(settings.portfolios_dir).get(subject_id)
+        stored = PortfolioRepo(principal).get(subject_id)
         if stored is None:
             raise HTTPException(status_code=404, detail=f"Unknown portfolio '{subject_id}'")
         try:
@@ -582,21 +601,21 @@ def _returns_for(kind: Subject, subject_id: str, curve: str) -> tuple[pd.Series,
                          "run_id": None}
 
     if kind == "run":
-        run = runs.get(subject_id)
+        run = runs.get(principal, subject_id)
         if run is None:
             raise HTTPException(status_code=404, detail=f"Unknown run '{subject_id}'")
         meta = run.meta
     else:
-        from ..strategies import StrategyStore
+        from ..repositories import StrategyRepo
 
-        stored = StrategyStore(settings.strategies_dir).get(subject_id)
+        stored = StrategyRepo(principal).get(subject_id)
         if stored is None:
             raise HTTPException(status_code=404, detail=f"Unknown strategy '{subject_id}'")
         # `list` returns metadata dicts. The generous limit matters here: the
         # default of 100 would start hiding a strategy's only successful run
         # once the runs directory fills up.
         candidates = [
-            m for m in runs.list(limit=1000)
+            m for m in runs.list(principal, limit=1000)
             if m.get("strategy_id") == subject_id and m.get("status") == "succeeded"
         ]
         if not candidates:
@@ -649,6 +668,7 @@ def macro_linkage(
     cov: Literal["hac", "ols"] = "hac",
     event_type: str = "",
     country: str = "US",
+    principal: Principal = Depends(get_principal),
 ) -> dict:
     """Everything the linkage panel needs, in one call.
 
@@ -656,7 +676,7 @@ def macro_linkage(
     seven-factor regression can still support a correlation ranking, and
     reporting three panels plus one honest refusal beats refusing all four.
     """
-    returns, subject = _returns_for(kind, id, curve)
+    returns, subject = _returns_for(principal, kind, id, curve)
     out: dict = {"subject": subject, "window": _window(returns),
                  "run_id": subject.get("run_id"), "curve": curve, "notes": {}}
 
@@ -748,8 +768,9 @@ def _event_summary(returns: pd.Series, country: str, event_type: str,
     return out
 
 
-def _primitive(kind: Subject, subject_id: str, curve: str, fn) -> dict:
-    returns, subject = _returns_for(kind, subject_id, curve)
+def _primitive(principal: Principal, kind: Subject, subject_id: str,
+               curve: str, fn) -> dict:
+    returns, subject = _returns_for(principal, kind, subject_id, curve)
     try:
         return {"subject": subject, "window": _window(returns), "result": fn(returns)}
     except MacroAnalyticsError as exc:
@@ -758,8 +779,9 @@ def _primitive(kind: Subject, subject_id: str, curve: str, fn) -> dict:
 
 @router.get("/macro/{kind}/{subject_id}/drivers")
 def linkage_drivers(kind: Subject, subject_id: str, curve: str = "strategy",
-                    max_lag: int = Query(0, ge=0, le=10)) -> dict:
-    return _primitive(kind, subject_id, curve, lambda r: [
+                    max_lag: int = Query(0, ge=0, le=10),
+                    principal: Principal = Depends(get_principal)) -> dict:
+    return _primitive(principal, kind, subject_id, curve, lambda r: [
         _payload(d) for d in macro_analytics.drivers(r, max_lag=max_lag)
     ])
 
@@ -767,9 +789,10 @@ def linkage_drivers(kind: Subject, subject_id: str, curve: str = "strategy",
 @router.get("/macro/{kind}/{subject_id}/betas")
 def linkage_betas(kind: Subject, subject_id: str, curve: str = "strategy",
                   cov: Literal["hac", "ols"] = "hac",
-                  keys: str = "") -> dict:
+                  keys: str = "",
+                  principal: Principal = Depends(get_principal)) -> dict:
     selected = [k.strip().upper() for k in keys.split(",") if k.strip()] or None
-    return _primitive(kind, subject_id, curve, lambda r: _payload(
+    return _primitive(principal, kind, subject_id, curve, lambda r: _payload(
         macro_analytics.factor_betas(r, keys=selected, cov=cov)
     ))
 
@@ -778,8 +801,9 @@ def linkage_betas(kind: Subject, subject_id: str, curve: str = "strategy",
 def linkage_regimes(kind: Subject, subject_id: str, curve: str = "strategy",
                     rates: str = "US2Y", vol: str = "VIX",
                     momentum: int = Query(60, ge=5, le=252),
-                    lookback: int = Query(756, ge=252, le=2520)) -> dict:
-    return _primitive(kind, subject_id, curve, lambda r: _payload(
+                    lookback: int = Query(756, ge=252, le=2520),
+                    principal: Principal = Depends(get_principal)) -> dict:
+    return _primitive(principal, kind, subject_id, curve, lambda r: _payload(
         macro_analytics.regimes(r, rates_key=rates, vol_key=vol,
                                 momentum=momentum, lookback=lookback)
     ))
@@ -789,14 +813,15 @@ def linkage_regimes(kind: Subject, subject_id: str, curve: str = "strategy",
 def linkage_event_study(kind: Subject, subject_id: str, event_type: str,
                         curve: str = "strategy", country: str = "US",
                         pre: int = Query(5, ge=0, le=20),
-                        post: int = Query(5, ge=1, le=20)) -> dict:
+                        post: int = Query(5, ge=1, le=20),
+                        principal: Principal = Depends(get_principal)) -> dict:
     dates = macro_cache.release_dates(event_type, country)
     if not dates:
         raise HTTPException(
             status_code=404,
             detail=f"No cached releases of '{event_type}' for {country}",
         )
-    return _primitive(kind, subject_id, curve, lambda r: _payload(
+    return _primitive(principal, kind, subject_id, curve, lambda r: _payload(
         macro_analytics.event_study(r, dates, event_type=event_type,
                                     country=country, pre=pre, post=post)
     ))

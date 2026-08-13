@@ -48,6 +48,10 @@ _REST_GET_PREFIXES = (
     "shadow-reports/",
     "skills",
     "swarm/presets",
+    # The five bundled research playbooks, listed by Agents & Skills. GET-only
+    # and read-only, so this stays inside the read + paper mandate above --
+    # scheduling one is a POST and remains unreachable.
+    "scheduled-runs/playbooks",
 )
 
 # MCP tools AION pages may call. Vibe's MCP server is read-only by design
@@ -273,13 +277,23 @@ async def vibe_health() -> dict[str, Any]:
 
 @router.get("/vibe/mcp/tools")
 async def vibe_mcp_tools() -> dict[str, Any]:
-    """The allowlisted subset of the sidecar's MCP tool catalog."""
+    """The allowlisted subset of the sidecar's MCP tool catalog.
+
+    Reports both sides of the filter. Returning only the allowlisted tools made
+    the subset look like the whole catalogue -- a page listing them could say
+    "these are the tools" when the honest claim is "these are the N of M this
+    app may call, and the rest are file, shell and order-shaped paths the proxy
+    refuses".
+    """
     try:
         tools = await _mcp.list_tools()
     except (httpx.HTTPError, _McpError, _McpSessionExpired) as exc:
         raise HTTPException(status_code=502, detail=f"vibe-mcp: {exc}")
+    allowed = [t for t in tools if t.get("name") in _MCP_ALLOWED_TOOLS]
     return {
-        "tools": [t for t in tools if t.get("name") in _MCP_ALLOWED_TOOLS],
+        "tools": allowed,
+        "total": len(tools),
+        "withheld": len(tools) - len(allowed),
     }
 
 

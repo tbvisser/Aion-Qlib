@@ -35,10 +35,10 @@ from ..strategies import (
     MODEL_SPECS,
     FeatureColumn,
     StrategySpec,
-    available_models,
     build_workflow_config,
     render_yaml,
 )
+from .compat import _err, resolution_defects, vocabulary
 
 # Keywords OpenAI's strict structured-output mode rejects outright. Listed here
 # rather than merely avoided, so the test that walks the emitted schema and this
@@ -157,13 +157,6 @@ class LoweredDraft:
     yaml: str = ""
 
 
-def _err(code: str, message: str, path: str | None = None) -> dict:
-    out = {"code": code, "message": message}
-    if path is not None:
-        out["path"] = path
-    return out
-
-
 def _loc_to_path(loc: tuple) -> str:
     """A pydantic error location as draft coordinates: ``assumed[0].path``."""
     out = ""
@@ -193,14 +186,6 @@ def _nullable(kind: str, description: str, enum: list | None = None) -> dict:
     return out
 
 
-def _store_keys() -> list[str]:
-    stores = marketdata.data_stores()
-    built = [s["key"] for s in stores if s["exists"]]
-    # An empty enum is not a legal schema. If nothing is built, offer everything
-    # and let the prepass deliver the real news.
-    return built or [s["key"] for s in stores]
-
-
 def draft_json_schema(data_store: str | None = None) -> dict:
     """The draft's JSON Schema, built now, from what this machine can run.
 
@@ -213,34 +198,28 @@ def draft_json_schema(data_store: str | None = None) -> dict:
     Deliberately not derived from ``StrategyDraft.model_json_schema()``:
     pydantic emits ``default``, ``anyOf``, ``title`` and an optionality-derived
     ``required``, every one of which strict mode rejects or misreads.
-    """
-    stores = [data_store] if data_store else _store_keys()
 
-    universes: list[str] = []
-    benchmarks: list[str] = []
-    for key in stores:
-        store = marketdata.store_for(key)
-        if store is None:
-            continue
-        universes += store["universes"]
-        benchmarks += marketdata.store_symbols(key, "benchmarks")
-    universes = sorted(set(universes))
-    benchmarks = sorted(set(benchmarks))
+    The enums come from `compat.vocabulary`, which the builder's own option
+    lists are built from too. Two readings of "what exists" is how the schema
+    handed to a generator and the dropdown offered to a person come to disagree.
+    """
+    vocab = vocabulary(data_store)
+    universes = vocab["universe"]
+    benchmarks = vocab["benchmark"]
 
     properties: dict[str, dict] = {
         "name": {"type": "string",
                  "description": "A short name for the strategy, 1-80 characters."},
-        "model": _nullable("string", "The learner to train.",
-                           [m["id"] for m in available_models()]),
+        "model": _nullable("string", "The learner to train.", vocab["model"]),
         "handler": _nullable("string", "The feature set. Alpha158 is 158 "
                                        "engineered factors; Alpha360 is 360 raw "
-                                       "price/volume lags.", list(HANDLERS)),
+                                       "price/volume lags.", vocab["handler"]),
         "data_store": _nullable(
             "string",
             "Which store to run against. A store is one trading calendar: 'us' "
             "is the 252-day NYSE calendar and can hold equities, ETFs, crypto, "
             "FX and indices together; 'crypto_365' is crypto on all 365 days "
-            "and nothing else can join it.", _store_keys()),
+            "and nothing else can join it.", vocab["data_store"]),
         "universe": _nullable(
             "string", "The instrument set to trade. Must exist in the chosen "
                       "store.", universes or None),
@@ -300,7 +279,7 @@ def draft_json_schema(data_store: str | None = None) -> dict:
         "feature_mode": _nullable(
             "string", "Whether custom factors are added to the handler's own "
                       "features or replace them entirely.",
-            ["extend", "replace"]),
+            vocab["feature_mode"]),
         "assumed": {
             "type": "array",
             "description": "One entry per parameter you chose that the "
@@ -389,58 +368,6 @@ def _vocabulary_defects(draft: StrategyDraft) -> list[dict]:
     return out
 
 
-def _resolution_defects(spec: StrategySpec) -> list[dict]:
-    """Values that are in the vocabulary but do not resolve on this machine.
-
-    Every one of these currently surfaces minutes into a run, or not at all:
-    an uninstalled model backend, a store that was never built, a universe with
-    no instrument file, a benchmark that is not in the store the run will open.
-    """
-    out: list[dict] = []
-
-    if spec.model not in {m["id"] for m in available_models()}:
-        out.append(_err(
-            "model_unavailable",
-            f"The {spec.model!r} backend is not installed, so a run would fail "
-            "after training starts. qlib skips a missing backend silently.",
-            "model"))
-
-    store = marketdata.store_for(spec.data_store)
-    if store is None:  # already reported by _vocabulary_defects when stated
-        return out
-    if not store["exists"]:
-        out.append(_err(
-            "store_not_built",
-            f"The {spec.data_store!r} store has not been built yet "
-            f"({store['provider_uri']}).", "data_store"))
-        return out  # nothing else in an empty store can resolve
-
-    if spec.universe not in store["universes"]:
-        out.append(_err(
-            "unknown_universe",
-            f"The {spec.data_store!r} store has no universe {spec.universe!r}. "
-            f"Available: {', '.join(store['universes'])}.", "universe"))
-
-    if spec.benchmark not in set(marketdata.store_symbols(spec.data_store, "all")):
-        out.append(_err(
-            "unknown_benchmark",
-            f"{spec.benchmark!r} is not in the {spec.data_store!r} store, so "
-            "there is nothing to compare returns against.", "benchmark"))
-
-    return out
-
-
-#: The four window problems that are genuinely fatal, and the field each is
-#: about. `validate_windows` returns a fifth string -- the calendar clamp -- and
-#: its absence here is deliberate: see `_clamp_test_end`.
-_WINDOW_PATHS = {
-    "Train end is before train start.": "train_end",
-    "Validation overlaps training — the model would be scored on data it saw.": "valid_start",
-    "Test overlaps validation — results would be optimistic.": "test_start",
-    "Test end is before test start.": "test_end",
-}
-
-
 def _clamp_test_end(spec: StrategySpec, assumed: list[AssumedParam]) -> None:
     """Pull `test_end` back to the last safely backtestable day, and say so.
 
@@ -457,9 +384,9 @@ def _clamp_test_end(spec: StrategySpec, assumed: list[AssumedParam]) -> None:
     `assumed` is for -- so it is filled in and recorded, not refused.
 
     Recorded *before* the window check runs, so the clamped date is what gets
-    validated and the string never reaches `_WINDOW_PATHS` to be misfiled as an
-    ordering error. Genuine ordering problems are untouched: a test window that
-    starts after it ends is still fatal, clamp or no clamp.
+    validated and the announcement is not raised at all. Genuine ordering
+    problems are untouched: a test window that starts after it ends is still
+    fatal, clamp or no clamp.
     """
     safe_end = marketdata.store_calendar_end(spec.data_store)
     if not safe_end or spec.test_end <= safe_end:
@@ -520,13 +447,17 @@ def lower_draft(draft: StrategyDraft | dict) -> LoweredDraft:
 
     assumed = [*draft.assumed, *assumed]
 
-    defects = _resolution_defects(spec)
+    defects = [d.as_dict() for d in resolution_defects(spec)]
     # Only once the store resolves: the clamp is read out of that store's own
     # calendar, and there is nothing to clamp against when the store is missing.
     if not defects:
         _clamp_test_end(spec, assumed)
-    defects += [_err("window_order", p, _WINDOW_PATHS.get(p))
-                for p in spec.validate_windows()]
+    # Blocking ones only. The fifth window string is the calendar clamp, which
+    # announces a run that proceeds -- treating it as fatal once made 31 of 32
+    # curated templates report `runnable: false` over a run that would have
+    # worked. It carries its own severity now, so this is a filter rather than
+    # a lookup table that had to stay in step with the wording.
+    defects += [d.as_dict() for d in spec.window_defects() if d.severity == "blocking"]
     if defects:
         raise DraftError(defects)
 
