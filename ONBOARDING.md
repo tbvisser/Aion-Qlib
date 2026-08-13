@@ -193,7 +193,7 @@ docker compose up -d api ui
 | UI | <http://localhost:5274> | 5173/5273 were taken on the original machine; the port is `strictPort` |
 | API | <http://localhost:8770> | `/api/health`, OpenAPI at `/docs` |
 | RAG API | <http://localhost:8001> | `docker compose up -d rag-api`; needs the Supabase stack below |
-| Supabase (Kong) | <http://localhost:8010> | separate compose project, see "The RAG stack" |
+| Supabase (Kong) | <http://localhost:8010> | `infra\stack.ps1 up`, see "The Supabase stack" |
 | JupyterLab | <http://localhost:8888/lab?token=qlib> | `docker compose up -d jupyter` |
 | MLflow | <http://localhost:5500> | `docker compose up -d mlflow-ui` |
 
@@ -201,28 +201,49 @@ Everything except MLflow binds `127.0.0.1` only. The UI sits behind a Supabase
 login (see below); the EODHD/OpenRouter API keys stay server-side either way and
 never reach the browser.
 
-### The RAG stack
+### The Supabase stack
 
-The document/chat assistant (routes `/chats`, `/documents`, `/corpus`,
-`/lab/roster`) is the vendored `rag/` subtree running as the `rag-api` service,
-backed by an **isolated Supabase instance** that lives outside this repo:
+Supabase is the platform's identity and user-data layer: it authenticates
+everyone, and both halves of the app store per-user records in its Postgres.
 
-- Compose project `supabase-aq` at `C:\Users\TBVis\Supabase\supabase-project`
-  (`docker compose -p supabase-aq up -d` from that directory). Kong publishes it
-  on host `:8010` (REST, auth, storage) with the pooler on `:5442`. It is
-  deliberately separate from any other Supabase install on the machine.
+**Start everything with one command:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up
+```
+
+That starts Supabase, waits for Postgres to accept connections, then starts
+everything else -- in that order, because the API resolves every caller's
+organisation out of that database and would otherwise serve errors until it was
+restarted. `down`, `restart`, `status` and `logs <service>` work the same way.
+
+Plain `docker compose` from the repo root also works and drives the whole thing:
+Supabase is part of **the same compose project**, pulled in by the `include:` at
+the top of `docker-compose.yml`. One `docker compose up -d`, one stack in Docker
+Desktop, nineteen containers.
+
+- Supabase lives in-repo at `infra/supabase/` and is gitignored. Kong publishes
+  it on host `:8010` (REST, auth, storage) with the pooler on `:5442`.
+- Two details in `docker-compose.yml` keep that merge safe, and `infra/README.md`
+  explains both: `project_directory` on the `include:` (Supabase's bind mounts
+  are relative, and `./volumes/db/data` *is* the database), and the `external`
+  declarations on `db-config` / `deno-cache` (one of them holds the pgsodium
+  root encryption key, which a fresh empty volume would silently replace).
 - `rag/backend/.env` (gitignored) configures `rag-api`: Supabase URL/keys,
   embedding backend, and the test-user credentials (`TEST_USER1_PASSWORD`).
 - `webapp/ui/.env.local` (gitignored) gives the browser `VITE_SUPABASE_URL`
   (the Kong URL) and `VITE_SUPABASE_ANON_KEY`.
 
-Start order: Supabase first, then `docker compose up -d rag-api ui`. The UI's
-auth gate wraps the whole shell — sign in as `test@test.com` with the password
+The UI's auth gate wraps the whole shell — sign in as `test@test.com` with the password
 from `rag/backend/.env`. The Vite dev server proxies `/rag-api/*` to the
 `rag-api` container with the prefix stripped, so the app stays same-origin.
 
-Only `src/features/rag/**` attaches the Supabase JWT to requests; the original
-qlib `/api` endpoints remain keyless and server-side. A quick end-to-end check:
+**Both halves are authenticated.** Every `/api` route except `/api/health`
+requires the same Supabase token, and what a request can see is decided by row
+level security in the `aion` schema rather than by application filters -- so
+each person's strategies, portfolios, projects and runs are private, and shared
+only when they deliberately share them with their workspace. A quick
+end-to-end check:
 upload a small markdown file on `/documents`, watch it reach `completed`,
 inspect its chunks on `/corpus`, then ask a question about it on `/chats` — the
 answer should carry a citation back to the uploaded file.

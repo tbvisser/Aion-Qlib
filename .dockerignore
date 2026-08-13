@@ -6,3 +6,7 @@ __pycache__
 .env
 .git
 
+
+# Never ship the Supabase stack into an image: 70MB+ of live Postgres data and
+# a .env of secrets, none of which the qlib image has any use for.
+infra/supabase/
