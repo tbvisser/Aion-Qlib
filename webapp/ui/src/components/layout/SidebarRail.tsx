@@ -1,27 +1,47 @@
-import type { MouseEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { PanelLeftOpen, Moon, Sun } from 'lucide-react'
+import { useMemo, type MouseEvent } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { PanelLeftOpen, Moon, Search, Sun } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
 import { UserMenu } from '@/components/UserMenu'
 import { useInbox } from '@/hooks/useInbox'
 import { useTheme } from '@/hooks/useTheme'
-import { allNavSections, type NavItem, type SectionKey } from './NavItems'
+import { allNavSections, codeNavSections, type NavItem, type SectionKey } from './NavItems'
+import { SHELL_MODES, shellModeForPath } from './shellMode'
 import { cn } from '@/lib/utils'
 
 interface SidebarRailProps {
   activeSection: SectionKey
   onExpand: () => void
+  /** Expand the rail and open the panel's nav search, in one click. */
+  onSearch: () => void
 }
 
 // Layout note: collapsed nav items use square 36px hit targets, but keep the
 // same left offset and icon padding as SidebarPanel so glyphs line up on toggle.
 // Copied from the Aion Platform's layout/SidebarRail.tsx.
-export function SidebarRail({ activeSection, onExpand }: SidebarRailProps) {
+export function SidebarRail({ activeSection, onExpand, onSearch }: SidebarRailProps) {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { theme, toggleTheme } = useTheme()
   const { user, signOut, isAdmin } = useAuth()
   const { unreadCount } = useInbox()
+
+  // The rail has no "More" disclosure to hold the rest, so Code collapsed shows
+  // its own rows first and then the platform's — narrowed, not cut off. Code
+  // re-lists Artifacts and Inbox, so the second pass drops what the first
+  // already showed: one glyph per destination, and one of each `data-testid`.
+  const shellMode = shellModeForPath(pathname)
+  const sections = useMemo(() => {
+    if (shellMode !== 'code') return allNavSections
+    const seen = new Set(codeNavSections.flatMap((s) => s.items.map((i) => i.key)))
+    return [
+      ...codeNavSections,
+      ...allNavSections
+        .map((section) => ({ ...section, items: section.items.filter((i) => !seen.has(i.key)) }))
+        .filter((section) => section.items.length > 0),
+    ]
+  }, [shellMode])
 
   const handleSignOut = async () => {
     try {
@@ -114,11 +134,55 @@ export function SidebarRail({ activeSection, onExpand }: SidebarRailProps) {
           </Tooltip>
         </div>
 
+        {/* The panel's header controls, reduced to what fits in 64px: search
+            (which expands first, since there is nowhere here to type) and the
+            Home/Lab switch as two icons rather than a segmented control. */}
+        <nav className="flex flex-col items-center gap-0.5 border-b border-border/50 px-2 py-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                data-testid="sidebar-search-toggle"
+                onClick={onSearch}
+                aria-label="Search the nav"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+              >
+                <Search className="h-4 w-4 shrink-0" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Search the nav</TooltipContent>
+          </Tooltip>
+
+          {SHELL_MODES.map((mode) => {
+            const ModeIcon = mode.icon
+            return (
+              <Tooltip key={mode.value}>
+                <TooltipTrigger asChild>
+                  <button
+                    data-testid={`sidebar-shell-${mode.value}`}
+                    onClick={() => navigate(mode.route)}
+                    aria-label={mode.label}
+                    aria-pressed={shellMode === mode.value}
+                    className={cn(
+                      'flex h-9 w-9 items-center justify-center rounded-lg transition-colors',
+                      shellMode === mode.value
+                        ? 'bg-foreground/[0.07] text-foreground'
+                        : 'text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground',
+                    )}
+                  >
+                    <ModeIcon className="h-4 w-4 shrink-0" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">{mode.label}</TooltipContent>
+              </Tooltip>
+            )
+          })}
+        </nav>
+
         {/* One unified, scrollable nav unit — headings are omitted in the
             collapsed rail, so groups are separated by dividers and scroll
             together. */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {allNavSections.map((section, i) => (
+          {sections.map((section, i) => (
             <nav
               key={section.heading}
               className={cn('px-2 py-2', i > 0 && 'border-t border-border/50')}
