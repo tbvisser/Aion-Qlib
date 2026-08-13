@@ -19,6 +19,18 @@ sse-starlette==3.4.8
 httpx==0.28.1
 pydantic==2.13.4
 
+# --- Identity and per-user storage -----------------------------------------
+# Strategies, portfolios, projects and runs live in Postgres (schema `aion`)
+# rather than in flat files, so that row level security -- not an app-level
+# WHERE clause someone can forget -- is what keeps one user's work out of
+# another's. psycopg connects as the `authenticator` role and drops to
+# `authenticated` per transaction; see webapp/api/db.py.
+#
+# python-jose is the same JWT library rag/backend uses, so both halves of the
+# platform verify Supabase tokens through one implementation.
+psycopg[binary,pool]==3.2.12
+python-jose[cryptography]==3.5.0
+
 # --- Direct scientific imports ---------------------------------------------
 # qlib pulls scipy in transitively via cvxpy, but webapp/api imports it directly,
 # so declare it rather than depend on someone else's dependency graph.
@@ -31,3 +43,9 @@ scipy==1.17.1
 # rather than at startup.
 catboost==1.2.10
 xgboost==3.2.0
+
+# --- Branded PDF reports -----------------------------------------------------
+# Scheduled outlook reports are rendered as Aion-branded PDFs. reportlab builds
+# the document; svglib embeds the existing Aion SVG logo without rasterising it.
+reportlab==4.0.4
+svglib==1.5.1
