@@ -6,10 +6,8 @@ import { InboxProvider } from '@/hooks/useInbox'
 import { LoginPage } from '@/components/auth/LoginPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { MarketsPage } from '@/pages/MarketsPage'
-import { DatabankPage } from '@/pages/DatabankPage'
-import { AlphaZooPage } from '@/pages/AlphaZooPage'
+import { DatabasePage } from '@/pages/DatabasePage'
 import { ShadowAccountsPage } from '@/pages/ShadowAccountsPage'
-import { IndicatorsPage } from '@/pages/IndicatorsPage'
 import { StrategyBuilderPage } from '@/pages/StrategyBuilderPage'
 import { RunsPage } from '@/pages/RunsPage'
 import { MLStudioPage } from '@/pages/MLStudioPage'
@@ -18,10 +16,14 @@ import { MacroDeskPage } from '@/pages/MacroDeskPage'
 import { PortfoliosPage } from '@/pages/PortfoliosPage'
 import { AccountsPage } from '@/pages/AccountsPage'
 import { AgendaPage } from '@/pages/AgendaPage'
+import { CodePage } from '@/pages/CodePage'
+import { ProjectsPage } from '@/pages/ProjectsPage'
 import { ArtifactsPage } from '@/pages/ArtifactsPage'
-import { VibeAgentPage } from '@/pages/VibeAgentPage'
+import { ScheduledPage } from '@/pages/ScheduledPage'
+import { MembersPage } from '@/pages/MembersPage'
+import { AcceptInvitePage } from '@/pages/AcceptInvitePage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
-import { SkillsPage } from '@/features/rag/pages/SkillsPage'
+import { RosterPage } from '@/pages/RosterPage'
 import { DocumentsPage } from '@/features/rag/pages/DocumentsPage'
 import { CorpusPage } from '@/features/rag/pages/CorpusPage'
 import { ChatsHistoryPage, ChatThreadRedirect } from '@/features/rag/pages/ChatsHistoryPage'
@@ -65,18 +67,34 @@ export default function App() {
           {/* The route keeps its old name: existing links and the sidebar's
               unread badge both point at it. */}
           <Route path="/inbox" element={<AgendaPage />} />
+          <Route path="/code" element={<CodePage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:projectId" element={<ProjectsPage />} />
           <Route path="/artifacts" element={<ArtifactsPage />} />
-          <Route path="/vibe-agent" element={<VibeAgentPage />} />
+          <Route path="/scheduled" element={<ScheduledPage />} />
+          <Route path="/scheduled/:taskId" element={<ScheduledPage />} />
+          {/* Workspace membership. Not in the nav — reached from the user menu
+              and from an invite link, which is where people actually look. */}
+          <Route path="/members" element={<MembersPage />} />
+          <Route path="/invite/:token" element={<AcceptInvitePage />} />
           <Route path="/chats" element={<ChatsHistoryPage />} />
           <Route path="/chats/quick" element={<ChatPage />} />
           <Route path="/chats/:threadId" element={<ChatThreadRedirect />} />
           <Route path="/lab/builder" element={<StrategyBuilderPage />} />
           <Route path="/lab/ml-studio" element={<MLStudioPage />} />
-          <Route path="/lab/databank" element={<DatabankPage />} />
-          <Route path="/lab/alpha-zoo" element={<AlphaZooPage />} />
+          {/* The Databank grew into the Database: one destination with a
+              sub-tab per collection, over a searchable index of every source.
+              The sub-tab lives in `?tab=`, so each folded-in route below
+              redirects to the tab that took over its job rather than 404-ing. */}
+          <Route path="/lab/database" element={<DatabasePage />} />
+          <Route path="/lab/databank" element={<Navigate to="/lab/database?tab=alphas" replace />} />
+          <Route path="/lab/alpha-zoo" element={<Navigate to="/lab/database?tab=alphas&source=vibe" replace />} />
           <Route path="/lab/shadow-accounts" element={<ShadowAccountsPage />} />
-          <Route path="/lab/roster" element={<SkillsPage />} />
-          <Route path="/lab/roster/:skillId" element={<SkillsPage />} />
+          <Route path="/lab/roster" element={<RosterPage />} />
+          <Route path="/lab/roster/:skillId" element={<RosterPage />} />
+          {/* Folded into Agents & Skills: an agent console among several,
+              not a destination of its own. */}
+          <Route path="/vibe-agent" element={<Navigate to="/lab/roster?tab=agents" replace />} />
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/documents/:folderId" element={<DocumentsPage />} />
           <Route path="/corpus" element={<CorpusPage />} />
@@ -88,11 +106,12 @@ export default function App() {
           <Route path="/accounts" element={<AccountsPage />} />
           {/* Pages that moved into a platform destination. Old links, bookmarks
               and anything already sent out keep working. Data Explorer became
-              Markets; Factor Lab became the Databank; Models became ML Studio. */}
+              Markets; Factor Lab became the Databank and then the Database;
+              Models became ML Studio; Indicators folded into the Database. */}
           <Route path="/data" element={<Navigate to="/markets" replace />} />
-          <Route path="/factors" element={<Navigate to="/lab/databank" replace />} />
+          <Route path="/factors" element={<Navigate to="/lab/database?tab=alphas" replace />} />
           <Route path="/models" element={<Navigate to="/lab/ml-studio" replace />} />
-          <Route path="/indicators" element={<IndicatorsPage />} />
+          <Route path="/indicators" element={<Navigate to="/lab/database?tab=indicators" replace />} />
           {/* Backtests have no nav entry of their own — they're reached from the
               builder that started them, and highlight it. See ROUTE_OWNERS. */}
           <Route path="/runs" element={<RunsPage />} />

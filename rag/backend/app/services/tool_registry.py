@@ -100,6 +100,16 @@ class ToolRegistry:
     def tool_names(self) -> list[str]:
         return list(self._tools.keys())
 
+    def all_tools(self) -> list[ToolDefinition]:
+        """Every registered tool, name-sorted.
+
+        Sorted rather than in registration order so a caller diffing two
+        responses sees real changes. Added for `routers/registry.py`, which
+        needs the definitions themselves — `tool_names` loses the descriptions
+        and `get_catalog` renders a markdown table rather than data.
+        """
+        return sorted(self._tools.values(), key=lambda t: t.name)
+
 
 # Module-level singleton
 _registry = ToolRegistry()

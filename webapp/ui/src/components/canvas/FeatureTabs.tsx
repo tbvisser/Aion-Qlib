@@ -12,6 +12,7 @@
 import { Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { Segmented } from '@/components/ui/segmented'
 import type { FeatureIssue, FeatureMode } from '@/lib/factorExpr/featureSet'
 import type { FeatureColumn } from '@/lib/factorExpr/featureSetReducer'
 import { cn } from '@/lib/utils'
@@ -106,27 +107,32 @@ export function FeatureTabs({
         <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
           {columns.length} {columns.length === 1 ? 'feature' : 'features'}
         </span>
-        <div className="flex items-center gap-1 rounded-lg border border-border/50 p-0.5">
-          {(['extend', 'replace'] as const).map((m) => (
-            <button
-              key={m}
-              data-testid={`feature-mode-${m}`}
-              onClick={() => onModeChange(m)}
-              title={m === 'extend'
-                ? `Add these columns to ${handler}'s own ${baseCount}`
-                : `Train on these columns alone — ${handler} then only decides the `
-                  + 'processors and the label'}
-              className={cn(
-                'rounded-md px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors',
-                mode === m ? 'bg-foreground/[0.07] text-foreground'
-                           : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-        <span className="font-mono text-[10px] text-muted-foreground/70">
+        {/* The app's own switch rather than a copy of its classes. What the copy
+            was missing is not visual: radiogroup semantics and roving arrow
+            keys, which is the whole reason `Segmented` exists. */}
+        <Segmented<FeatureMode>
+          size="sm"
+          value={mode}
+          onChange={onModeChange}
+          options={[
+            {
+              value: 'extend',
+              label: 'Extend',
+              testId: 'feature-mode-extend',
+              title: `Add these columns to ${handler}'s own ${baseCount}`,
+            },
+            {
+              value: 'replace',
+              label: 'Replace',
+              testId: 'feature-mode-replace',
+              title: `Train on these columns alone — ${handler} then only decides the `
+                + 'processors and the label',
+            },
+          ]}
+        />
+        {/* Same treatment as the count on the other side of the switch: two mono
+            micro-labels in one bar reading differently is just a seam. */}
+        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
           {mode === 'extend' ? `+ ${handler} (${baseCount})` : `${handler} label only`}
         </span>
       </div>

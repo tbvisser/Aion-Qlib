@@ -24,7 +24,9 @@ import {
 import { useRunReports } from '@/hooks/useRunReports'
 import type { Run } from '@/lib/api'
 import { COMPARE_COLORS, decimate, mergeCurves } from '@/lib/curves'
-import { best, metricRow, runDiff, type MetricKey } from '@/lib/runMetrics'
+import {
+  best, formatRunPercent, metricRow, runDiff, type MetricKey,
+} from '@/lib/runMetrics'
 import { cn } from '@/lib/utils'
 
 export const MAX_COMPARE = 4
@@ -268,5 +270,9 @@ function format(
   value: number | null, column: { percent?: boolean; digits?: number },
 ): string {
   if (value == null) return '—'
-  return column.percent ? `${(value * 100).toFixed(1)}%` : value.toFixed(column.digits ?? 2)
+  // Clamped, so one broken run cannot blow the column width out for every run
+  // it is being compared against. See `formatRunPercent`.
+  return column.percent
+    ? formatRunPercent(value, 1, false)
+    : value.toFixed(column.digits ?? 2)
 }

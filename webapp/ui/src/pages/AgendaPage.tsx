@@ -10,6 +10,7 @@ import { AtAGlance } from '@/components/agenda/AtAGlance'
 import { DayDetail } from '@/components/agenda/DayDetail'
 import { MonthGrid } from '@/components/agenda/MonthGrid'
 import { NowStrip } from '@/components/agenda/NowStrip'
+import { OutlookPanel } from '@/components/agenda/OutlookPanel'
 import { WeekTimeline } from '@/components/agenda/WeekTimeline'
 import { IndexHeader } from '@/components/layout/IndexHeader'
 import { Notice } from '@/components/ui/notice'
@@ -98,6 +99,13 @@ export function AgendaPage() {
           here left the header spanning the pane above an off-centre body. */}
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <div className="space-y-4">
+          {/* Briefing row: AI outlook plus the key numbers. The calendar detail
+              moves below so the first thing the reader sees is "what matters". */}
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_340px] lg:items-start">
+            <OutlookPanel anchor={day} />
+            <AtAGlance rows={agenda.summary} />
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-4">
             <AgendaFilterChips
               value={filter}
@@ -173,7 +181,6 @@ export function AgendaPage() {
             </div>
 
             <aside className="mt-4 space-y-4 lg:mt-0">
-              <AtAGlance rows={agenda.summary} />
               <NowStrip live={live} onChanged={() => void agenda.refresh()} />
               {/* The stream already groups by day, so a day panel beside it
                   would be the same rows twice. */}

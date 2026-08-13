@@ -12,28 +12,33 @@
 import { Link } from 'react-router-dom'
 import { ArrowUpRight } from 'lucide-react'
 
-import { Choice, Field, Section } from '@/components/builder/FormControls'
+import { Choice, Section } from '@/components/builder/FormControls'
+import { CompatField, choiceOptions } from './compat'
 import type { InspectorProps } from './types'
 
-export function LearnerInspector({ spec, setSpec, models, notes }: InspectorProps) {
-  // The catalog's label ("LightGBM"), falling back to the id. A spec carrying a
-  // model this machine cannot offer — a template, an older saved strategy —
-  // must still render its own value rather than an empty select.
-  const options = [...new Set([...(models?.models.map((m) => m.id) ?? []), spec.model])]
-    .map((id) => ({
-      value: id,
-      label: models?.models.find((m) => m.id === id)?.label ?? id,
-    }))
+export function LearnerInspector(props: InspectorProps) {
+  const { spec, setSpec, models, notes } = props
+
+  // `/models` lists only what imports on this machine, so a model whose backend
+  // is missing never appeared here at all — and a spec carrying one (a
+  // template, an older saved strategy) rendered it as a bare id with no hint
+  // that it could not run. The server now sends every model with the ones it
+  // cannot run disabled and the reason attached, which is the difference
+  // between a value that looks fine and a run that dies after training starts.
+  const labels = new Map(models?.models.map((m) => [m.id, m.label]) ?? [])
 
   return (
     <Section title="Learner" columns={1}>
-      <Field label="Model">
+      <CompatField field="model" label="Model" ctx={props}>
         <Choice
           value={spec.model}
           onChange={(model) => setSpec((prev) => ({ ...prev, model }))}
-          options={options}
+          options={choiceOptions(
+            props, 'model',
+            [...new Set([...(models?.models.map((m) => m.id) ?? []), spec.model])],
+            (v) => labels.get(v) ?? v)}
         />
-      </Field>
+      </CompatField>
 
       {notes.map((note) => (
         <p key={note} className="text-[11px] leading-relaxed text-muted-foreground">{note}</p>

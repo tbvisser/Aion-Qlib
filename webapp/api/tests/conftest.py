@@ -49,6 +49,10 @@ SYMBOLS = {
     ("us", "benchmarks"): ["SPY", "QQQ"],
     ("crypto_365", "all"): ["BTC-USD", "ETH-USD"],
     ("crypto_365", "benchmarks"): [],
+    # The curated list `_benchmark_candidates` falls back to when a store ships
+    # no benchmarks file. Present on disk; without it here the fallback would
+    # test as "offers nothing", which is the bug it exists to prevent.
+    ("crypto_365", "crypto_top100"): ["BTC-USD", "ETH-USD"],
 }
 
 
@@ -67,3 +71,112 @@ def fake_stores(monkeypatch):
         marketdata, "store_symbols",
         lambda key, instrument_set="all": list(SYMBOLS.get((key, instrument_set), [])))
     return stores
+
+
+# ---------------------------------------------------------------------------
+# Identity
+# ---------------------------------------------------------------------------
+# Every route except /api/health now requires a verified Supabase token, and
+# what a request can see is decided by row level security keyed on the caller.
+# A TestClient has no token, so without this the whole suite would test the 401
+# handler.
+#
+# The override is autouse and unconditional: authentication is not the thing
+# most of these tests are about, and having to remember a fixture is how a new
+# router test ends up asserting against a 401 body by accident. The one suite
+# that *does* care -- test_auth_required.py -- clears the override itself.
+
+import os
+import uuid as _uuid
+
+from webapp.api import db as _db
+from webapp.api.auth import Principal, get_principal, require_org_admin
+from webapp.api.main import app as _app
+
+
+def _database_available() -> bool:
+    return bool(os.environ.get("DATABASE_URL")) and _db.health()["ok"]
+
+
+@pytest.fixture(scope="session")
+def test_principal():
+    """A real account in a throwaway organisation.
+
+    Real, not a stub, because the repositories talk to Postgres and RLS is
+    keyed on the ids -- a made-up uuid would fail the foreign keys and prove
+    nothing. The organisation is created for the session and dropped after it,
+    and everything the tests write cascades away with it, so a test run leaves
+    no trace in the developer's own workspace.
+
+    Falls back to a stub when there is no database, so the many tests that never
+    touch storage still run on a machine with nothing else up.
+    """
+    if not _database_available():
+        yield Principal(user_id=str(_uuid.uuid4()), email="tests@example.invalid",
+                        org_id=str(_uuid.uuid4()), org_role="owner")
+        return
+
+    slug = f"pytest-{_uuid.uuid4().hex[:8]}"
+    with _db.service_tx() as cur:
+        # Any real account will do -- the tests only need ids that satisfy the
+        # foreign keys, and creating an auth.users row from here would mean
+        # reproducing gotrue's schema.
+        cur.execute("SELECT user_id FROM public.user_profiles ORDER BY created_at LIMIT 1")
+        row = cur.fetchone()
+        if row is None:
+            pytest.skip("no accounts exist yet; sign in once to create one")
+        user_id = str(row["user_id"])
+        cur.execute(
+            "INSERT INTO public.organizations (name, slug, created_by) "
+            "VALUES (%s, %s, %s) RETURNING id",
+            (slug, slug, user_id))
+        org_id = str(cur.fetchone()["id"])
+        cur.execute(
+            "INSERT INTO public.org_members (org_id, user_id, role) VALUES (%s, %s, 'owner')",
+            (org_id, user_id))
+
+    yield Principal(user_id=user_id, email="tests@example.invalid",
+                    org_id=org_id, org_role="owner")
+
+    with _db.service_tx() as cur:
+        cur.execute("DELETE FROM public.organizations WHERE id = %s", (org_id,))
+
+
+@pytest.fixture(autouse=True)
+def _authenticated(test_principal):
+    """Sign every TestClient request in as `test_principal`, then clean up.
+
+    The per-test wipe matters as much as the sign-in: the organisation is shared
+    across the session, so without it one test's saved strategy would show up in
+    the next test's list and the failure would look like a bug in the router.
+    """
+    _app.dependency_overrides[get_principal] = lambda: test_principal
+    _app.dependency_overrides[require_org_admin] = lambda: test_principal
+    try:
+        yield test_principal
+    finally:
+        _app.dependency_overrides.pop(get_principal, None)
+        _app.dependency_overrides.pop(require_org_admin, None)
+        if _database_available():
+            with _db.service_tx() as cur:
+                # Enumerated from the catalogue rather than listed by hand. A
+                # table added to the aion schema later would otherwise leak rows
+                # between tests until somebody remembered to extend this list,
+                # and that failure surfaces as a bug in whichever router ran
+                # next -- nowhere near the cause.
+                cur.execute(
+                    "SELECT c.relname FROM pg_class c "
+                    "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                    "JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'org_id' "
+                    "WHERE n.nspname = 'aion' AND c.relkind = 'r'")
+                for table in [r["relname"] for r in cur.fetchall()]:
+                    # Identifier comes from the catalogue, never from a request.
+                    cur.execute(f'DELETE FROM aion."{table}" WHERE org_id = %s',
+                                (test_principal.org_id,))
+
+
+@pytest.fixture
+def needs_db():
+    """Skip a test that cannot mean anything without storage."""
+    if not _database_available():
+        pytest.skip("DATABASE_URL is not set or the database is unreachable")

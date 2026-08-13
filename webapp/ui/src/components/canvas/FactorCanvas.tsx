@@ -25,6 +25,7 @@ import { FeatureInspector } from './FeatureInspector'
 import type { MeasureContext } from './MeasurePanel'
 import { FeatureTabs } from './FeatureTabs'
 import { NodeInspector } from './NodeInspector'
+import { Notice } from '@/components/ui/notice'
 import { useExpressionCheck } from '@/hooks/useExpressionCheck'
 import { useFactorLibrary } from '@/hooks/useFactorLibrary'
 import { useFeatureSet } from '@/hooks/useFeatureSet'
@@ -67,6 +68,15 @@ export interface FeatureSetSnapshot {
   features: FeatureDraft[]
   /** The column being edited -- what the assistant is looking at. */
   active: string
+  /**
+   * That column's *name*, for anything outside the canvas that has to say which
+   * one is open -- the breadcrumb, so far.
+   *
+   * Carried rather than recovered from `features` by matching `active`: two
+   * columns are allowed to hold the same expression, and a breadcrumb naming
+   * the wrong one of them is worse than no breadcrumb.
+   */
+  activeName?: string
   issues: FeatureIssue[]
 }
 
@@ -186,8 +196,10 @@ export function FactorCanvas({
   }, [clientIssues, check.result, active])
 
   useEffect(() => {
-    onChange?.({ features: drafts, active: editor.expression, issues })
-  }, [drafts, editor.expression, issues, onChange])
+    onChange?.({
+      features: drafts, active: editor.expression, activeName: active?.name, issues,
+    })
+  }, [drafts, editor.expression, active?.name, issues, onChange])
 
   /**
    * Re-seed when the spec was replaced from outside.
@@ -331,13 +343,24 @@ export function FactorCanvas({
               proOptions={{ hideAttribution: false }}
             >
               <Background variant={BackgroundVariant.Lines} gap={24} color="hsl(var(--border) / 0.5)" />
-              <Controls showInteractive={false} position="top-right" />
+              {/* Bottom-left, as on the pipeline canvas: top-right is where the
+                  parse banner lands and, on a right-rooted tree, where the
+                  output card sits. Lifted clear of the ExpressionBar, which is
+                  57px of glass pinned across the bottom of *this* canvas and
+                  has no counterpart on the pipeline one (an h-9 button, py-2.5
+                  either side of it, and the bar's own top rule). */}
+              <Controls showInteractive={false} position="bottom-left" style={{ bottom: 57 }} />
               <RefitOnStructureChange signature={`${activeId}:${nodes.map((n) => n.id).join()}`} />
             </ReactFlow>
 
+            {/* The same `Notice` the builder page uses for a failed request, in
+                the same tone: a source string the parser refused is a failure,
+                not a verdict about the strategy. It floats over the canvas
+                rather than pushing it down, so the tree does not jump when a
+                misclick in the library is reported. */}
             {parseError && (
-              <div className="absolute inset-x-0 top-0 border-b border-destructive/40 bg-card px-4 py-2 font-mono text-[11px] text-destructive">
-                {parseError}
+              <div className="absolute inset-x-0 top-0 z-10 p-3">
+                <Notice tone="destructive" icon={false}>{parseError}</Notice>
               </div>
             )}
 

@@ -9,6 +9,7 @@ import { useChatStream } from '@/hooks/useChatStream'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { authHeaders } from '@/lib/authFetch'
 import { cn } from '@/lib/utils'
 
 const SUGGESTIONS = [
@@ -28,7 +29,8 @@ export function ChatPage() {
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/api/chat/config')
+    void authHeaders()
+      .then((h) => fetch('/api/chat/config', { headers: h }))
       .then((r) => r.json())
       .then((c) => {
         setConfigured(c.configured)

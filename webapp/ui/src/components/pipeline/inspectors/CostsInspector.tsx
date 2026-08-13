@@ -11,9 +11,11 @@ import { BpsInput, Field, NumberInput, Section } from '@/components/builder/Form
 import { Input } from '@/components/ui/input'
 import { roundTripBps } from '@/lib/bps'
 import { parseNumberField } from '@/lib/numberField'
+import { CompatField } from './compat'
 import type { InspectorProps } from './types'
 
-export function CostsInspector({ spec, setSpec }: InspectorProps) {
+export function CostsInspector(props: InspectorProps) {
+  const { spec, setSpec } = props
   return (
     <Section title="Costs" columns={1}>
       <Field label="Open cost">
@@ -44,15 +46,23 @@ export function CostsInspector({ spec, setSpec }: InspectorProps) {
         />
       </Field>
 
-      <Field
+      {/* The only field on this stage the backend has an opinion about: on a
+          crypto store with no limit set, `no_price_limit` fires as an advisory.
+          It reached the stage card before; putting it on the control means the
+          advice and the way to follow it are in the same place. The other four
+          costs fields have no server-side check, so a `CompatField` around them
+          would be a wrapper with nothing to render. */}
+      <CompatField
+        field="limit_threshold"
         label="Price limit"
         hint="The daily move beyond which a fill is refused, as a fraction — 0.5 blocks moves over 50%. Empty means no limit."
+        ctx={props}
       >
         <LimitInput
           value={spec.limit_threshold}
           onChange={(limit_threshold) => setSpec((prev) => ({ ...prev, limit_threshold }))}
         />
-      </Field>
+      </CompatField>
     </Section>
   )
 }

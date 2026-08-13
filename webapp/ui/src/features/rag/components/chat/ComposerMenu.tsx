@@ -80,6 +80,13 @@ interface ComposerMenuProps {
   contextStatsOpen?: boolean
   onToggleContextStats?: () => void
   disabled?: boolean
+  /** False when the host shows its own Deep Mode control (the composer toggle). */
+  showDeepMode?: boolean
+  /** Provided by hosts that own the model dialog themselves — the menu then
+   *  only opens theirs instead of rendering a second one. */
+  onOpenModelConfig?: () => void
+  /** Overrides the trigger's shape, e.g. a flat square in the composer toolbar. */
+  triggerClassName?: string
 }
 
 /**
@@ -96,6 +103,9 @@ export function ComposerMenu({
   contextStatsOpen,
   onToggleContextStats,
   disabled,
+  showDeepMode = true,
+  onOpenModelConfig,
+  triggerClassName,
 }: ComposerMenuProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [modelDialogOpen, setModelDialogOpen] = useState(false)
@@ -128,7 +138,10 @@ export function ComposerMenu({
             disabled={disabled}
             aria-label="Add to chat"
             title="Add to chat"
-            className="relative rounded-full h-9 w-9 text-muted-foreground hover:text-foreground transition-all duration-200 btn-press"
+            className={cn(
+              'relative rounded-full h-9 w-9 text-muted-foreground hover:text-foreground transition-all duration-200 btn-press',
+              triggerClassName,
+            )}
           >
             {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
             {activeDots.length > 0 && (
@@ -165,17 +178,19 @@ export function ComposerMenu({
 
           <DropdownMenuSeparator />
 
-          <DropdownMenuItem
-            onSelect={() => onModeChange(activeMode === 'general' ? null : 'general')}
-            disabled={harnessLocked}
-          >
-            <Zap className={MODE_META.general.iconColor} />
-            <div className="flex flex-col">
-              <span className="font-medium">Deep Mode</span>
-              <span className="text-xs text-muted-foreground">{MODE_META.general.description}</span>
-            </div>
-            {activeMode === 'general' && <Check className="ml-auto h-4 w-4" />}
-          </DropdownMenuItem>
+          {showDeepMode && (
+            <DropdownMenuItem
+              onSelect={() => onModeChange(activeMode === 'general' ? null : 'general')}
+              disabled={harnessLocked}
+            >
+              <Zap className={MODE_META.general.iconColor} />
+              <div className="flex flex-col">
+                <span className="font-medium">Deep Mode</span>
+                <span className="text-xs text-muted-foreground">{MODE_META.general.description}</span>
+              </div>
+              {activeMode === 'general' && <Check className="ml-auto h-4 w-4" />}
+            </DropdownMenuItem>
+          )}
 
           <DropdownMenuItem
             onSelect={(e) => {
@@ -209,7 +224,10 @@ export function ComposerMenu({
             data-testid="composer-model-item"
             onSelect={() => {
               // Defer so the dropdown closes / returns focus before the dialog opens.
-              window.setTimeout(() => setModelDialogOpen(true), 0)
+              window.setTimeout(() => {
+                if (onOpenModelConfig) onOpenModelConfig()
+                else setModelDialogOpen(true)
+              }, 0)
             }}
           >
             <SlidersHorizontal className="text-muted-foreground" />
@@ -233,7 +251,9 @@ export function ComposerMenu({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-      <ModelConfigDialog open={modelDialogOpen} onOpenChange={setModelDialogOpen} />
+      {!onOpenModelConfig && (
+        <ModelConfigDialog open={modelDialogOpen} onOpenChange={setModelDialogOpen} />
+      )}
     </>
   )
 }

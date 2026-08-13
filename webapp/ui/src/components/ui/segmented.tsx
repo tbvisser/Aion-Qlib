@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /**
@@ -16,6 +17,9 @@ export interface SegmentedOption<T extends string> {
   label: string
   disabled?: boolean
   title?: string
+  /** Optional glyph before the label, for switches that read as destinations
+   *  rather than as settings. Omit it and the option renders as before. */
+  icon?: LucideIcon
   /** Per-option hook, so a hand-rolled switch can be replaced without
    *  invalidating the selectors that already point at its buttons. */
   testId?: string
@@ -27,6 +31,8 @@ export function Segmented<T extends string>({
   onChange,
   className,
   size = 'md',
+  stretch = false,
+  buttonClassName = 'font-mono',
   'data-testid': testId,
 }: {
   value: T
@@ -34,6 +40,12 @@ export function Segmented<T extends string>({
   onChange: (value: T) => void
   className?: string
   size?: 'sm' | 'md'
+  /** Share the container's width evenly between the options, for a switch that
+   *  fills a column rather than sitting inline beside a heading. */
+  stretch?: boolean
+  /** Applied to every option button so a consumer can override the default
+   *  monospace typeface without changing the component globally. */
+  buttonClassName?: string
   'data-testid'?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -70,6 +82,7 @@ export function Segmented<T extends string>({
     >
       {options.map((option) => {
         const active = option.value === value
+        const Icon = option.icon
         return (
           <button
             key={option.value}
@@ -82,13 +95,16 @@ export function Segmented<T extends string>({
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
-              'rounded-md font-mono transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+              'inline-flex items-center justify-center gap-1.5 rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-40',
               size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]',
+              stretch && 'flex-1',
               active
                 ? 'bg-foreground/[0.07] text-foreground'
                 : 'text-muted-foreground hover:text-foreground',
+              buttonClassName,
             )}
           >
+            {Icon && <Icon className={cn('shrink-0', size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5')} />}
             {option.label}
           </button>
         )

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from fastapi import APIRouter
 
-from .. import qlib_session
+from .. import db, qlib_session
 from ..config import get_settings
 
 router = APIRouter()
@@ -20,14 +20,20 @@ def health() -> dict:
     settings = get_settings()
     state = qlib_session.init_qlib()
 
+    # This is the one unauthenticated route, so it is also the only place that
+    # can explain a database outage: without it every other endpoint would fail
+    # to resolve the caller's organisation and answer 503 with no context.
+    database = db.health()
+
     payload: dict = {
-        "status": "ok" if state["ready"] else "degraded",
+        "status": "ok" if state["ready"] and database["ok"] else "degraded",
         "qlib": {
             "ready": state["ready"],
             "provider_uri": state["provider_uri"],
             "region": state["region"],
             "error": state["error"],
         },
+        "database": database,
         "services": {
             "eodhd": bool(settings.eodhd_api_key),
             "openrouter": bool(settings.openrouter_api_key),

@@ -97,14 +97,22 @@ export function RunConfirmDialog({
     return () => { cancelled = true; clearTimeout(t) }
   }, [open, draft, onPreview])
 
-  // The preview's `warnings` carries both severities in one list. Only the
-  // blocking tier may hold the Start button — `validate_execution` describes a
-  // run that finishes and means nothing, and the canvas already renders it as
-  // advisory. Reading the whole list as blockers here disabled Start for every
-  // crypto strategy without a limit_threshold, which is exactly the strategy
-  // the advisory tier exists to let run.
-  const blockers = warnings.filter((w) => !isAdvisoryWarning(w))
-  const advisories = warnings.filter(isAdvisoryWarning)
+  // Only the blocking tier may hold the Start button — an advisory describes a
+  // run that finishes and means nothing, and reading the whole list as blockers
+  // once disabled Start for every crypto strategy without a limit_threshold,
+  // which is exactly the strategy the advisory tier exists to let run.
+  //
+  // Read off `defects` when the server sends them, because this dialog has to
+  // agree with what `POST /runs` will actually do — and `warnings` cannot
+  // mention an unknown universe or benchmark at all. That gap is what let a
+  // Start click be accepted and then die four minutes into training.
+  const defects = preview?.defects
+  const blockers = defects
+    ? defects.filter((d) => d.severity === 'blocking').map((d) => d.message)
+    : warnings.filter((w) => !isAdvisoryWarning(w))
+  const advisories = defects
+    ? defects.filter((d) => d.severity === 'advisory').map((d) => d.message)
+    : warnings.filter(isAdvisoryWarning)
 
   const store = stores.find((s) => s.key === draft.data_store)
   const count = useUniverseCount(draft.data_store, draft.universe)

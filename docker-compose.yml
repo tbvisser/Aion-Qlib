@@ -1,4 +1,6 @@
-# Local development stack for this qlib checkout (compose project: qlib).
+# The whole Aion platform in one compose project (aion-qlib): the qlib API and
+# UI, the RAG backend, the Vibe sidecar, and Supabase (included from
+# infra/supabase/ -- see the `include:` below and infra/README.md).
 # Separate from the upstream Dockerfile / build_docker_image.sh, which exist to
 # publish a PyPI-based image to Docker Hub.
 #
@@ -25,6 +27,23 @@
 # The data mount lands on /home/qlib/.qlib rather than /root/.qlib, and HOME is
 # set to match, so that `~/.qlib` still resolves when DOCKER_UID makes these
 # services run as a non-root user (/root is mode 700 and unreadable to them).
+
+# Supabase -- auth and the Postgres every user record lives in -- is pulled in
+# here so the whole platform is ONE compose project: one `docker compose up`,
+# one stack in Docker Desktop, one network.
+#
+# `project_directory` is what makes it safe: Supabase's compose uses relative
+# bind mounts (./volumes/db/data is the database), and without it they would
+# resolve against this file's directory and Postgres would start on an empty
+# data dir. `env_file` supplies the ~100 variables its services read, which
+# live in its own .env rather than ours.
+#
+# Its two named volumes are re-declared as external at the bottom of this file.
+# That is not optional -- see the comment there.
+include:
+  - path: ./infra/supabase/docker-compose.yml
+    project_directory: ./infra/supabase
+    env_file: ./infra/supabase/.env
 
 services:
   qlib:
@@ -68,6 +87,11 @@ services:
       - ${HOME}/.qlib:/home/qlib/.qlib
     ports:
       - "127.0.0.1:8770:8770"
+    # Per-user records live in Supabase's Postgres, which is now a service in
+    # this same project -- so this reaches it directly on the shared default
+    # network as supabase-db-aq:5432, rather than going out to the host and
+    # back in through the supavisor pooler (which would also mean adopting
+    # supavisor's user.tenant username form and transaction-mode limits).
     command:
       - uvicorn
       - webapp.api.main:app
@@ -135,8 +159,8 @@ services:
   # Vendored Aion-RAG backend (documents/RAG/chat engine behind the Knowledge
   # tabs). Deliberately its own image: its fastapi/uvicorn pins conflict with
   # the qlib API's, and docling's native parsers stay isolated from backtests.
-  # Talks to the supabase-aq stack (external compose project at
-  # C:\Users\TBVis\Supabase\supabase-project, Kong on host :8010) via
+  # Talks to the Supabase stack (included into this project from
+  # infra/supabase/, Kong on host :8010) via
   # host.docker.internal, and to host Ollama (:11434) for embeddings.
   # Config: rag/backend/.env (gitignored). Rebuild only when
   # rag/backend/requirements.txt changes.
@@ -261,3 +285,21 @@ services:
 volumes:
   rag-model-cache:
   vibe-home:
+
+  # Supabase's own two volumes, pinned to the names they already have.
+  #
+  # Compose prefixes a named volume with the project name, so folding these
+  # services in would otherwise point them at fresh, empty `aion-qlib_*`
+  # volumes. That is not a cosmetic difference: db-config holds
+  # `pgsodium_root.key`, the root encryption key for Vault. An empty volume
+  # means Postgres starts with no custom config and mints a NEW key, at which
+  # point anything encrypted under the old one is unrecoverable.
+  #
+  # `external: true` means compose attaches to these and never creates or
+  # removes them -- including on `docker compose down -v`.
+  db-config:
+    external: true
+    name: supabase-aq_db-config
+  deno-cache:
+    external: true
+    name: supabase-aq_deno-cache

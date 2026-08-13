@@ -27,6 +27,8 @@
  * results would be optimistic."
  */
 
+import type { SpecDefect } from '@/lib/api'
+
 /**
  * Does this warning name that column?
  *
@@ -64,4 +66,35 @@ export function mergeBlockers(
     !said.has(w) && !flagged.some((name) => mentionsColumn(w, name)))
 
   return [...kept, ...issues.map((i) => i.message)]
+}
+
+/**
+ * `mergeBlockers`, on defects.
+ *
+ * Same two rules and the same precedence — the canvas's copy wins, because it
+ * is the one attached to a card the reader can see and click. The only
+ * difference is what a surviving client issue becomes: a blocking defect on
+ * `features`, which is true of every check the canvas performs and is what lets
+ * it route and quarantine alongside the server's own.
+ */
+export function mergeDefects(
+  defects: readonly SpecDefect[], issues: readonly BlockerIssue[],
+): SpecDefect[] {
+  const said = new Set(issues.map((i) => i.message))
+  const flagged = issues
+    .map((i) => i.columnName)
+    .filter((name): name is string => Boolean(name))
+
+  const kept = defects.filter((d) =>
+    !said.has(d.message) && !flagged.some((name) => mentionsColumn(d.message, name)))
+
+  return [
+    ...kept,
+    ...issues.map((i) => ({
+      code: 'canvas',
+      message: i.message,
+      path: i.columnName ? `features.${i.columnName}` : 'features',
+      severity: 'blocking' as const,
+    })),
+  ]
 }

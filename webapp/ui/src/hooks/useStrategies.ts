@@ -20,6 +20,8 @@ export interface UseStrategies {
   reload: () => Promise<void>
   save: (spec: StrategySpec, id?: string) => Promise<StoredStrategy>
   remove: (id: string) => Promise<void>
+  /** Share with the workspace, or make private again. */
+  setVisibility: (id: string, visibility: 'private' | 'org') => Promise<void>
   /** The last write failure, cleared by the next successful write. */
   error: string | null
 }
@@ -61,5 +63,17 @@ export function useStrategies(): UseStrategies {
     }
   }, [reload])
 
-  return { saved, reload, save, remove, error }
+  const setVisibility = useCallback(
+    async (id: string, visibility: 'private' | 'org') => {
+      try {
+        await api.setStrategyVisibility(id, visibility)
+        await reload()
+        setError(null)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Could not change sharing')
+        throw e
+      }
+    }, [reload])
+
+  return { saved, reload, save, remove, setVisibility, error }
 }

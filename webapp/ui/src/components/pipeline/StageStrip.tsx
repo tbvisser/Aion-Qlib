@@ -1,31 +1,23 @@
 /**
- * The pipeline in one line, above the canvas.
+ * The breadcrumb out of the factor canvas.
  *
- * This is the overview, and it exists because zooming out is not one. Seven
- * cards at a 308px pitch is about 2,100px wide; fitting that into a pane zooms
- * to roughly 0.6, where a 10px mono eyebrow is unreadable — so the canvas stays
- * at zoom 1 and pans, and the bird's-eye view is text instead of a smaller
- * picture.
+ * This was also the pipeline overview, and that existed because zooming out was
+ * not one: seven cards on a row was about 2,000px, which fitted into a pane at
+ * roughly 0.6 zoom, where a 10px mono eyebrow is unreadable. The ring replaced
+ * the row and is 784x718 — it fits the pane at zoom 1, and the hub in its middle
+ * carries the readiness and the seven issue dots the strip used to hold. So the
+ * overview is the canvas again, the always-visible valve on a blocker is the
+ * header's count chip, and the phase names are a legend inside the canvas where
+ * the hues are.
  *
- * It carries the issue dots, which is the load-bearing part. Moving the wall of
- * warnings onto the cards would otherwise mean a problem can be off-screen; the
- * dots are always visible however far the canvas is panned.
- *
- * Also the breadcrumb, because the factor canvas is a place you go *into* from
- * the Features stage and need a marked way back out of.
+ * What is left is the part the canvas cannot do: the factor canvas is a place you
+ * go *into* from the Features stage and need a marked way back out of. In the
+ * pipeline pane this renders nothing, which is also worth 41px of canvas height
+ * that the ring wants.
  */
 import { ChevronRight } from 'lucide-react'
 
-import {
-  PHASE_LABELS, PHASE_ORDER, STAGE_ORDER, STAGES, type StageId,
-} from '@/lib/strategyGraph/stages'
-import type { StageBadge } from '@/lib/strategyGraph/stageStatus'
-import { cn } from '@/lib/utils'
-
 export interface StageStripProps {
-  selected: StageId | null
-  onSelect: (stage: StageId) => void
-  status: Readonly<Record<StageId, StageBadge>>
   /** Which pane the canvas area is showing. */
   pane: 'pipeline' | 'features'
   /** Leave the factor canvas and come back to the pipeline. */
@@ -34,85 +26,34 @@ export interface StageStripProps {
   activeColumn?: string
 }
 
-export function StageStrip({
-  selected, onSelect, status, pane, onBackToPipeline, activeColumn,
-}: StageStripProps) {
-  if (pane === 'features') {
-    return (
-      <nav
-        aria-label="Breadcrumb"
-        className="flex shrink-0 items-center gap-1 border-b border-border/50 px-6 py-2"
-        data-testid="stage-breadcrumb"
-      >
-        <button
-          type="button"
-          onClick={onBackToPipeline}
-          className="rounded font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Pipeline
-        </button>
-        <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
-        <span className="font-mono text-[11px] uppercase tracking-wider text-foreground">
-          Features
-        </span>
-        {activeColumn && (
-          <>
-            <span className="text-muted-foreground/40">·</span>
-            <span className="truncate font-mono text-[11px] text-muted-foreground">
-              {activeColumn}
-            </span>
-          </>
-        )}
-      </nav>
-    )
-  }
+export function StageStrip({ pane, onBackToPipeline, activeColumn }: StageStripProps) {
+  if (pane !== 'features') return null
 
   return (
     <nav
-      aria-label="Pipeline stages"
-      className="flex shrink-0 items-center gap-4 overflow-x-auto border-b border-border/50 px-6 py-2"
-      data-testid="stage-strip"
+      aria-label="Breadcrumb"
+      className="flex shrink-0 items-center gap-1 border-b border-border/50 px-6 py-2"
+      data-testid="stage-breadcrumb"
     >
-      {PHASE_ORDER.map((phase) => {
-        const stages = STAGE_ORDER.filter((id) => STAGES[id].phase === phase)
-        return (
-          <div key={phase} className="flex shrink-0 items-center gap-1.5">
-            <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground/50">
-              {PHASE_LABELS[phase]}
-            </span>
-            {stages.map((id) => {
-              const badge = status[id]
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => onSelect(id)}
-                  title={badge.notes.join('\n') || STAGES[id].label}
-                  data-testid={`stage-chip-${id}`}
-                  className={cn(
-                    'flex items-center gap-1.5 rounded-md border px-2 py-1 transition-colors',
-                    'font-mono text-[11px]',
-                    selected === id
-                      ? 'border-border bg-surface-3 text-foreground'
-                      : 'border-border/50 text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {STAGES[id].eyebrow}
-                  {badge.status !== 'ok' && (
-                    <span
-                      aria-hidden
-                      className={cn(
-                        'h-1.5 w-1.5 shrink-0 rounded-full',
-                        badge.status === 'blocked' ? 'bg-destructive' : 'bg-clay',
-                      )}
-                    />
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        )
-      })}
+      <button
+        type="button"
+        onClick={onBackToPipeline}
+        className="rounded font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+      >
+        Pipeline
+      </button>
+      <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
+      <span className="font-mono text-[11px] uppercase tracking-wider text-foreground">
+        Features
+      </span>
+      {activeColumn && (
+        <>
+          <span className="text-muted-foreground/40">·</span>
+          <span className="truncate font-mono text-[11px] text-muted-foreground">
+            {activeColumn}
+          </span>
+        </>
+      )}
     </nav>
   )
 }
