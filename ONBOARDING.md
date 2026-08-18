@@ -83,8 +83,8 @@ Transfer them **out of band** — a password manager, or an encrypted channel.
 Never paste them into the repo, a Dockerfile, a CI log, or a chat window.
 
 `webapp/.env` is gitignored, and `Dockerfile.dev.dockerignore` excludes it from
-the build context so it cannot end up in an image layer. The `api` and `jupyter`
-services read it at runtime via `env_file`. Both protections are asserted in CI
+the build context so it cannot end up in an image layer. The `api` service
+reads it at runtime via `env_file`. Both protections are asserted in CI
 (`.github/workflows/publish-image.yml`) — if you ever edit the dockerignore,
 that check is what stops a key reaching the registry.
 
@@ -115,7 +115,7 @@ Or build it yourself, which is the source of truth and works offline:
 
 ```bash
 AION_IMAGE=qlib-dev:local docker compose build api   # ~5-8 min
-echo 'AION_IMAGE=qlib-dev:local' >> .env             # make it stick
+echo 'AION_IMAGE=qlib-dev:local' >> .env              # make it stick
 ```
 
 If the GHCR package is private, authenticate first with a PAT carrying
@@ -141,21 +141,21 @@ ranking and fetches the entire US exchange.
 Do a small run first to prove the pipeline and your key work — a few minutes:
 
 ```bash
-docker compose run --rm qlib python -m webapp.ingest \
+docker compose run --rm api python -m webapp.ingest \
     --universe-size 25 --limit 25 --start 2020-01-01
-docker compose run --rm qlib python -m webapp.ingest \
+docker compose run --rm api python -m webapp.ingest \
     --classes etf,crypto,fx,index --limit 25 --start 2020-01-01
-docker compose run --rm qlib python -m webapp.ingest.build_stores --all
+docker compose run --rm api python -m webapp.ingest.build_stores --all
 ```
 
 If that lands, do the real one:
 
 ```bash
-docker compose run --rm qlib python -m webapp.ingest \
+docker compose run --rm api python -m webapp.ingest \
     --universe-size 500 --start 2010-01-01
-docker compose run --rm qlib python -m webapp.ingest \
+docker compose run --rm api python -m webapp.ingest \
     --classes etf,crypto,fx,index --start 2010-01-01
-docker compose run --rm qlib python -m webapp.ingest.build_stores --all
+docker compose run --rm api python -m webapp.ingest.build_stores --all
 ```
 
 What you get, and where:
@@ -184,96 +184,64 @@ change without spending quota.
 
 ## 8. Start it
 
-The platform itself is just the backend API and the Vite UI. Supabase is still
-part of the same compose project, but it stays as it is in `infra/supabase/`.
+Two compose files, one Docker project (`aion-qlib`): Supabase, then the
+platform (`api` with qlib, `ui`, RAG, Vibe, scalability agent).
 
-```bash
-docker compose up -d api ui
+```powershell
+powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up
 ```
+
+That starts `infra/supabase/` (same project `aion-qlib` as the platform, so
+Docker Desktop groups them), waits for Postgres, then starts `api`, `ui`,
+RAG, Vibe and the agent. `down` stops the platform; Supabase stays up.
 
 | Service | URL | Notes |
 |---|---|---|
 | UI | <http://localhost:5274> | 5173/5273 were taken on the original machine; the port is `strictPort` |
-| API | <http://localhost:8770> | `/api/health`, OpenAPI at `/docs` |
-| Supabase (Kong) | <http://localhost:8010> | included from `infra/supabase/` |
+| API (qlib) | <http://localhost:8770> | `/api/health`, OpenAPI at `/docs` |
+| RAG | <http://localhost:8001/health> | Knowledge backend; UI proxies `/rag-api` |
+| Vibe | <http://localhost:8899/health> | proxied by the API at `/api/vibe/*` |
+| Agent | <http://localhost:8771/health> | scalability jobs the API enqueues |
+| Supabase (Kong) | <http://localhost:8010> | compose file in `infra/supabase/`, project `aion-qlib` |
+
+Or by hand, same order:
+
+```bash
+# from infra/supabase
+docker compose up -d
+# from the repo root
+docker compose up -d
+```
 
 Everything binds `127.0.0.1` only. The UI sits behind a Supabase login (see
 below); the EODHD/OpenRouter API keys stay server-side either way and never
 reach the browser.
 
-### Optional dev/utility services
-
-RAG, Vibe, the scalability agent, JupyterLab and MLflow are kept in a separate
-compose file so they do not clutter the default platform startup and do not
-force their separate images onto the core services.
-
-```bash
-# Start the platform plus all optional services
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-```
-
-| Service | URL | Command |
-|---|---|---|
-| Scalability agent | <http://localhost:8771> | health endpoint only — work arrives via the jobs table |
-| RAG API | <http://localhost:8001> | needs `rag/backend/.env`; proxies through the UI at `/rag-api` |
-| Vibe API | <http://localhost:8899> | needs `vibe/.env`; proxied at `/api/vibe/*` |
-| JupyterLab | <http://localhost:8888/lab?token=qlib> | interactive notebooks |
-| MLflow | <http://localhost:5500> | experiment tracking UI |
-
-Or use the convenience wrapper, which also waits for Postgres before starting
-the API:
-
-```powershell
-# Platform only
-powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up
-
-# Platform + optional services
-powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up -Dev
-```
-
-`down`, `restart`, `status` and `logs <service>` work the same way. Add `-Dev`
-to any of them when the dev file is in use.
-
 ### The Supabase stack
 
 Supabase is the platform's identity and user-data layer: it authenticates
 everyone, and both halves of the app store per-user records in its Postgres.
+It is **not** inlined in the root compose file; it uses the same project name
+so it appears under Aion-Qlib in Docker Desktop.
 
-Plain `docker compose` from the repo root drives the platform and Supabase as
-one project: Supabase is pulled in by the `include:` at the top of
-`docker-compose.yml`.
-
-- Supabase lives in-repo at `infra/supabase/` and is gitignored. Kong publishes
-  it on host `:8010` (REST, auth, storage) with the pooler on `:5442`.
-- Two details in `docker-compose.yml` keep that merge safe, and `infra/README.md`
-  explains both: `project_directory` on the `include:` (Supabase's bind mounts
-  are relative, and `./volumes/db/data` *is* the database), and the `external`
-  declarations on `db-config` / `deno-cache` (one of them holds the pgsodium
-  root encryption key, which a fresh empty volume would silently replace).
-- `rag/backend/.env` (gitignored) configures `rag-api`: Supabase URL/keys,
-  embedding backend, and the test-user credentials (`TEST_USER1_PASSWORD`).
+- It lives in-repo at `infra/supabase/` and is gitignored. Kong publishes it on
+  host `:8010` (REST, auth, storage) with the pooler on `:5442`.
+- The `api` container shares `aion-qlib_default` so `DATABASE_URL` can use
+  host `supabase-db-aq`. See `infra/README.md`.
+- `rag/backend/.env` (gitignored) configures the RAG backend:
+  Supabase URL/keys, embedding backend, and the test-user credentials
+  (`TEST_USER1_PASSWORD`).
 - `webapp/ui/.env.local` (gitignored) gives the browser `VITE_SUPABASE_URL`
   (the Kong URL) and `VITE_SUPABASE_ANON_KEY`.
 
 The UI's auth gate wraps the whole shell — sign in as `test@test.com` with the password
-from `rag/backend/.env`. The Vite dev server proxies `/rag-api/*` to the
-`rag-api` container with the prefix stripped, so the app stays same-origin.
+from `rag/backend/.env`.
 
 **Both halves are authenticated.** Every `/api` route except `/api/health`
 requires the same Supabase token, and what a request can see is decided by row
 level security in the `aion` schema rather than by application filters -- so
 each person's strategies, portfolios, projects and runs are private, and shared
-only when they deliberately share them with their workspace. A quick
-end-to-end check:
-upload a small markdown file on `/documents`, watch it reach `completed`,
-inspect its chunks on `/corpus`, then ask a question about it on `/chats` — the
-answer should carry a citation back to the uploaded file.
-
-MLflow is published on 5500 because macOS ControlCenter owns 5000. On Linux 5000
-is usually free, but the mapping is kept so both machines match.
-
-MLflow is published on 5500 because macOS ControlCenter owns 5000. On Linux 5000
-is usually free, but the mapping is kept so both machines match.
+only when they deliberately share them with their workspace.
 
 ## 9. Verify
 
@@ -301,7 +269,7 @@ sudo apt install -y build-essential libgomp1 python3.11 python3.11-venv
 
 `setup-venv.sh` creates `.venv`, compiles the Cython extensions, installs qlib
 plus `webapp/requirements.txt`, and writes the MLflow `.pth` described in §11.
-Data still comes from §7 — drop the `docker compose run --rm qlib` prefix and use
+Data still comes from §7 — drop the `docker compose run --rm api` prefix and use
 `.venv/bin/python` instead.
 
 ## 11. Things that will bite you

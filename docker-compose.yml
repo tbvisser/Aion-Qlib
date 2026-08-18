@@ -1,24 +1,22 @@
-# The AION platform: backend API + Vite frontend, with Supabase for auth and
-# Postgres. Start just the platform with:
+# AION platform: API, UI, and the sidecars the API talks to.
 #
-#   docker compose up -d api ui
+#   docker compose up -d          # api + ui + rag + vibe + agent
+#   docker compose exec api bash  # shell in the backend (qlib is already here)
 #
-# Optional dev/utility services (RAG, Vibe, agent, Jupyter, MLflow, and the qlib
-# dev shell) live in docker-compose.dev.yml. To start everything together:
+# Project name aion-qlib matches infra/supabase/ so Docker Desktop groups
+# Studio, Kong, Postgres and these under one heading. They stay two compose
+# files: start Supabase first (`infra\stack.ps1 up` does that, waits for
+# Postgres, then starts these). Both share aion-qlib_default, so DATABASE_URL
+# can use host supabase-db-aq.
 #
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# Qlib itself runs inside `api` (editable install). Vibe and RAG cannot: their
+# Python pins conflict with the qlib image, so they are sibling containers the
+# API reaches by service name. The scalability agent is the same image as api
+# and consumes jobs the API enqueues.
 #
-# Supabase is pulled in from infra/supabase/ so the whole project stays one
-# compose project: one network, one stack in Docker Desktop.
-#
-#   docker compose pull                # fetch the published image (fast path)
-#   docker compose build api           # ...or build it yourself, ~5-8 min
-#   docker compose up -d api ui        # start only the platform
-#   docker compose exec api bash       # shell in the API container
-#   docker compose exec -w /qlib/examples api \
-#       qrun benchmarks/LightGBM/workflow_config_lightgbm_Alpha158.yaml
 #   open http://localhost:5274         # AION UI
 #   open http://localhost:8770/api/health
+#   open http://localhost:8010         # Supabase Studio / Kong
 #
 # The repo is bind-mounted, so host edits are live inside the container via the
 # editable install. ~/.qlib is shared, so host and container use one dataset.
@@ -26,30 +24,11 @@
 # First run on a new machine: see ONBOARDING.md. Requires Compose v2.24+ for the
 # optional `env_file` form used below.
 #
-# AION_IMAGE selects which image the python services run. The default is the
-# one CI publishes to GHCR; `AION_IMAGE=qlib-dev:local` pins to your own build.
+# AION_IMAGE selects which image the backend runs. The default is the one CI
+# publishes to GHCR; `AION_IMAGE=qlib-dev:local` pins to your own build.
 # DOCKER_UID/DOCKER_GID matter on Linux only — see .env.example.
-#
-# The data mount lands on /home/qlib/.qlib rather than /root/.qlib, and HOME is
-# set to match, so that `~/.qlib` still resolves when DOCKER_UID makes these
-# services run as a non-root user (/root is mode 700 and unreadable to them).
 
-# Supabase -- auth and the Postgres every user record lives in -- is pulled in
-# here so the whole platform is ONE compose project: one `docker compose up`,
-# one stack in Docker Desktop, one network.
-#
-# `project_directory` is what makes it safe: Supabase's compose uses relative
-# bind mounts (./volumes/db/data is the database), and without it they would
-# resolve against this file's directory and Postgres would start on an empty
-# data dir. `env_file` supplies the ~100 variables its services read, which
-# live in its own .env rather than ours.
-#
-# Its two named volumes are re-declared as external at the bottom of this file.
-# That is not optional -- see the comment there.
-include:
-  - path: ./infra/supabase/docker-compose.yml
-    project_directory: ./infra/supabase
-    env_file: ./infra/supabase/.env
+name: aion-qlib
 
 services:
   # AION API. Built from Dockerfile.dev unless AION_IMAGE points to a published
@@ -62,16 +41,12 @@ services:
       dockerfile: Dockerfile.dev
     image: ${AION_IMAGE:-ghcr.io/tbvisser/aion-qlib:dev}
     container_name: qlib-api
-    depends_on:
-      db:
-        condition: service_healthy
     working_dir: /qlib
     user: "${DOCKER_UID:-0}:${DOCKER_GID:-0}"
     environment:
       HOME: /home/qlib
-    # The keys are read at runtime, never baked into the image — see the secrets
-    # block in Dockerfile.dev.dockerignore. Optional so that `compose up` still
-    # works on a fresh clone before you have written webapp/.env.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - path: webapp/.env
         required: false
@@ -80,11 +55,6 @@ services:
       - ${HOME}/.qlib:/home/qlib/.qlib
     ports:
       - "127.0.0.1:8770:8770"
-    # Per-user records live in Supabase's Postgres, which is now a service in
-    # this same project -- so this reaches it directly on the shared default
-    # network as supabase-db-aq:5432, rather than going out to the host and
-    # back in through the supavisor pooler (which would also mean adopting
-    # supavisor's user.tenant username form and transaction-mode limits).
     command:
       - uvicorn
       - webapp.api.main:app
@@ -107,6 +77,7 @@ services:
       - ./webapp/ui:/app
     environment:
       VITE_API_PROXY: http://api:8770
+      VITE_RAG_API_PROXY: http://rag-api:8001
       # node:22-alpine defaults HOME to /root, which a non-root DOCKER_UID cannot
       # write; without these npm install fails on its cache before it starts.
       HOME: /tmp
@@ -115,21 +86,123 @@ services:
       - "127.0.0.1:5274:5274"
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
 
+  # Vendored Aion-RAG backend (Knowledge tabs). Own image: fastapi/uvicorn pins
+  # conflict with the qlib API, and docling stays out of backtests. Talks to
+  # Supabase via host.docker.internal:8010. Config: rag/backend/.env.
+  rag-api:
+    build:
+      context: ./rag/backend
+    image: ${AION_RAG_IMAGE:-aion-rag:dev}
+    container_name: qlib-rag-api
+    working_dir: /rag/backend
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      HOME: /home/rag
+      HF_HOME: /home/rag/.cache/huggingface
+    env_file:
+      - path: rag/backend/.env
+        required: false
+    volumes:
+      - ./rag:/rag
+      - rag-model-cache:/home/rag/.cache
+    ports:
+      - "127.0.0.1:8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Scalability agent. Same image and env as api; it polls aion.scalability_jobs
+  # and writes reports back. The API only enqueues.
+  agent:
+    image: ${AION_IMAGE:-ghcr.io/tbvisser/aion-qlib:dev}
+    container_name: qlib-scalability-agent
+    working_dir: /qlib
+    user: "${DOCKER_UID:-0}:${DOCKER_GID:-0}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      HOME: /home/qlib
+    env_file:
+      - path: webapp/.env
+        required: false
+    volumes:
+      - .:/qlib
+      - ${HOME}/.qlib:/home/qlib/.qlib
+    ports:
+      - "127.0.0.1:8771:8771"
+    command: python -m scalability_agent.agent.main
+
+  # Vibe-Trading sidecar (HKUDS/Vibe-Trading, MIT — THIRD_PARTY_NOTICES.md).
+  # Own image for the same reason as rag-api. The qlib API proxies a whitelist
+  # at /api/vibe/*. Config: vibe/.env — API_AUTH_KEY must match VIBE_API_TOKEN
+  # in webapp/.env.
+  vibe-api:
+    build:
+      context: ./vibe
+    image: ${AION_VIBE_IMAGE:-aion-vibe:dev}
+    container_name: qlib-vibe-api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - path: vibe/.env
+        required: false
+    volumes:
+      - vibe-home:/home/vibe
+    ports:
+      - "127.0.0.1:8899:8000"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 4g
+    cpus: 2
+    command:
+      - vibe-trading
+      - serve
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Same image, MCP transport. Internal-only; consumers are the qlib API proxy
+  # and rag-api (MCP_SERVERS in rag/backend/.env).
+  vibe-mcp:
+    image: ${AION_VIBE_IMAGE:-aion-vibe:dev}
+    container_name: qlib-vibe-mcp
+    depends_on:
+      - vibe-api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - path: vibe/.env
+        required: false
+    environment:
+      VIBE_TRADING_MCP_ALLOWED_HOSTS: vibe-mcp,localhost,127.0.0.1
+    volumes:
+      - vibe-home:/home/vibe
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 4g
+    cpus: 2
+    command:
+      - vibe-trading-mcp
+      - --transport
+      - http
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8900"
+
 volumes:
-  # Supabase's own two volumes, pinned to the names they already have.
-  #
-  # Compose prefixes a named volume with the project name, so folding these
-  # services in would otherwise point them at fresh, empty `aion-qlib_*`
-  # volumes. That is not a cosmetic difference: db-config holds
-  # `pgsodium_root.key`, the root encryption key for Vault. An empty volume
-  # means Postgres starts with no custom config and mints a NEW key, at which
-  # point anything encrypted under the old one is unrecoverable.
-  #
-  # `external: true` means compose attaches to these and never creates or
-  # removes them -- including on `docker compose down -v`.
-  db-config:
-    external: true
-    name: supabase-aq_db-config
-  deno-cache:
-    external: true
-    name: supabase-aq_deno-cache
+  rag-model-cache:
+  vibe-home:

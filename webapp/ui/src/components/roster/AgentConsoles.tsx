@@ -83,7 +83,7 @@ export function AgentConsoles() {
 
         {!online && health !== null && (
           <p className="rounded-md bg-muted p-2 font-mono text-[11px] text-muted-foreground">
-            docker compose up -d vibe-api vibe-mcp
+            infra\stack.ps1 up
           </p>
         )}
       </CardContent>

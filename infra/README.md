@@ -2,70 +2,55 @@
 
 The Supabase stack the platform authenticates and stores user data against.
 
-It is **part of the same compose project** as the AION platform: the root
-`docker-compose.yml` pulls it in with `include:`, so `docker compose` from the
-repo root drives Supabase plus the `api` and `ui` services, and Docker Desktop
-shows one stack. Optional dev/utility services (RAG, Vibe, agent, Jupyter,
-MLflow, and the qlib dev shell) live in `docker-compose.dev.yml` and are only
-used when that file is passed explicitly.
+It lives in `infra/supabase/` as its own compose file, but uses the same
+project name as the platform (`aion-qlib`) so Docker Desktop groups Studio,
+Kong, Postgres, `api`, `ui`, RAG, Vibe and the agent under one heading. The
+backend shares that project's default network and reaches `supabase-db-aq`
+by container name.
 
 ```powershell
-# Platform only
-docker compose up -d api ui
-
-# Platform + optional services
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-```
-
-`stack.ps1` is a thin convenience over the same commands:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up            # platform only
-powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up -Dev      # + optional services
+powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up       # supabase, then platform
 powershell -ExecutionPolicy Bypass -File infra\stack.ps1 status
-powershell -ExecutionPolicy Bypass -File infra\stack.ps1 down
+powershell -ExecutionPolicy Bypass -File infra\stack.ps1 down     # platform only; supabase stays
 powershell -ExecutionPolicy Bypass -File infra\stack.ps1 logs api
 ```
 
-The only thing it adds is the wait: the API resolves every caller's organisation
-out of Supabase's Postgres, so starting it first leaves it serving errors until
-someone restarts it — which looks like a bug in the app rather than a race.
+Or by hand:
+
+```powershell
+# Supabase
+Set-Location infra\supabase
+docker compose up -d
+
+# Platform
+Set-Location <repo root>
+docker compose up -d
+```
+
+Do not add `--remove-orphans` to a root `docker compose down`: both files share
+project `aion-qlib`, so that flag would stop Supabase as well.
+
+`stack.ps1 up` waits until Postgres accepts connections before starting the
+API. Skip that wait and the API serves errors until you restart it, because it
+resolves every caller's organisation out of that database.
 
 | | |
 |---|---|
 | UI | http://127.0.0.1:5274 |
-| qlib API | http://127.0.0.1:8770/api/health |
+| API (qlib) | http://127.0.0.1:8770/api/health |
+| RAG | http://127.0.0.1:8001/health |
+| Vibe | http://127.0.0.1:8899/health |
+| Scalability agent | http://127.0.0.1:8771/health |
 | Supabase Studio / Kong | http://127.0.0.1:8010 |
 | Postgres (host) | `127.0.0.1:5442` (supavisor pooler) |
 | Postgres (containers) | `supabase-db-aq:5432` |
 
-Optional services (when `docker-compose.dev.yml` is used):
+`down` stops the platform (api, ui, rag, vibe, agent). To stop Supabase:
 
-| | |
-|---|---|
-| RAG API | http://127.0.0.1:8001 |
-| Vibe API | http://127.0.0.1:8899 |
-| JupyterLab | http://127.0.0.1:8888/lab?token=qlib |
-| MLflow | http://127.0.0.1:5500 |
-
-## The two things that make the merge safe
-
-Folding another project's compose file into yours is not free. Two details in
-the root `docker-compose.yml` are load-bearing, and both are easy to "tidy away"
-without noticing:
-
-**1. `project_directory: ./infra/supabase` on the `include:`.** Supabase's compose
-uses relative bind mounts — `./volumes/db/data` *is* the database. Without this,
-they resolve against the repo root and Postgres starts on an empty directory.
-
-**2. `db-config` and `deno-cache` are declared `external`.** Compose prefixes
-named volumes with the project name, so merging would otherwise point these at
-fresh, empty `aion-qlib_*` volumes. `db-config` holds `pgsodium_root.key`, the
-root encryption key for Vault: an empty volume means Postgres mints a **new**
-key and anything encrypted under the old one is unrecoverable. Pinning them
-external also means `docker compose down -v` cannot delete them.
-
-If Postgres ever comes up looking empty, check those two before anything else.
+```powershell
+Set-Location infra\supabase
+docker compose down     # never add -v: that deletes the database
+```
 
 ## Why it is gitignored
 
@@ -73,8 +58,7 @@ If Postgres ever comes up looking empty, check those two before anything else.
 `Dockerfile.dev.dockerignore`. It is an upstream compose project, not our source:
 it carries its own `.env` full of keys, a live Postgres data directory, and the
 storage bucket contents. `rag/INSTALL.md` advises keeping Supabase outside the
-repo for exactly these reasons — ignoring it addresses them while still letting
-the whole platform run as one stack.
+repo for exactly these reasons.
 
 Nothing here is a backup. `infra/supabase/volumes/db/data` is the database.
 

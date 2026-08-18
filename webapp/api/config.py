@@ -55,17 +55,15 @@ class Settings(BaseSettings):
     # serves is per-user behind a Supabase JWT and stays a browser concern --
     # see webapp/api/registry/providers/rag_registry.py.
     rag_api_url: str = "http://rag-api:8001"
-    # The scalability agent (compose service `agent`, top-level
-    # scalability_agent/ package). It has exactly one inbound endpoint --
-    # /health -- which is all this API needs: the Agents & Skills roster
-    # probes it to show whether the background worker is alive. Work reaches
-    # the agent through the aion.scalability_jobs table, never over HTTP.
+    # Scalability agent (compose service `agent`). The API enqueues jobs in
+    # Postgres; this URL is only the /health probe the Agents & Skills roster
+    # uses. Compose-network default; natively override to 127.0.0.1:8771.
     scalability_agent_url: str = "http://agent:8771"
 
     # --- identity and per-user storage --------------------------------------
-    # The same Supabase the RAG half already uses (compose project supabase-aq,
-    # in-repo at infra/supabase/). Two distinct connections to it, for two
-    # distinct jobs:
+    # The same Supabase the RAG half already uses (compose file in
+    # infra/supabase/, project aion-qlib). Two distinct connections to it, for
+    # two distinct jobs:
     #
     # supabase_url is HTTP, and is used only to fetch the JWKS that verifies
     # access tokens. supabase_anon_key accompanies that fetch; it is public by
@@ -79,9 +77,9 @@ class Settings(BaseSettings):
     # which is the entire point. Connecting as `postgres` would silently defeat
     # every policy in the aion schema, because superusers are exempt.
     #
-    # The api service joins the supabase-aq_default network so it can reach the
-    # database container directly, rather than going out through the supavisor
-    # pooler and inheriting its user.tenant username form.
+    # The api container shares aion-qlib_default (see docker-compose.yml) so it
+    # can reach the database container directly, rather than going out through
+    # the supavisor pooler and inheriting its user.tenant username form.
     database_url: str = ""
     # Pool bounds. Small on purpose: this is one uvicorn worker serving a team,
     # not a public site, and every connection held here is one the rest of the

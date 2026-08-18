@@ -440,7 +440,7 @@ export function DataSourcesPanel() {
             <p className="rounded-md bg-muted px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground/70">
               Vibe sidecar offline —{' '}
               <code className="text-muted-foreground">
-                docker compose up -d vibe-api vibe-mcp
+                infra\stack.ps1 up
               </code>
             </p>
           )}

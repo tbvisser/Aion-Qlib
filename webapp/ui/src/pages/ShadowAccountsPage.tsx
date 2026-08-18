@@ -499,7 +499,7 @@ export function ShadowAccountsPage() {
             <Notice tone="clay">
               <p className="font-medium">Vibe sidecar offline</p>
               <p className="mt-1 font-mono text-[11px]">
-                docker compose up -d vibe-api vibe-mcp
+                infra\stack.ps1 up
               </p>
             </Notice>
           )}

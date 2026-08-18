@@ -236,7 +236,7 @@ export function AccountsPage() {
           <Notice tone="muted">
             <p>
               Vibe sidecar offline — run{' '}
-              <code className="font-mono text-[11px]">docker compose up -d vibe-api vibe-mcp</code> to
+              <code className="font-mono text-[11px]">infra\stack.ps1 up</code> to
               start it.
             </p>
           </Notice>
