@@ -222,22 +222,21 @@ export function TrainPanel({ runs, onLaunched }: {
         </div>
 
         {combinations.length > 0 && (
-          <div className="space-y-1.5 rounded-lg border border-border/50 p-2.5">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
-              {combinations.length} {combinations.length === 1 ? 'run' : 'runs'}
+          <Panel title={`${combinations.length} ${combinations.length === 1 ? 'run' : 'runs'}`} hint="what will train" flush>
+            <div className="divide-y divide-border/30">
+              {combinations.map(({ model, handler }) => {
+                const found = coverage[`${model}::${handler}`]
+                return (
+                  <div key={`${model}::${handler}`} className="flex items-baseline gap-2 px-2.5 py-1.5 text-[11px]">
+                    <span className="w-40 shrink-0 truncate font-mono">{model} / {handler}</span>
+                    <span className="min-w-0 flex-1 text-muted-foreground">
+                      {coverageLine(found)}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
-            {combinations.map(({ model, handler }) => {
-              const found = coverage[`${model}::${handler}`]
-              return (
-                <div key={`${model}::${handler}`} className="flex items-baseline gap-2 text-[11px]">
-                  <span className="w-40 shrink-0 truncate font-mono">{model} / {handler}</span>
-                  <span className="min-w-0 flex-1 text-muted-foreground">
-                    {coverageLine(found)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+          </Panel>
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-2">
