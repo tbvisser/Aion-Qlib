@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { File as FileIcon, FileImage, Send, Square, Loader2, Shield } from 'lucide-react'
+import { File as FileIcon, FileImage, Loader2, Shield } from 'lucide-react'
 import ReactMarkdown, { defaultUrlTransform, type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
-import { Textarea } from '@/components/ui/textarea'
 import { getMessages, sendMessage, getPublicSettings, getCompactions, uploadWorkspaceFile, getWorkspaceFileDownloadUrl, DEFAULT_CONTEXT_WINDOW } from '@/features/rag/lib/api'
 import { getPastedImageFile } from '@/features/rag/lib/clipboardFiles'
 import { StepsPanel } from './StepsPanel'
@@ -13,7 +11,8 @@ import { CodeExecutionPanel } from './CodeExecutionPanel'
 import { ThinkingPanel } from './ThinkingPanel'
 import { CompactionMarker } from './CompactionMarker'
 import { MessageActions } from './MessageActions'
-import { ComposerMenu, ActiveModeChip, type ComposerMode } from './ComposerMenu'
+import { ActiveModeChip, type ComposerMode } from './ComposerMenu'
+import { ComposerShell } from './ComposerShell'
 import { AttachmentPreviewTray } from './AttachmentPreviewTray'
 import { ChatFileDropOverlay } from './ChatFileDropOverlay'
 import { readModelConfig } from '@/features/rag/hooks/useModelConfig'
@@ -460,19 +459,6 @@ export function ChatView({ threadId, onThreadTitleUpdate, onTodosUpdate, onAgent
     const container = scrollContainerRef.current
     if (container) container.scrollTop = container.scrollHeight
   }, [conversation])
-
-  // Auto-resize the input textarea to fit content, capped at 50vh.
-  // Add border height because Tailwind uses box-sizing: border-box, so
-  // setting height = scrollHeight (which only includes padding+content)
-  // would clip the box by the border width and trigger a 1-2px scrollbar.
-  useEffect(() => {
-    const ta = inputRef.current
-    if (!ta) return
-    ta.style.height = 'auto'
-    const cs = getComputedStyle(ta)
-    const border = (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0)
-    ta.style.height = `${ta.scrollHeight + border}px`
-  }, [input])
 
   // Fetch context window limit on mount
   useEffect(() => {
@@ -1789,63 +1775,42 @@ export function ChatView({ threadId, onThreadTitleUpdate, onTodosUpdate, onAgent
         <div className="text-center mb-8">
           <h1 className="text-3xl font-semibold tracking-tight mb-1">What can I help with?</h1>
         </div>
-        <form onSubmit={handleSubmit} className="w-full max-w-xl px-4">
+        <form onSubmit={handleSubmit} className="w-full max-w-2xl px-4">
           <ActiveModeChip
             activeMode={activeMode}
             locked={harnessLocked}
             onClear={() => handleModeChange(null)}
           />
-          <div className={`relative focus-glow rounded-3xl ${hasPendingAttachments ? 'border border-border/50 bg-surface-2' : ''}`}>
-            <AttachmentPreviewTray
-              attachments={pendingAttachments}
-              onRemove={handleRemoveAttachment}
-              disabled={sending || uploading}
-            />
-            <Textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onPaste={handlePaste}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSubmit(e as unknown as React.FormEvent)
-                }
-              }}
-              placeholder="Ask anything..."
-              disabled={sending || uploading}
-              rows={1}
-              className={`min-h-[48px] max-h-[50vh] resize-none overflow-y-auto rounded-3xl pl-12 pr-12 py-3 text-base leading-6 transition-colors ${
-                hasPendingAttachments
-                  ? 'border-0 bg-transparent focus-visible:ring-0 focus-visible:border-transparent'
-                  : 'bg-surface-2 border-border/50 focus:border-primary/50'
-              }`}
-            />
-            <div className="absolute left-1.5 bottom-1.5 flex gap-1">
-              <ComposerMenu
-                activeMode={activeMode}
-                onModeChange={handleModeChange}
-                harnessLocked={harnessLocked}
-                onUpload={handleUpload}
-                uploading={uploading}
-                showContextStats={!!tokenUsage}
-                contextStatsOpen={isTokenUsageOpen}
-                onToggleContextStats={() => setIsTokenUsageOpen(open => !open)}
+          <ComposerShell
+            value={input}
+            onChange={setInput}
+            onPaste={handlePaste}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSubmit(e as unknown as React.FormEvent)
+              }
+            }}
+            placeholder="Ask anything..."
+            disabled={sending || uploading}
+            inputRef={inputRef}
+            attachmentsSlot={
+              <AttachmentPreviewTray
+                attachments={pendingAttachments}
+                onRemove={handleRemoveAttachment}
                 disabled={sending || uploading}
               />
-            </div>
-            <div className="absolute right-1.5 bottom-1.5 flex gap-1">
-              <Button
-                type="submit"
-                size="icon"
-                aria-label="Send message"
-                className="rounded-full h-9 w-9 bg-primary hover:bg-primary/90 transition-all duration-200 btn-press"
-                disabled={(!input.trim() && !hasPendingAttachments) || sending || uploading}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+            }
+            activeMode={activeMode}
+            onModeChange={handleModeChange}
+            harnessLocked={harnessLocked}
+            onUpload={handleUpload}
+            uploading={uploading}
+            showContextStats={!!tokenUsage}
+            contextStatsOpen={isTokenUsageOpen}
+            onToggleContextStats={() => setIsTokenUsageOpen(open => !open)}
+            canSend={Boolean(input.trim()) || hasPendingAttachments}
+          />
         </form>
       </div>
     )
@@ -2020,70 +1985,38 @@ export function ChatView({ threadId, onThreadTitleUpdate, onTodosUpdate, onAgent
                 locked={harnessLocked}
                 onClear={() => handleModeChange(null)}
               />
-              <div className={`relative focus-glow rounded-3xl ${hasPendingAttachments ? 'border border-border/50 bg-background' : ''}`}>
-                <AttachmentPreviewTray
-                  attachments={pendingAttachments}
-                  onRemove={handleRemoveAttachment}
-                  disabled={sending || uploading}
-                />
-                <Textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onPaste={handlePaste}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSubmit(e as unknown as React.FormEvent)
-                    }
-                  }}
-                  placeholder="Ask anything..."
-                  disabled={sending || uploading}
-                  rows={1}
-                  className={`min-h-[48px] max-h-[50vh] resize-none overflow-y-auto rounded-3xl pl-12 pr-12 py-3 text-base leading-6 transition-colors ${
-                    hasPendingAttachments
-                      ? 'border-0 bg-transparent focus-visible:ring-0 focus-visible:border-transparent'
-                      : 'bg-background border-border/50 focus:border-primary/50'
-                  }`}
-                />
-                <div className="absolute left-1.5 bottom-1.5 flex gap-1">
-                  <ComposerMenu
-                    activeMode={activeMode}
-                    onModeChange={handleModeChange}
-                    harnessLocked={harnessLocked}
-                    onUpload={handleUpload}
-                    uploading={uploading}
-                    showContextStats={!!tokenUsage}
-                    contextStatsOpen={isTokenUsageOpen}
-                    onToggleContextStats={() => setIsTokenUsageOpen(open => !open)}
+              <ComposerShell
+                value={input}
+                onChange={setInput}
+                onPaste={handlePaste}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSubmit(e as unknown as React.FormEvent)
+                  }
+                }}
+                placeholder="Ask anything..."
+                disabled={sending || uploading}
+                inputRef={inputRef}
+                attachmentsSlot={
+                  <AttachmentPreviewTray
+                    attachments={pendingAttachments}
+                    onRemove={handleRemoveAttachment}
                     disabled={sending || uploading}
                   />
-                </div>
-                <div className="absolute right-1.5 bottom-1.5 flex gap-1">
-                  {sending ? (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="rounded-full h-9 w-9 transition-all duration-200 btn-press"
-                      onClick={handleStop}
-                      title="Stop generating"
-                    >
-                      <Square className="h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <Button
-                      type="submit"
-                      size="icon"
-                      aria-label="Send message"
-                      className="rounded-full h-9 w-9 bg-primary hover:bg-primary/90 transition-all duration-200 btn-press"
-                      disabled={(!input.trim() && !hasPendingAttachments) || uploading}
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
+                }
+                activeMode={activeMode}
+                onModeChange={handleModeChange}
+                harnessLocked={harnessLocked}
+                onUpload={handleUpload}
+                uploading={uploading}
+                showContextStats={!!tokenUsage}
+                contextStatsOpen={isTokenUsageOpen}
+                onToggleContextStats={() => setIsTokenUsageOpen(open => !open)}
+                canSend={Boolean(input.trim()) || hasPendingAttachments}
+                sending={sending}
+                onStop={handleStop}
+              />
             </form>
           </div>
         </Collapsible>

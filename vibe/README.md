@@ -25,8 +25,9 @@ mandate gates are a second layer behind it.
 ```sh
 cp vibe/.env.example vibe/.env      # fill in API_AUTH_KEY at minimum
 # put the same key in webapp/.env as VIBE_API_TOKEN
-docker compose build vibe-api       # one-time, image is large (LangChain tree)
-docker compose up -d vibe-api vibe-mcp
+docker compose -f docker-compose.yml -f docker-compose.dev.yml build vibe-api
+# one-time, image is large (LangChain tree)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d vibe-api vibe-mcp
 curl http://127.0.0.1:8770/api/vibe/health
 ```
 

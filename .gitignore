@@ -68,3 +68,10 @@ examples/catboost_info/
 # (The bare `.env` rule above is upstream's; repeated here for the same reason.)
 .env
 .env.local
+
+# The Supabase stack (auth + Postgres) now lives in the repo so the whole
+# platform starts from one directory -- see infra/README.md. It is *not* ours to
+# version: it is an upstream compose project carrying its own .env full of keys,
+# a live Postgres data directory, and the storage bucket contents. Ignoring it
+# addresses the reason rag/INSTALL.md advises keeping Supabase outside a repo.
+infra/supabase/

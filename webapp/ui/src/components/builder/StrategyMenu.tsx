@@ -15,12 +15,13 @@
  * strategy switch is covered rather than just this one.
  */
 import { useState } from 'react'
-import { Check, ChevronDown, Copy, LayoutGrid, Plus, Save, Trash2 } from 'lucide-react'
+import { Check, ChevronDown, Copy, LayoutGrid, Lock, Plus, Save, Trash2, Users } from 'lucide-react'
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { OwnershipBadge, useIsOwner } from '@/components/OwnershipBadge'
 import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -56,12 +57,14 @@ export interface StrategyMenuProps {
   /** Not guarded: duplicating carries the edits into the copy, so nothing is lost. */
   onDuplicate: () => void
   onDelete: (strategy: StoredStrategy) => void
+  /** Share the open strategy with the workspace, or take it back. */
+  onSetVisibility: (strategy: StoredStrategy, visibility: 'private' | 'org') => void
   onBrowseTemplates: () => void
 }
 
 export function StrategyMenu({
   name, onNameChange, currentId, dirty, changed, saved, onSave, busy,
-  onOpen, onNew, onDuplicate, onDelete, onBrowseTemplates,
+  onOpen, onNew, onDuplicate, onDelete, onSetVisibility, onBrowseTemplates,
 }: StrategyMenuProps) {
   // Held here rather than as an `AlertDialogTrigger` inside a menu item: the
   // menu unmounts on select and would take the dialog with it.
@@ -70,6 +73,9 @@ export function StrategyMenu({
   const mine = saved.filter((s) => !s.id.startsWith(DEMO_PREFIX))
   const book = saved.filter((s) => s.id.startsWith(DEMO_PREFIX))
   const open = currentId ? saved.find((s) => s.id === currentId) : undefined
+  // Sharing is the owner's call. A colleague can open and run a shared
+  // strategy; publishing it further is not theirs to decide.
+  const mineToShare = useIsOwner(open)
 
   return (
     <div className="flex min-w-0 items-baseline gap-2">
@@ -137,6 +143,18 @@ export function StrategyMenu({
             <Copy className="h-3.5 w-3.5" />
             Duplicate
           </DropdownMenuItem>
+          {/* Only for a saved strategy you own: there is nothing to share
+              until it exists, and a colleague's copy is not yours to publish. */}
+          {open && mineToShare && (
+            <DropdownMenuItem
+              onSelect={() =>
+                onSetVisibility(open, open.visibility === 'org' ? 'private' : 'org')}
+            >
+              {open.visibility === 'org'
+                ? <><Lock className="h-3.5 w-3.5" />Make private</>
+                : <><Users className="h-3.5 w-3.5" />Share with workspace</>}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             disabled={!open}
             onSelect={() => { if (open) setDeleting(open) }}
@@ -189,6 +207,10 @@ function StrategyItem({ strategy, currentId, onOpen }: {
       <Check className={cn('h-3.5 w-3.5 shrink-0',
                            strategy.id === currentId ? 'opacity-100' : 'opacity-0')} />
       <span className="min-w-0 flex-1 truncate">{strategy.name}</span>
+      {/* Renders nothing for your own private work, which is most rows. It
+          appears only when there is something to say: this one is shared, or
+          it is not yours. */}
+      <OwnershipBadge record={strategy} className="shrink-0" />
       <Badge variant="outline" className="shrink-0">{strategy.universe}</Badge>
     </DropdownMenuItem>
   )

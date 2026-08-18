@@ -110,12 +110,20 @@ export function useAgendaCalendar(country = 'US') {
 }
 
 /**
- * The Inbox agenda's calendar. Without a window: two weeks back through a
- * week ahead. With one (the month grid's visible range): that exact span —
- * releases are the one lane that can be fetched month-complete for any month.
- * The generous limit means no realistic window is ever truncated.
+ * The Agenda's calendar. Without a window: two weeks back through a week
+ * ahead. With one — the union of the month grid's visible range and that
+ * default recency span — that exact span: releases are the one lane that can
+ * be fetched month-complete for any month. The generous limit means no
+ * realistic window is ever truncated.
+ *
+ * Callers pass the *union* of the grid range and the recency span, so today's
+ * work stays in the list while another month is browsed. That union can run
+ * over a year wide, which is past the endpoint's 1000-row cap — rows fill
+ * ascending, so the grid's own month is always covered and it is the far end
+ * that is lost. Anything that needs the *coming* week must therefore ask
+ * `useAgendaCalendar` instead, not read it out of this response.
  */
-export function useInboxCalendar(
+export function useAgendaWindowCalendar(
   country = 'US',
   window?: { from: string; to: string },
 ) {

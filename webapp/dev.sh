@@ -29,6 +29,9 @@ start_api() {
 start_ui() {
     cd "$WEBAPP_DIR/ui"
     [[ -d node_modules ]] || npm install
+    # Demo scheduled tasks make the Scheduled tab usable for a pitch on a fresh
+    # workspace. Override with VITE_DEMO_SCHEDULED_TASKS=false to suppress.
+    export VITE_DEMO_SCHEDULED_TASKS=${VITE_DEMO_SCHEDULED_TASKS:-true}
     exec npm run dev
 }
 

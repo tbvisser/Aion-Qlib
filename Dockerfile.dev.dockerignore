@@ -44,6 +44,11 @@ webapp/.env
 # in the image, which reads these paths through the bind mount instead.
 webapp/data/
 webapp/ingest/.cache/
+# The Supabase stack lives in infra/supabase/ so the whole platform starts from
+# one directory. It is a self-contained compose project -- a live Postgres data
+# directory, storage buckets and a .env of keys -- and every byte of it would
+# otherwise be copied into the qlib image by `COPY . .` for no reason at all.
+infra/supabase/
 webapp/ui/node_modules/
 webapp/ui/dist/
 webapp/ui/.vite/

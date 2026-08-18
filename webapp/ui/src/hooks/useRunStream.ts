@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, type Run, type RunReport } from '@/lib/api'
+import { streamSSE } from '@/lib/authFetch'
 
 /** Lines kept client-side. Older output is dropped and never re-fetched. */
 const LOG_LIMIT = 600
@@ -57,56 +58,69 @@ export function useRunStream(
     setStalled(false)
     void api.getRun(runId).then((r) => !cancelled && setRun(r)).catch(() => undefined)
 
-    // How many log lines we already hold. EventSource reconnects on its own
-    // after a hiccup, and the stream used to restart at line 0 every time —
-    // which, against a client that appends, showed up as a duplicated log. So
-    // reconnection is driven here instead, resuming from this offset.
+    // How many log lines we already hold. The stream is resumed from this
+    // offset on every reconnect — restarting at line 0, against a client that
+    // appends, showed up as a duplicated log after any network hiccup.
     let offset = 0
-    let source: EventSource | null = null
+    let controller: AbortController | null = null
     let retry: ReturnType<typeof setTimeout> | null = null
     let attempt = 0
+    let done = false
 
+    // Read over `fetch` rather than with EventSource. EventSource cannot send
+    // an Authorization header, and /api/runs/:id/events now requires one — an
+    // EventSource here would connect and then silently deliver nothing, which
+    // looks exactly like a backtest that has stopped making progress.
+    // Reconnection was already hand-rolled below, so nothing is lost.
     const connect = () => {
-      if (cancelled) return
-      // SSE gives live phase changes and log lines without polling the log file.
-      const es = new EventSource(`/api/runs/${runId}/events?offset=${offset}`)
-      source = es
+      if (cancelled || done) return
+      const ac = new AbortController()
+      controller = ac
 
-      es.addEventListener('log', (e) => {
-        const data = JSON.parse((e as MessageEvent).data)
-        if (typeof data.offset === 'number') offset = data.offset
-        attempt = 0
-        setStalled(false)
-        setLog((prev) => [...prev, ...data.lines].slice(-LOG_LIMIT))
-      })
-      es.addEventListener('status', (e) => {
-        attempt = 0
-        setStalled(false)
-        setRun(JSON.parse((e as MessageEvent).data))
-      })
-      es.addEventListener('done', (e) => {
-        const finished: Run = JSON.parse((e as MessageEvent).data)
-        setRun(finished)
-        setStalled(false)
-        es.close()
-        source = null
-        finishRef.current?.()
-        if (finished.status === 'succeeded') {
-          void api.runReport(runId).then((r) => !cancelled && setReport(r)).catch(() => undefined)
+      const onEvent = (event: string, raw: string) => {
+        if (event === 'log') {
+          const data = JSON.parse(raw)
+          if (typeof data.offset === 'number') offset = data.offset
+          attempt = 0
+          setStalled(false)
+          setLog((prev) => [...prev, ...data.lines].slice(-LOG_LIMIT))
+        } else if (event === 'status') {
+          attempt = 0
+          setStalled(false)
+          setRun(JSON.parse(raw))
+        } else if (event === 'done') {
+          const finished: Run = JSON.parse(raw)
+          done = true
+          setRun(finished)
+          setStalled(false)
+          ac.abort()
+          controller = null
+          finishRef.current?.()
+          if (finished.status === 'succeeded') {
+            void api.runReport(runId).then((r) => !cancelled && setReport(r)).catch(() => undefined)
+          }
         }
-      })
+      }
 
       // A dead stream used to leave a phase spinning forever with nothing said.
       // Retry with a backoff, and tell the caller while it is down — a stalled
       // connection and a slow backtest look identical otherwise.
-      es.onerror = () => {
-        es.close()
-        source = null
-        if (cancelled) return
+      const fail = () => {
+        controller = null
+        if (cancelled || done) return
         setStalled(true)
         attempt += 1
         retry = setTimeout(connect, Math.min(1000 * 2 ** (attempt - 1), 15000))
       }
+
+      void streamSSE(`/runs/${runId}/events?offset=${offset}`, {
+        signal: ac.signal,
+        onEvent,
+      })
+        // A clean end without a `done` frame still means the connection
+        // dropped, so it reconnects the same way an error does.
+        .then(() => { if (!ac.signal.aborted) fail() })
+        .catch(() => { if (!ac.signal.aborted) fail() })
     }
 
     connect()
@@ -114,11 +128,11 @@ export function useRunStream(
     return () => {
       cancelled = true
       if (retry) clearTimeout(retry)
-      source?.close()
+      controller?.abort()
     }
     // `seed` is read once per run id on purpose — it is a first-paint value, not
     // a subscription. Re-running the effect when the caller's object identity
-    // changes would tear down a live EventSource mid-run.
+    // changes would tear down a live stream mid-run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId])
 

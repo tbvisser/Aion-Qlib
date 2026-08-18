@@ -16,9 +16,43 @@ from webapp.api import runner
 from webapp.api.runner import RunManager, _diagnose, _phase_advances, _phase_for
 
 
+class _OwnedRunManager(RunManager):
+    """A RunManager bound to one caller.
+
+    A run belongs to whoever started it, so every method takes a principal. The
+    tests below are about queueing, phase reporting and failure diagnosis --
+    none of which is about identity -- so the fixture supplies it once here
+    rather than repeating it at forty call sites.
+    """
+
+    def __init__(self, *args, principal, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.principal = principal
+
+    def start(self, **kwargs):
+        return super().start(self.principal, **kwargs)
+
+    def get(self, *args):
+        # Called both ways: `manager.get(id)` from the tests below, and
+        # `self.get(principal, id)` from RunManager.delete/cancel internally.
+        # Take the id from the end and always use this manager's own caller.
+        return RunManager.get(self, self.principal, args[-1])
+
+    def list(self, limit=100):
+        return super().list(self.principal, limit=limit)
+
+    def cancel(self, run_id):
+        return super().cancel(self.principal, run_id)
+
+    def delete(self, run_id):
+        return super().delete(self.principal, run_id)
+
+
 @pytest.fixture
-def manager(tmp_path):
-    return RunManager(tmp_path / "runs", tmp_path, venv_python=tmp_path / "python")
+def manager(tmp_path, test_principal, needs_db):
+    return _OwnedRunManager(tmp_path / "runs", tmp_path,
+                            venv_python=tmp_path / "python",
+                            principal=test_principal)
 
 
 class TestQueue:
@@ -51,7 +85,10 @@ class TestQueue:
         # The second must not be running while the first holds the slot.
         time.sleep(0.2)
         assert manager.get(second.id).meta["status"] == "queued"
-        assert manager.get(second.id).meta["phase"] == "Waiting for the running backtest"
+        # Two gates now: a per-person slot and a machine-wide one. One person
+        # queueing twice hits their own first, and the wording says so -- "the
+        # running backtest" would have implied a colleague was holding it up.
+        assert manager.get(second.id).meta["phase"] == "Waiting for your other backtest"
 
         release.set()
         time.sleep(0.5)
@@ -159,102 +196,115 @@ class TestDiagnosis:
 
 
 class TestOrphanReconciliation:
-    """A run.json left at `running` by a dead process must not stay `running`."""
+    """A run left `running` by a dead process must not stay `running`.
 
-    def _write_meta(self, runs_dir, run_id, status):
-        import json
+    The mechanism moved: it used to happen lazily, when a request read a
+    run.json still claiming to be in flight. Runs are rows now, so it is a
+    single sweep at startup instead -- which is also more honest, because it
+    settles every abandoned run at once rather than only the ones somebody
+    happens to look at.
+    """
 
-        directory = runs_dir / run_id
-        directory.mkdir(parents=True)
-        (directory / "run.json").write_text(json.dumps({
-            "id": run_id, "name": "orphan", "kind": "backtest",
-            "strategy_id": None, "status": status, "phase": "Training model",
-            "created_at": "2026-08-11T00:00:00+00:00",
-            "started_at": "2026-08-11T00:00:01+00:00", "finished_at": None,
-            "exit_code": None, "error": None,
-        }))
+    def _seed(self, principal, run_id, status):
+        from webapp.api.db import service_tx
 
-    def test_orphaned_running_run_is_failed_on_load(self, tmp_path):
-        import json
+        with service_tx() as cur:
+            cur.execute(
+                "INSERT INTO aion.runs (id, org_id, user_id, name, kind, status, phase) "
+                "VALUES (%s, %s, %s, 'orphan', 'backtest', %s, 'Training model')",
+                (run_id, principal.org_id, principal.user_id, status))
 
-        runs_dir = tmp_path / "runs"
-        self._write_meta(runs_dir, "abc123", "running")
-        manager = RunManager(runs_dir, tmp_path, venv_python=tmp_path / "python")
+    @pytest.mark.parametrize("status", ["running", "queued"])
+    def test_an_abandoned_run_is_failed_at_startup(self, manager, test_principal, status):
+        self._seed(test_principal, f"orphan-{status}", status)
 
-        rows = manager.list()
-        assert len(rows) == 1
-        assert rows[0]["status"] == "failed"
-        assert "restart" in (rows[0]["error"] or "")
-        assert rows[0]["finished_at"] is not None
-        # The verdict is persisted, not just in-memory.
-        on_disk = json.loads((runs_dir / "abc123" / "run.json").read_text())
-        assert on_disk["status"] == "failed"
+        manager.reconcile_orphans()
 
-    def test_orphaned_queued_run_is_failed_too(self, tmp_path):
-        runs_dir = tmp_path / "runs"
-        self._write_meta(runs_dir, "def456", "queued")
-        manager = RunManager(runs_dir, tmp_path, venv_python=tmp_path / "python")
-        assert manager.get("def456").meta["status"] == "failed"
+        meta = manager.get(f"orphan-{status}").meta
+        assert meta["status"] == "failed"
+        assert meta["phase"] == "Interrupted"
+        assert "restart" in (meta["error"] or "")
+        assert meta["finished_at"] is not None
+        # And the reason is actionable, not just a status change.
+        assert "Start the run again" in (meta["error_hint"] or "")
 
-    def test_terminal_runs_load_untouched(self, tmp_path):
-        runs_dir = tmp_path / "runs"
-        self._write_meta(runs_dir, "aaa111", "succeeded")
-        manager = RunManager(runs_dir, tmp_path, venv_python=tmp_path / "python")
-        meta = manager.get("aaa111").meta
+    def test_terminal_runs_are_left_alone(self, manager, test_principal):
+        self._seed(test_principal, "already-done", "succeeded")
+
+        manager.reconcile_orphans()
+
+        meta = manager.get("already-done").meta
         assert meta["status"] == "succeeded"
         assert meta["error"] is None
 
 
 class TestDelete:
-    """Deleting a run removes its directory -- and refuses while it can still write."""
+    """Deleting a run removes its row and directory -- and refuses while it can still write."""
 
-    def _write_meta(self, runs_dir, run_id, status):
-        import json
+    def _finished_run(self, manager, monkeypatch, run_id_holder):
+        """Start a run with a no-op subprocess, so it finishes immediately."""
+        monkeypatch.setattr(RunManager, "_run_subprocess",
+                            lambda self, run: run.update(status="succeeded", phase="Done",
+                                                         exit_code=0))
+        run = manager.start(name="done", config={})
+        run_id_holder.append(run.id)
+        for _ in range(100):
+            if manager.get(run.id).meta["status"] == "succeeded":
+                break
+            time.sleep(0.02)
+        run.log_path.write_text("done\n")
+        return run
 
-        directory = runs_dir / run_id
-        directory.mkdir(parents=True)
-        (directory / "run.json").write_text(json.dumps({
-            "id": run_id, "name": "done", "kind": "backtest",
-            "strategy_id": None, "status": status, "phase": "Finished",
-            "created_at": "2026-08-11T00:00:00+00:00",
-            "started_at": "2026-08-11T00:00:01+00:00",
-            "finished_at": "2026-08-11T00:05:00+00:00",
-            "exit_code": 0, "error": None,
-        }))
-        (directory / "run.log").write_text("done\n")
-        return directory
+    def test_finished_run_is_removed(self, manager, monkeypatch):
+        ids: list[str] = []
+        run = self._finished_run(manager, monkeypatch, ids)
 
-    def test_finished_run_is_removed(self, tmp_path):
-        runs_dir = tmp_path / "runs"
-        directory = self._write_meta(runs_dir, "aaa111", "succeeded")
-        manager = RunManager(runs_dir, tmp_path, venv_python=tmp_path / "python")
-
-        assert manager.delete("aaa111") is True
-        assert not directory.exists()
-        assert manager.get("aaa111") is None
+        assert manager.delete(run.id) is True
+        assert not run.dir.exists()
+        assert manager.get(run.id) is None
         assert manager.list() == []
 
-    def test_running_run_refuses(self, tmp_path):
-        runs_dir = tmp_path / "runs"
-        self._write_meta(runs_dir, "bbb222", "succeeded")
-        manager = RunManager(runs_dir, tmp_path, venv_python=tmp_path / "python")
-        # Reconciliation fails anything found on disk as running, so put it back
-        # into flight in memory -- which is the state the endpoint must refuse.
-        manager.get("bbb222").update(status="running")
+    def test_running_run_refuses(self, manager, monkeypatch):
+        ids: list[str] = []
+        run = self._finished_run(manager, monkeypatch, ids)
+        # Put it back into flight -- the state the endpoint must refuse, and the
+        # reason delete is not simply a DELETE statement.
+        manager.get(run.id).update(status="running")
 
         with pytest.raises(runner.RunBusy):
-            manager.delete("bbb222")
-        assert (runs_dir / "bbb222").exists()
+            manager.delete(run.id)
+        assert run.dir.exists()
 
-    def test_missing_run_is_false_not_an_error(self, tmp_path):
-        manager = RunManager(tmp_path / "runs", tmp_path, venv_python=tmp_path / "python")
+    def test_missing_run_is_false_not_an_error(self, manager):
         assert manager.delete("nosuchrun") is False
 
-    def test_a_traversing_id_is_refused(self, tmp_path):
+    def test_a_traversing_id_is_refused(self, manager, tmp_path):
         """`get` validates the id, so `delete` can never rmtree outside runs_dir."""
         outside = tmp_path / "precious"
         outside.mkdir()
-        manager = RunManager(tmp_path / "runs", tmp_path, venv_python=tmp_path / "python")
 
         assert manager.delete("../precious") is False
         assert outside.exists()
+
+    def test_a_colleagues_run_cannot_be_deleted(self, manager, monkeypatch,
+                                                test_principal, needs_db):
+        """Deletion goes through the caller's own RLS context, not a bare DELETE."""
+        from webapp.api.auth import Principal
+        from webapp.api.db import service_tx
+        import uuid as _uuid
+
+        ids: list[str] = []
+        run = self._finished_run(manager, monkeypatch, ids)
+
+        # Someone else, in an organisation of their own.
+        with service_tx() as cur:
+            cur.execute("SELECT user_id FROM public.user_profiles "
+                        "WHERE user_id <> %s LIMIT 1", (test_principal.user_id,))
+            row = cur.fetchone()
+        if row is None:
+            pytest.skip("only one account exists in this database")
+        stranger = Principal(user_id=str(row["user_id"]), email=None,
+                             org_id=str(_uuid.uuid4()), org_role="member")
+
+        assert RunManager.get(manager, stranger, run.id) is None
+        assert run.dir.exists(), "a stranger's delete removed the log"

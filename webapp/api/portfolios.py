@@ -125,6 +125,9 @@ class StoredPortfolio(PortfolioSpec):
     id: str
     created_at: str
     updated_at: str
+    #: See StoredStrategy -- ownership and sharing carry the same meaning here.
+    user_id: str = ""
+    visibility: str = "private"
 
 
 def _now() -> str:

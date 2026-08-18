@@ -1,10 +1,15 @@
 """One feed over everything long-running.
 
-Three job surfaces exist — backtest runs (on disk, listable), data-ingest jobs
-and macro-refresh jobs (each an in-memory ``_JOBS`` dict with get-by-id
-endpoints only). Nothing aggregated them, so the Inbox would have needed three
-pollers speaking two status vocabularies. This router normalises all three into
-one list.
+Three job surfaces exist — backtest runs (rows in ``aion.runs``, scoped to the
+caller), data-ingest jobs and macro-refresh jobs (each an in-memory ``_JOBS``
+dict with get-by-id endpoints only). Nothing aggregated them, so the Agenda
+would have needed three pollers speaking two status vocabularies. This router
+normalises all three into one list.
+
+The two job dicts are organisation-wide by nature — they rebuild shared stores —
+while runs are personal. The feed mixes both deliberately: "someone is
+refreshing the data store" is news to everyone, and only an admin could have
+started it.
 
 The sibling routers' registries are read as module attributes at call time,
 under their own locks, exactly the way the router tests already do — never
@@ -18,8 +23,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
+from ..auth import Principal, get_principal
 from . import ingest as ingest_router
 from . import macro as macro_router
 from . import runs as runs_router
@@ -91,7 +97,8 @@ def _from_run(meta: dict) -> dict:
 
 
 @router.get("/activity")
-def activity(limit: int = Query(50, ge=1, le=200)) -> dict:
+def activity(limit: int = Query(50, ge=1, le=200),
+             principal: Principal = Depends(get_principal)) -> dict:
     items: list[dict] = []
 
     with ingest_router._jobs_lock:
@@ -101,7 +108,11 @@ def activity(limit: int = Query(50, ge=1, le=200)) -> dict:
 
     items.extend(_from_job(j, "ingest", _ingest_title(j)) for j in ingest_jobs)
     items.extend(_from_job(j, "macro_refresh", _macro_title(j)) for j in macro_jobs)
-    items.extend(_from_run(m) for m in runs_router._runs.list(limit))
+    # Runs are per-user; the ingest and macro jobs above are not. That is the
+    # right asymmetry: those two rebuild stores the whole organisation reads, so
+    # everyone should see one is in flight, while a colleague's backtest is
+    # their business. RLS decides which runs come back.
+    items.extend(_from_run(m) for m in runs_router._runs.list(principal, limit))
 
     items.sort(key=lambda i: ((i["created_at"] or i["started_at"] or ""), i["id"]),
                reverse=True)

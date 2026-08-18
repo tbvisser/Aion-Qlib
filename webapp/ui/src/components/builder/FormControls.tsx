@@ -58,26 +58,138 @@ export function Field({
   )
 }
 
+/**
+ * One value the control offers. `enabled` and `reason` are optional so every
+ * existing caller passing bare `{value, label}` keeps working unchanged.
+ */
+export interface ChoiceOption {
+  value: string
+  label: string
+  /** Defaults to true. False renders the row greyed, with `reason` beneath. */
+  enabled?: boolean
+  /** Why this value cannot be picked here. Required in practice when disabled. */
+  reason?: string | null
+}
+
+/**
+ * A dropdown that shows what it will not accept, and says why.
+ *
+ * Incompatible values are rendered rather than filtered out. A list that
+ * quietly omits them hides the shape of the system: the reader cannot tell
+ * whether `SPY` is missing because this store lacks it or because they
+ * misremembered the name, and a wrong early pick becomes a dead end with no
+ * sign that anything was lost.
+ *
+ * They are marked with `aria-disabled` and refused at `onValueChange`, *not*
+ * with Radix's `disabled`. Radix drops a disabled item out of keyboard
+ * navigation and typeahead entirely — so the one mechanism that would read the
+ * reason aloud is the one that can no longer reach it. Same choice, and the
+ * same reasoning, as the universe rows in `UniverseInspector`.
+ */
 export function Choice({
   value, onChange, options,
-}: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+}: { value: string; onChange: (v: string) => void; options: ChoiceOption[] }) {
+  const allowed = new Set(options.filter((o) => o.enabled !== false).map((o) => o.value))
+
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value} onValueChange={(v) => { if (allowed.has(v)) onChange(v) }}>
       <SelectTrigger className="font-mono text-xs">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value} className="font-mono text-xs">
-            {o.label}
-          </SelectItem>
-        ))}
+        {options.map((o) => {
+          const off = o.enabled === false
+          return (
+            <SelectItem
+              key={o.value}
+              value={o.value}
+              aria-disabled={off || undefined}
+              title={off ? o.reason ?? undefined : undefined}
+              className={cn('font-mono text-xs', off && 'opacity-55')}
+            >
+              <span className="flex flex-col gap-0.5 text-left">
+                <span className={cn(off && 'line-through decoration-clay/60')}>
+                  {o.label}
+                </span>
+                {off && o.reason && (
+                  <span className="max-w-[22rem] whitespace-normal font-sans text-[11px]
+                                   leading-snug text-muted-foreground">
+                    {o.reason}
+                  </span>
+                )}
+              </span>
+            </SelectItem>
+          )
+        })}
       </SelectContent>
     </Select>
   )
 }
 
-export function DateInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/**
+ * What is wrong with one field, and the ways out of it.
+ *
+ * Renders nothing when there is nothing to say, so every inspector can mount it
+ * under every control unconditionally.
+ *
+ * The ways out live here rather than inside the dropdown for two reasons: a
+ * button inside a Radix `SelectItem` fights the item's own click, and a
+ * resolution that changes a *different* field — "switch to the us store" —
+ * has no business being an option in this field's list. Each one says what it
+ * preserves, because the choice between them is exactly the thing the reader
+ * knows and the builder does not.
+ */
+export function FieldProblem({
+  messages, resolutions, onApply,
+}: {
+  messages: readonly string[]
+  resolutions?: readonly { label: string; preserves: string; patch: Record<string, unknown> }[]
+  onApply?: (patch: Record<string, unknown>) => void
+}) {
+  if (!messages.length && !resolutions?.length) return null
+
+  return (
+    <div className="space-y-1.5 rounded-lg border border-clay/30 bg-clay/5 p-2">
+      {messages.map((m) => (
+        <p key={m} className="text-[11px] leading-snug text-clay">{m}</p>
+      ))}
+      {!!resolutions?.length && onApply && (
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
+          {resolutions.map((r) => (
+            <button
+              key={r.label}
+              type="button"
+              onClick={() => onApply(r.patch)}
+              className="rounded-md border border-border/60 bg-background px-2 py-1
+                         text-left text-[11px] leading-tight hover:border-primary/50"
+            >
+              <span className="block font-medium">{r.label}</span>
+              {r.preserves && (
+                <span className="block text-muted-foreground">{r.preserves}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function DateInput({
+  value, onChange, max,
+}: {
+  value: string
+  onChange: (v: string) => void
+  /**
+   * The last date the store can safely backtest, when one is known.
+   *
+   * Advisory in the browser — a native date input marks a value past `max` as
+   * invalid and still lets it be typed, and that is the right strength here:
+   * the backend clamps rather than refuses, so the field must not become
+   * uneditable over something the run survives.
+   */
+  max?: string
+}) {
   /**
    * '' while the field is cleared or mid-edit. Never committed: a date input
    * reports '' until its segments make a real date, and writing that into the
@@ -89,6 +201,7 @@ export function DateInput({ value, onChange }: { value: string; onChange: (v: st
     <div className="space-y-1">
       <input
         type="date"
+        max={max}
         value={draft ?? value}
         onChange={(e) => {
           const v = e.target.value

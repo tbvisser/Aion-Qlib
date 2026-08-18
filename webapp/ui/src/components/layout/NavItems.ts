@@ -1,34 +1,51 @@
 import {
-  LayoutDashboard, MessageSquare, Shapes, Inbox,
+  Plus, MessageSquare, FolderKanban, Shapes, Clock, CalendarDays,
   Folder, Network, Library,
-  Briefcase, Users, LineChart, Wallet,
+  Briefcase, Users, Wallet,
   CandlestickChart, Landmark,
-  SlidersHorizontal, Brain, Boxes, Copy, Bot, FlaskConical, Sparkles,
+  SlidersHorizontal, Brain, Boxes, Copy, Bot,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 // Copied from the Aion Platform's layout/NavItems.ts — same headings, labels,
 // icons and routes, in the same order, so the two sidebars are the same object.
 //
-// **One deliberate divergence: Indicators sits under Strategy Lab, not Book.**
-// It is the expression vocabulary a strategy is built out of — raw material,
-// the same kind of thing as the Databank it now sits beside — and having it
-// three sections away from the builder that consumes it meant the one page
-// answering "what can I put in a factor?" was filed with portfolios and
-// investors. The key and the `/indicators` route are unchanged, so every
-// existing link, redirect and highlight rule still resolves. Do not "restore"
-// this to match the platform without moving it there too.
+// **First divergence: three destinations folded into the Database.**
+// Indicators, the Alpha Zoo and the old Databank all answered one question —
+// "what can I put in a factor?" — from three pages, over three unrelated
+// sources, with no way to search them together. They are now sub-tabs of one
+// Database backed by a single index, and their rows are gone from this list.
+// Nothing was lost in the fold: the zoo's 462 alphas are the `vibe` source in
+// Alphas, Indicators keeps its per-store dead-column marks and its banner, and
+// the Databank's evaluator is the detail rail beside the alpha it measures.
+// Every folded route still resolves and highlights the Database row — see
+// ROUTE_OWNERS below and `tabForLegacyRoute` in lib/catalog.ts. Do not
+// "restore" these to match the platform without folding them there too.
+//
+// Vibe Agent folded into Agents & Skills for the same reason and by the same
+// mechanism: it is one of several agent consoles, not a destination.
+//
+// **Second divergence: the Home group is the assistant shell, not a page list.**
+// Its six rows are New / Chats and tasks / Projects / Artifacts / Scheduled /
+// Agenda — the shape of an assistant's home rather than a menu of Aion's
+// surfaces. `dashboard` keeps its key and its `/dashboard` route and now backs
+// the "New" row, because the dashboard *is* the new-conversation surface; a
+// separate "Dashboard" row beside it was two names for one page.
+//
+// Vibe Agent moved out of Home and down to the Strategy Lab, and has since
+// folded into Agents & Skills entirely — see the first divergence above.
 //
 // The sidebar is the roadmap. Every destination renders, built or not; the ones
 // that aren't built are dimmed and chipped "Soon" and say on arrival what they
 // will do and which existing piece folds into them. Hiding them made the app
 // look finished and the plan invisible.
 export type SectionKey =
-  | 'dashboard' | 'chat' | 'artifacts' | 'inbox' | 'vibe-agent'
+  | 'dashboard' | 'chat' | 'projects' | 'artifacts' | 'scheduled' | 'inbox'
+  | 'code'
   | 'documents' | 'explorer' | 'corpus'
-  | 'book' | 'accounts' | 'investors' | 'indicators'
+  | 'book' | 'accounts' | 'investors'
   | 'markets' | 'macro'
-  | 'tl-builder' | 'tl-mlstudio' | 'tl-databank' | 'tl-alphazoo' | 'tl-shadow' | 'tl-roster'
+  | 'tl-builder' | 'tl-mlstudio' | 'tl-database' | 'tl-shadow' | 'tl-roster'
 
 export interface NavItem {
   key: SectionKey
@@ -54,15 +71,13 @@ export const mainNavSections: NavSection[] = [
   {
     heading: 'Home',
     items: [
-      { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard', built: true },
-      { key: 'chat', label: 'Chats', icon: MessageSquare, route: '/chats', built: true },
+      // "New" is the dashboard: the composer you land on with nothing open.
+      { key: 'dashboard', label: 'New', icon: Plus, route: '/dashboard', built: true },
+      { key: 'chat', label: 'Chats and tasks', icon: MessageSquare, route: '/chats', built: true },
+      { key: 'projects', label: 'Projects', icon: FolderKanban, route: '/projects', built: true },
       { key: 'artifacts', label: 'Artifacts', icon: Shapes, route: '/artifacts', built: true },
-      { key: 'inbox', label: 'Inbox', icon: Inbox, route: '/inbox', built: true },
-      // The Vibe-Trading sidecar's own agent/swarm console. Its API forbids
-      // framing (CSP frame-ancestors 'none'), so this destination is a status
-      // + launch page, not an embed — the console opens same-origin on the
-      // sidecar itself (:8899), where its SSE-ticket auth works unchanged.
-      { key: 'vibe-agent', label: 'Vibe Agent', icon: Sparkles, route: '/vibe-agent', built: true },
+      { key: 'scheduled', label: 'Scheduled', icon: Clock, route: '/scheduled', built: true },
+      { key: 'inbox', label: 'Agenda', icon: CalendarDays, route: '/inbox', built: true },
     ],
   },
   {
@@ -108,29 +123,64 @@ export const mainNavSections: NavSection[] = [
     items: [
       { key: 'tl-builder', label: 'Strategy Builder', icon: SlidersHorizontal, route: '/lab/builder', built: true },
       { key: 'tl-mlstudio', label: 'ML Studio', icon: Brain, route: '/lab/ml-studio', built: true },
-      { key: 'tl-databank', label: 'Databank', icon: Boxes, route: '/lab/databank', built: true },
-      // Vibe-Trading's 462-alpha registry, browsed via the vibe sidecar
-      // (webapp/api/routers/vibe.py). Sits beside the Databank because both
-      // answer "what factors exist?" — Databank for qlib expressions, the Zoo
-      // for the sidecar's cross-sectional academic/fundamental catalog.
-      { key: 'tl-alphazoo', label: 'Alpha Zoo', icon: FlaskConical, route: '/lab/alpha-zoo', built: true },
-      // Moved here from Book — see the divergence note at the top of the file.
-      { key: 'indicators', label: 'Indicators', icon: LineChart, route: '/indicators', built: true },
+      // The Databank grew into the Database: one destination with a sub-tab per
+      // collection, over a searchable index of every source at once. Three rows
+      // folded into it and are gone from this list — Alpha Zoo (the sidecar's
+      // 462 cross-sectional factors, now the `vibe` source in Alphas),
+      // Indicators (Alpha158's 184, now its own sub-tab with the same
+      // per-store dead-column marks), and the old Databank evaluator (now the
+      // detail rail beside the alpha it measures). Their routes still resolve
+      // and land on the sub-tab that took the work over; see ROUTE_OWNERS and
+      // `tabForLegacyRoute`.
+      { key: 'tl-database', label: 'Database', icon: Boxes, route: '/lab/database', built: true },
       // Journal-driven mimicry via the Vibe-Trading sidecar: upload a broker
       // trade export, mine it into if-then rules, backtest and forward-scan
       // them. (The original vision — forward-tracking a backtested strategy —
       // needs per-trade data our runs don't produce; the journal route is what
       // the sidecar's engine actually supports.)
       { key: 'tl-shadow', label: 'Shadow Accounts', icon: Copy, route: '/lab/shadow-accounts', built: true },
+      // Vibe Agent folded in here rather than into the Database: it is an agent
+      // console, not a collection. `/vibe-agent` still resolves and highlights
+      // this row, and the roster surfaces it — the sidecar's API forbids
+      // framing (CSP frame-ancestors 'none'), so it stays a status + launch
+      // card opening same-origin on the sidecar itself (:8899), where its
+      // SSE-ticket auth works unchanged.
       { key: 'tl-roster', label: 'Agents & Skills', icon: Bot, route: '/lab/roster', built: true },
     ],
   },
 ]
 
 /**
- * Every destination. Routing, active-state highlighting and both sidebars all
- * use this — there is no built-only variant, because filtering one in is what
- * made nine destinations invisible.
+ * The Code shell's nav: the short list a coding session actually uses.
+ *
+ * `code` is its own key rather than reusing `dashboard`, because Code's "New"
+ * starts a session at `/code` while Home's starts a conversation at
+ * `/dashboard`. Same word, different act.
+ *
+ * This list is short on purpose, and everything it leaves out stays one click
+ * away behind the sidebar's "More" disclosure — see `mainNavSections`. Nothing
+ * here is a destination Home does not also carry, apart from `/code` itself.
+ */
+export const codeNavSections: NavSection[] = [
+  {
+    heading: 'Code',
+    items: [
+      { key: 'code', label: 'New', icon: Plus, route: '/code', built: true },
+      { key: 'artifacts', label: 'Artifacts', icon: Shapes, route: '/artifacts', built: true },
+      { key: 'inbox', label: 'Agenda', icon: CalendarDays, route: '/inbox', built: true },
+    ],
+  },
+]
+
+/** What "More" opens in the Code shell: the platform, minus its own Home group. */
+export const moreNavSections: NavSection[] = mainNavSections.filter(
+  (section) => section.heading !== 'Home',
+)
+
+/**
+ * Every destination the Home shell lists. Routing, active-state highlighting
+ * and both sidebars use this — there is no built-only variant, because
+ * filtering one in is what made nine destinations invisible.
  */
 export const allNavSections: NavSection[] = mainNavSections
 
@@ -142,11 +192,32 @@ export const allNavSections: NavSection[] = mainNavSections
 const ROUTE_OWNERS: Array<[string, SectionKey]> = [
   ['/runs', 'tl-builder'],      // backtests belong to the builder that started them
   ['/models', 'tl-mlstudio'],   // legacy, redirected
-  ['/factors', 'tl-databank'],  // legacy, redirected
   ['/data', 'markets'],         // legacy, redirected
+  // Folded into the Database. Each still resolves — App.tsx redirects it to the
+  // sub-tab that took its content — and each highlights the row it now lives
+  // in, so a bookmark does not land on a page with nothing selected.
+  ['/lab/databank', 'tl-database'],
+  ['/lab/alpha-zoo', 'tl-database'],
+  ['/indicators', 'tl-database'],
+  ['/factors', 'tl-database'],
+  // Folded into Agents & Skills.
+  ['/vibe-agent', 'tl-roster'],
 ]
 
-const allItems = allNavSections.flatMap((section) => section.items)
+/**
+ * Both shells' items, deduped by key — the Code nav re-lists Artifacts and
+ * the Agenda, and `/code` appears in no other layout. This is what resolves a
+ * pathname, so a destination reachable from either shell resolves from both.
+ */
+const allItems: NavItem[] = [
+  ...allNavSections.flatMap((section) => section.items),
+  ...codeNavSections
+    .flatMap((section) => section.items)
+    .filter(
+      (item) =>
+        !allNavSections.some((section) => section.items.some((seen) => seen.key === item.key)),
+    ),
+]
 
 const owns = (route: string, pathname: string) =>
   pathname === route || pathname.startsWith(`${route}/`)

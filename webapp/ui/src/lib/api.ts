@@ -5,7 +5,13 @@
  * service in dev (see vite.config.ts), and in the container nginx does the
  * same. Nothing here needs to know the API's port, and no API keys ever reach
  * the browser: EODHD and OpenRouter are called server-side only.
+ *
+ * Every request carries the Supabase access token (see `lib/authFetch.ts`).
+ * `request` is the single choke point for that, which is why it is worth having
+ * one: the API rejects anonymous callers, so a fetch made anywhere else in the
+ * app would 401.
  */
+import { authHeaders } from '@/lib/authFetch'
 
 /**
  * FastAPI's array-form validation detail, as sentences that name the field.
@@ -55,6 +61,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...(await authHeaders()),
       ...(init?.headers ?? {}),
     },
   })
@@ -318,12 +325,32 @@ export const api = {
       body: JSON.stringify(spec),
     }),
 
+  /**
+   * Parse a strategy file into a spec, server-side.
+   *
+   * The UI ships no YAML parser, and `StrategySpec` is the authority on what a
+   * strategy is — a second, looser reading of the format here would accept
+   * files the engine then refuses.
+   */
+  importStrategy: (text: string) =>
+    request<StrategyImport>('/strategies/import', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
+
   listStrategies: () => request<{ strategies: StoredStrategy[] }>('/strategies'),
 
   saveStrategy: (spec: StrategySpec, id?: string) =>
     request<StoredStrategy>(id ? `/strategies/${id}` : '/strategies', {
       method: id ? 'PUT' : 'POST',
       body: JSON.stringify(spec),
+    }),
+
+  /** Share a strategy with the workspace, or take it back. */
+  setStrategyVisibility: (id: string, visibility: 'private' | 'org') =>
+    request<StoredStrategy>(`/strategies/${id}/visibility`, {
+      method: 'PUT',
+      body: JSON.stringify({ visibility }),
     }),
 
   deleteStrategy: (id: string) => request<void>(`/strategies/${id}`, { method: 'DELETE' }),
@@ -438,6 +465,20 @@ export const api = {
       `/portfolios/${encodeURIComponent(id)}/strategies`,
     ),
 
+  // ── Projects ────────────────────────────────────────────────────────────
+  listProjects: () => request<{ projects: Project[] }>('/projects'),
+
+  getProject: (id: string) => request<Project>(`/projects/${encodeURIComponent(id)}`),
+
+  saveProject: (spec: ProjectSpec, id?: string) =>
+    request<Project>(id ? `/projects/${encodeURIComponent(id)}` : '/projects', {
+      method: id ? 'PUT' : 'POST',
+      body: JSON.stringify(spec),
+    }),
+
+  deleteProject: (id: string) =>
+    request<void>(`/projects/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
   // ── Regime ──────────────────────────────────────────────────────────────
 
   macroRegime: (params: { inflation?: 'headline' | 'core' } = {}) =>
@@ -450,6 +491,11 @@ export const api = {
     request<MacroPlaybookResponse>(`/macro/regime/playbook${qs({ lens })}`),
 
   macroLenses: () => request<MacroLensList>('/macro/regime/lenses'),
+
+  // ── Agenda ──────────────────────────────────────────────────────────────
+
+  agendaOutlook: (params: { scope: 'day' | 'week' | 'month'; date: string; force?: boolean }) =>
+    request<AgendaOutlook>(`/agenda/outlook${qs(params)}`),
 
   // ── Activity ────────────────────────────────────────────────────────────
 
@@ -480,6 +526,13 @@ export const api = {
       action: 'get_alpha',
       alpha_id: alphaId,
     }),
+  /**
+   * The REST `/alpha/{id}`, which carries the zoo module's **source** as well
+   * as its meta. The MCP `alpha_zoo get_alpha` above returns meta only, and
+   * reading what an alpha actually computes is the whole point of opening one.
+   */
+  vibeAlphaSource: (alphaId: string) =>
+    request<VibeAlphaDetail>(`/vibe/alpha/${encodeURIComponent(alphaId)}`),
   vibeSymbolSearch: (query: string) =>
     api.vibeMcpCall<VibeDataEnvelope<VibeSymbolSearch>>('search_symbol', { query }),
   vibeStockProfile: (ticker: string, sections?: string[]) =>
@@ -536,6 +589,408 @@ export const api = {
   /** Same-origin URL for the rendered report (proxied GET, allowlisted). */
   vibeShadowReportUrl: (shadowId: string, format: 'html' | 'pdf' = 'html') =>
     `/api/vibe/shadow-reports/${encodeURIComponent(shadowId)}?format=${format}`,
+
+  // --- catalog ------------------------------------------------------------
+  // The Database page's one search surface. See webapp/api/catalog/.
+
+  catalogSummary: () => request<CatalogSummary>('/catalog/summary'),
+
+  catalogSearch: (params: CatalogQuery = {}) =>
+    request<CatalogPage>(`/catalog/search${qs({ ...params })}`),
+
+  catalogFacets: (kind?: CatalogKind) =>
+    request<CatalogFacets>(`/catalog/facets${qs({ kind })}`),
+
+  /** `uid` is `<kind>:<source>:<local_id>` — colons are path-legal, so no encode. */
+  catalogEntity: (uid: string) => request<CatalogEntityDetail>(`/catalog/entity/${uid}`),
+
+  catalogReindex: (body: { only?: string[]; include_remote?: boolean } = {}) =>
+    request<{ status: string; job_id: string }>('/catalog/reindex', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  catalogReindexJob: (jobId: string) =>
+    request<CatalogReindexJob>(`/catalog/reindex/${encodeURIComponent(jobId)}`),
+
+  catalogLink: (body: { src_uid: string; dst_uid: string; rel: CatalogUserRel; note?: string }) =>
+    request<{ status: string }>('/catalog/links', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  catalogUnlink: (params: { src_uid: string; dst_uid: string; rel: string }) =>
+    request<{ status: string }>(`/catalog/links${qs({ ...params })}`, { method: 'DELETE' }),
+
+  // --- registry -----------------------------------------------------------
+  // Agents & Skills. Deliberately the same route names and envelopes as the
+  // catalog above, because one browser component renders both pages — see
+  // webapp/api/routers/registry.py.
+
+  registrySummary: () => request<RegistrySummary>('/registry/summary'),
+
+  registrySearch: (params: CatalogQuery = {}) =>
+    request<RegistryPage>(`/registry/search${qs({ ...params })}`),
+
+  registryFacets: (kind?: RosterKind) =>
+    request<CatalogFacets>(`/registry/facets${qs({ kind })}`),
+
+  registryEntity: (uid: string) => request<RegistryEntity>(`/registry/entity/${uid}`),
+
+  /** Drops the TTL cache and returns the fresh summary in the same call. */
+  registryRefresh: () =>
+    request<RegistrySummary>('/registry/refresh', { method: 'POST' }),
+
+  // --- workspace: who you are, who you work with -------------------------
+
+  me: () => request<Me>('/me'),
+
+  createOrg: (name: string, slug?: string) =>
+    request<Organization>('/orgs', {
+      method: 'POST',
+      body: JSON.stringify({ name, slug }),
+    }),
+
+  /** Remembers the choice for the next session; the header carries it now. */
+  setDefaultOrg: (orgId: string) =>
+    request<{ ok: boolean }>('/me/default-org', {
+      method: 'PUT',
+      body: JSON.stringify({ org_id: orgId }),
+    }),
+
+  orgMembers: (orgId: string) =>
+    request<{ members: OrgMember[] }>(`/orgs/${orgId}/members`),
+
+  orgInvites: (orgId: string) =>
+    request<{ invites: OrgInvite[] }>(`/orgs/${orgId}/invites`),
+
+  createInvite: (orgId: string, email: string, role: OrgRole = 'member') =>
+    request<OrgInvite>(`/orgs/${orgId}/invites`, {
+      method: 'POST',
+      body: JSON.stringify({ email, role }),
+    }),
+
+  acceptInvite: (token: string) =>
+    request<{ org_id: string }>('/invites/accept', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+
+  removeMember: (orgId: string, userId: string) =>
+    request<void>(`/orgs/${orgId}/members/${userId}`, { method: 'DELETE' }),
+
+  // --- per-user state that used to live in localStorage ------------------
+
+  getPrefs: () => request<{ prefs: Record<string, unknown> }>('/prefs'),
+
+  /** Merged server-side, so two tabs saving different keys do not clobber. */
+  savePrefs: (prefs: Record<string, unknown>) =>
+    request<{ prefs: Record<string, unknown> }>('/prefs', {
+      method: 'PUT',
+      body: JSON.stringify({ prefs }),
+    }),
+
+  getAgendaSeen: () => request<{ seen: Record<string, string> }>('/agenda/seen'),
+
+  markAgendaSeen: (key: string) =>
+    request<{ key: string; seen_at: string }>('/agenda/seen', {
+      method: 'PUT',
+      body: JSON.stringify({ key }),
+    }),
+
+  shadowAccounts: () => request<{ accounts: ShadowAccount[] }>('/shadow-accounts'),
+
+  saveShadowAccount: (account: Partial<ShadowAccount> & { label: string }) =>
+    request<ShadowAccount>('/shadow-accounts', {
+      method: 'POST',
+      body: JSON.stringify(account),
+    }),
+
+  deleteShadowAccount: (id: string) =>
+    request<void>(`/shadow-accounts/${id}`, { method: 'DELETE' }),
+
+  // --- scheduled tasks ------------------------------------------------------
+
+  listScheduledTasks: () => request<{ tasks: ScheduledTask[] }>('/scheduled/tasks'),
+
+  getScheduledTask: (id: string) => request<ScheduledTask>(`/scheduled/tasks/${id}`),
+
+  saveScheduledTask: (task: ScheduledTaskInput, id?: string) =>
+    request<ScheduledTask>(id ? `/scheduled/tasks/${id}` : '/scheduled/tasks', {
+      method: id ? 'PUT' : 'POST',
+      body: JSON.stringify(task),
+    }),
+
+  deleteScheduledTask: (id: string) =>
+    request<void>(`/scheduled/tasks/${id}`, { method: 'DELETE' }),
+
+  toggleScheduledTask: (id: string, enabled: boolean) =>
+    request<ScheduledTask>(`/scheduled/tasks/${id}/toggle`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
+
+  downloadOutlookReport: async (reportId: string) => {
+    const resp = await fetch(`/api/outlook-reports/${encodeURIComponent(reportId)}/download`, {
+      headers: await authHeaders(),
+    })
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}))
+      throw new ApiError(resp.status, body?.detail || `${resp.status} Download failed`, body)
+    }
+    return resp.blob()
+  },
+
+  downloadDemoOutlookReport: async () => {
+    const resp = await fetch('/api/outlook-reports/demo/download', {
+      headers: await authHeaders(),
+    })
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}))
+      throw new ApiError(resp.status, body?.detail || `${resp.status} Download failed`, body)
+    }
+    return resp.blob()
+  },
+}
+
+export type OrgRole = 'owner' | 'admin' | 'member'
+
+export interface Organization {
+  id: string
+  name: string
+  slug: string
+  role: OrgRole
+}
+
+/** The signed-in account and every organisation it can act in. */
+export interface Me {
+  user_id: string
+  email: string | null
+  org_id: string
+  org_role: OrgRole
+  is_org_admin: boolean
+  organizations: Organization[]
+}
+
+export interface OrgMember {
+  user_id: string
+  role: OrgRole
+  joined_at: string
+  is_you: boolean
+}
+
+export interface OrgInvite {
+  id: string
+  email: string
+  role: OrgRole
+  /** There is no mail sender here — the admin passes this on themselves. */
+  token: string
+  expires_at: string
+  accepted_at?: string | null
+}
+
+export interface ShadowAccount {
+  id: string
+  label: string
+  journal_path: string | null
+  shadow_id: string | null
+  created_at: string
+}
+
+// --- registry types -------------------------------------------------------
+
+/** The roster's four collections. A subset of `CatalogKind`, same grammar. */
+export type RosterKind = 'swarm' | 'agent' | 'skill' | 'tool'
+
+/**
+ * A roster row. Structurally the catalog's row — same keys, same uid grammar —
+ * because the shared browser must not have to branch on which page it is on.
+ * `expression` and `metric` are always null here; they are kept so the two
+ * types stay assignable to one another.
+ */
+export type RegistryEntity = CatalogEntity
+
+export type RegistryPage = CatalogPage
+
+export interface RegistryProvider {
+  name: string
+  label: string
+  kind: RosterKind
+  source: CatalogSource
+  /** Crosses the network — the ones that can be degraded. */
+  remote: boolean
+  count: number
+  fetched_at: string | null
+  /** Set when the last fetch failed. */
+  error: string | null
+  /**
+   * True when the rows on screen predate the failed attempt — the collection
+   * is showing older data rather than nothing. False with an error set means
+   * the very first fetch failed and there is genuinely nothing.
+   */
+  stale: boolean
+}
+
+export interface RegistrySummary {
+  total: number
+  collections: CatalogCollection[]
+  providers: RegistryProvider[]
+  degraded: string[]
+  /** How long a provider's rows are served before a re-fetch. */
+  ttl_seconds: number
+  kinds: { kind: RosterKind; label: string }[]
+  sources: CatalogSource[]
+}
+
+// --- catalog types --------------------------------------------------------
+
+/**
+ * One taxonomy across both pages, mirroring `KINDS` in
+ * `webapp/api/catalog/schema.py`. The Database's ten are indexed in SQLite; the
+ * roster's four are federated live. They share this union — and the uid grammar
+ * behind it — because one browser component renders both, and a second
+ * taxonomy would be a second place for a kind name to drift.
+ */
+export type CatalogKind =
+  | 'alpha' | 'indicator' | 'operator' | 'strategy' | 'template'
+  | 'backtest' | 'portfolio' | 'instrument' | 'universe' | 'macro_series'
+  | RosterKind
+
+/** `rag` is the vendored Aion-RAG backend: harnesses, sub-agents, its tools. */
+export type CatalogSource = 'qlib' | 'curated' | 'vibe' | 'aion' | 'eodhd' | 'rag'
+
+/** Rels a person may set. Everything else is derived and wiped on reindex. */
+export type CatalogUserRel = 'documented_by' | 'supersedes' | 'related_to'
+
+export type CatalogSort =
+  | 'relevance' | 'name' | '-name' | 'metric' | '-metric' | 'updated' | '-updated'
+
+/**
+ * One catalog row. `payload` is kind-specific and deliberately untyped here —
+ * an alpha's caveat, a backtest's metrics and an instrument's exchange have
+ * nothing in common, and promoting any of them to a field would mean editing
+ * this file every time a harvester grows a key.
+ */
+export interface CatalogEntity {
+  uid: string
+  kind: CatalogKind
+  source: CatalogSource
+  local_id: string
+  name: string
+  title: string | null
+  summary: string | null
+  family: string | null
+  tags: string[]
+  expression: string | null
+  /** The one number this collection sorts by. Null for most kinds. */
+  metric: number | null
+  updated_at: string | null
+  payload: Record<string, unknown>
+}
+
+export interface CatalogLink {
+  rel: string
+  note: string | null
+  uid: string
+  /** Null when the other end is not in the index — a Supabase document, or a
+   *  row a later harvest dropped. The link still renders, unresolved. */
+  kind: CatalogKind | null
+  name: string | null
+  title: string | null
+  source: CatalogSource | null
+}
+
+export interface CatalogEntityDetail extends CatalogEntity {
+  links: { out: CatalogLink[]; in: CatalogLink[] }
+}
+
+export interface CatalogQuery {
+  q?: string
+  kind?: CatalogKind
+  source?: CatalogSource
+  family?: string
+  tag?: string
+  sort?: CatalogSort
+  limit?: number
+  offset?: number
+}
+
+export interface CatalogPage {
+  results: CatalogEntity[]
+  total: number
+  limit: number
+  offset: number
+  returned: number
+}
+
+export interface CatalogFacetValue {
+  value: string
+  count: number
+}
+
+export interface CatalogFacets {
+  kind: CatalogKind | null
+  source: CatalogFacetValue[]
+  family: CatalogFacetValue[]
+  tags: CatalogFacetValue[]
+}
+
+export interface CatalogCollection {
+  kind: CatalogKind
+  count: number
+  sources: Partial<Record<CatalogSource, number>>
+}
+
+export interface CatalogHarvestRecord {
+  harvester: string
+  source: CatalogSource
+  started_at: string
+  finished_at: string | null
+  count: number
+  /** Set when the last run failed. The collection is showing the previous
+   *  harvest's rows, which is better than empty and worse than fresh. */
+  error: string | null
+}
+
+export interface CatalogHarvester {
+  name: string
+  label: string
+  kind: CatalogKind
+  source: CatalogSource
+  /** Crosses the network. A reindex can skip these for a fast local rebuild. */
+  remote: boolean
+  ever_run: boolean
+}
+
+export interface CatalogSummary {
+  total: number
+  links: number
+  /** False on a fresh clone: no rows and no harvest yet. Not an error — the
+   *  answer is "press reindex". */
+  indexed: boolean
+  collections: CatalogCollection[]
+  harvests: CatalogHarvestRecord[]
+  harvesters: CatalogHarvester[]
+  degraded: string[]
+  kinds: { kind: CatalogKind; label: string }[]
+  sources: CatalogSource[]
+  running_job: CatalogReindexJob | null
+}
+
+export interface CatalogReindexJob {
+  job_id: string
+  status: 'running' | 'done' | 'error'
+  started_at: string
+  finished_at: string | null
+  progress: { harvester: string | null; state: string; done: number; total: number }
+  report: {
+    harvesters: { name: string; kind: string; source: string; count: number; error: string | null }[]
+    indexed: number
+    links: number
+    failed: string[]
+    finished_at: string
+  } | null
+  error: string | null
 }
 
 export type ActivityKind = 'run' | 'ingest' | 'macro_refresh'
@@ -574,6 +1029,13 @@ export interface ActivityItem {
 export interface ActivityFeed {
   items: ActivityItem[]
   generated_at: string
+}
+
+export interface AgendaOutlook {
+  summary: string
+  generated_at: string
+  expires_at: string
+  cached: boolean
 }
 
 export interface ModelsResponse {
@@ -687,15 +1149,90 @@ export interface StoreUniversesResponse {
   universes: StoreUniverse[]
 }
 
+/**
+ * One thing wrong with a spec, typed.
+ *
+ * `severity` rides along rather than being inferred from the wording. The
+ * builder used to decide whether a warning blocked a run by matching message
+ * prefixes, which meant rewording a sentence could silently change whether a
+ * strategy counted as runnable.
+ *
+ * `path` names the `StrategySpec` field the message is about, and may carry
+ * detail past it — `features[2].name`. The *field* is the leading segment,
+ * which is what `fieldOf` returns and what stage routing keys on.
+ */
+export interface SpecDefect {
+  code: string
+  message: string
+  path: string
+  severity: 'blocking' | 'advisory'
+}
+
+/** A one-click way out of an incompatible choice: set one other field. */
+export interface OptionFix {
+  path: string
+  value: unknown
+  label: string
+}
+
+/**
+ * One value a field may take, and whether it may take it *given the rest of
+ * the spec*. A disabled option is still sent: filtering incompatible values
+ * out would hide the shape of the system and turn an early pick into a dead
+ * end, where greying one out with its reason teaches the constraint.
+ */
+export interface FieldOption {
+  value: string
+  label: string
+  enabled: boolean
+  reason: string | null
+  fix: OptionFix | null
+}
+
+export interface FieldOptions {
+  options: FieldOption[]
+  /** Numeric limits, read off the Pydantic field rather than retyped here. */
+  bounds: { min?: number; max?: number | string; exclusive_min?: number; exclusive_max?: number } | null
+  /** Prose for the whole field, when the option list alone would mislead. */
+  note: string | null
+}
+
 export interface StrategyPreview {
   /** The exact text handed to qrun. */
   yaml: string
-  /** Window and feature-set problems. These *do* block a run. */
+  /**
+   * Window and feature-set problems, untyped and flat.
+   *
+   * What the wire carried before `defects`. Kept because more than one reader
+   * still takes it, but it cannot express severity and it does not mention an
+   * unknown universe or benchmark — prefer `defects` for anything new.
+   */
   warnings: string[]
   /** Advisory. Optional so an older server degrades to hiding the banner. */
   coverage?: StrategyCoverage
   /** Optional for the same reason. */
   explain?: StrategyExplain
+  /** Optional so an older server degrades to the `warnings` behaviour. */
+  defects?: SpecDefect[]
+  /** Optional for the same reason: absent means "offer everything". */
+  options?: Record<string, FieldOptions>
+}
+
+/**
+ * A parsed strategy file, and everything the builder must say about it.
+ *
+ * Nothing here has been saved or repaired. `spec` is the file as it was, so a
+ * conflicting field can be marked in place rather than rewritten behind the
+ * reader's back.
+ */
+export interface StrategyImport {
+  spec: StrategySpec
+  /** Keys that are not part of a strategy at all. */
+  unknown_fields: string[]
+  /** Fields that would not hold their value, dropped to the default and named. */
+  rejected: { path: string; message: string; value: unknown }[]
+  defects: SpecDefect[]
+  options: Record<string, FieldOptions>
 }
 
 export interface FeatureColumn {
@@ -743,6 +1280,12 @@ export interface StoredStrategy extends StrategySpec {
   id: string
   created_at: string
   updated_at: string
+  /** Owner. Compare against the signed-in user to decide whether to offer
+   *  edit and delete — the same check the RAG document and folder menus make. */
+  user_id: string
+  /** 'org' means colleagues in the same workspace can read it. They still
+   *  cannot change it: the server enforces that, this only shapes the UI. */
+  visibility: 'private' | 'org'
 }
 
 /** One thing wrong with a draft, in the draft's own coordinates. */
@@ -1005,6 +1548,13 @@ export interface Indicator {
   runnable: boolean | null
   /** Why it cannot run here, or why it carries no information. */
   note?: string
+  /**
+   * Fields this indicator reads that exist but are not what their name
+   * promises — `$vwap` is typical price on both stores here. Distinct from a
+   * missing column: the indicator *runs*, and the open question is what it
+   * measures. Served by `library_payload` and previously unmodelled here.
+   */
+  proxy_fields?: string[]
 }
 
 export interface IndicatorsResponse {
@@ -1406,6 +1956,29 @@ export interface Portfolio extends PortfolioSpec {
   updated_at: string
 }
 
+/**
+ * A named container for work that lives in other stores.
+ *
+ * Membership is by id and is never validated server-side (see
+ * `webapp/api/projects.py`): a project holding a since-deleted strategy shows
+ * one fewer member rather than failing to load. Thread and document ids point
+ * into Supabase, which this client cannot reach — the RAG client resolves those.
+ */
+export interface ProjectSpec {
+  name: string
+  description: string
+  strategy_ids: string[]
+  portfolio_ids: string[]
+  thread_ids: string[]
+  document_ids: string[]
+}
+
+export interface Project extends ProjectSpec {
+  id: string
+  created_at: string
+  updated_at: string
+}
+
 export interface PortfolioSummary {
   id: string
   name: string
@@ -1732,6 +2305,19 @@ export interface VibeAlphaList {
   items: VibeAlpha[]
 }
 
+/** `GET /api/vibe/alpha/{id}` — meta plus the zoo module's Python source. */
+export interface VibeAlphaDetail {
+  status: string
+  alpha: {
+    id: string
+    zoo: string
+    module_path: string
+    meta: VibeAlpha
+  }
+  /** `# <source unavailable: …>` when the sidecar could not read the module. */
+  source_code: string
+}
+
 export interface VibeSymbolCandidate {
   symbol: string
   name: string
@@ -1794,4 +2380,108 @@ export interface VibeShadowResult {
   error?: string
   shadow_id?: string
   [key: string]: unknown
+}
+
+// ── Scheduled tasks ──────────────────────────────────────────────────────────
+
+export type TaskKind = 'macro_refresh' | 'data_refresh' | 'run_strategy' | 'outlook_report'
+
+export type TaskOutputKind = 'macro_job' | 'ingest_job' | 'run' | 'outlook_report'
+
+export interface MacroOutputSummary {
+  kind: 'macro_job'
+  status: 'done' | 'error' | string
+  error: string | null
+  calendar_rows: number | null
+  indicator_rows: number | null
+  indicators: Record<string, number> | null
+  warnings_count: number
+}
+
+export interface IngestOutputSummary {
+  kind: 'ingest_job'
+  status: 'done' | 'error' | string
+  error: string | null
+  restart_required: boolean
+  symbols_requested: number | null
+  symbols_written: number | null
+  symbols_failed: number | null
+  failed_sample: string[]
+  universe: string | null
+  start: string | null
+  end: string | null
+  non_trading_days_pruned: number | null
+}
+
+export interface RunOutputSummary {
+  kind: 'run'
+  status: 'succeeded' | 'failed' | 'cancelled' | string
+  error: string | null
+  name: string | null
+  model: string | null
+  handler: string | null
+  universe: string | null
+  benchmark: string | null
+  annual_return: number | null
+  max_drawdown: number | null
+  information_ratio: number | null
+  volatility: number | null
+  period_start: string | null
+  period_end: string | null
+}
+
+export interface OutlookOutputSummary {
+  kind: 'outlook_report'
+  status: 'ok' | 'error' | string
+  scope: 'day' | 'week' | 'month'
+  date: string
+  start: string | null
+  end: string | null
+  pages: number
+  file_size: number
+  title: string | null
+}
+
+export type TaskOutputSummary = MacroOutputSummary | IngestOutputSummary | RunOutputSummary | OutlookOutputSummary
+
+export type TaskFrequency = 'daily' | 'weekdays' | 'weekly'
+
+export type WeekDay = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
+
+export interface Schedule {
+  frequency: TaskFrequency
+  time: string
+  day?: WeekDay
+}
+
+export interface ScheduledTaskInput {
+  name: string
+  kind: TaskKind
+  schedule: Schedule
+  params: Record<string, unknown>
+  enabled?: boolean
+}
+
+export interface ScheduledTask {
+  id: string
+  org_id: string
+  user_id: string
+  visibility: 'private' | 'org'
+  name: string
+  kind: TaskKind
+  enabled: boolean
+  schedule: Schedule
+  params: Record<string, unknown>
+  next_run: string | null
+  last_run: string | null
+  last_status: 'ok' | 'skipped' | 'error' | null
+  last_error: string | null
+  last_output_id: string | null
+  last_output_kind: TaskOutputKind | null
+  last_output_summary: TaskOutputSummary | null
+  created_at: string
+  updated_at: string
+  cadence: string
+  /** Demo rows are not persisted; the UI hides destructive actions on them. */
+  is_demo?: boolean
 }

@@ -11,15 +11,25 @@ import { type ComposerMode } from '@/features/rag/components/chat/ComposerMenu'
 import { createThread } from '@/features/rag/lib/api'
 import { getGreetingHeadline, getFirstName } from '@/lib/greeting'
 import { navItemFor, type SectionKey } from '@/components/layout/NavItems'
+import { cn } from '@/lib/utils'
 
 // Shortcut buttons under the composer. The platform points these at four of its
 // own destinations; here they point at four pages this app actually backs, one
 // per section, so every pill leads somewhere real. Keep them all `built` — a
 // dimmed "Soon" destination behind a hero pill is a dead end.
-const HOME_SHORTCUT_KEYS: SectionKey[] = ['markets', 'macro', 'tl-builder', 'tl-databank']
+const HOME_SHORTCUT_KEYS: SectionKey[] = ['markets', 'macro', 'tl-builder', 'tl-database']
 const HOME_SHORTCUTS = HOME_SHORTCUT_KEYS
   .map(navItemFor)
   .filter((item): item is NonNullable<typeof item> => Boolean(item))
+
+// While the composer holds a draft the page recedes, the way the platform's does:
+// everything around the box fades and stops taking clicks but keeps its space, so
+// the greeting and the composer stay exactly where they were.
+const recede = (hidden: boolean) =>
+  cn(
+    'transition-[opacity,transform] duration-300 ease-out',
+    hidden ? 'pointer-events-none translate-y-1 opacity-0' : 'translate-y-0 opacity-100',
+  )
 
 /** What the welcome composer handed to the thread it just created. */
 interface PendingHandoff {
@@ -41,6 +51,8 @@ export function DashboardPage() {
   const location = useLocation()
   const [creating, setCreating] = useState(false)
   const [welcomeFocusRequest, setWelcomeFocusRequest] = useState(0)
+  // True while the composer holds a draft — see `recede` above.
+  const [composerActive, setComposerActive] = useState(false)
   // What the composer handed off to the thread it created. Read once, by the
   // thread it names — see the guard below.
   const [pendingHandoff, setPendingHandoff] = useState<PendingHandoff | null>(null)
@@ -145,7 +157,11 @@ export function DashboardPage() {
     <div className="relative h-full">
       {/* Calendar corner, matching the platform's collapsed widget — live now
           that the macro calendar API exists. */}
-      <div className="absolute right-4 top-4 z-10 hidden lg:block">
+      <div
+        className={cn('absolute right-4 top-4 z-10 hidden lg:block', recede(composerActive))}
+        style={{ transitionDelay: composerActive ? '0ms' : '80ms' }}
+        aria-hidden={composerActive}
+      >
         <AgendaWidget />
       </div>
 
@@ -163,15 +179,24 @@ export function DashboardPage() {
             busy={creating}
             placeholder="Ask about the data, test a factor, or run a backtest"
             focusToken={welcomeFocusRequest}
+            onDraftChange={setComposerActive}
           />
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 px-4">
+        <div
+          className={cn(
+            'mt-4 flex flex-wrap items-center justify-center gap-2 px-4',
+            recede(composerActive),
+          )}
+          aria-hidden={composerActive}
+        >
           {HOME_SHORTCUTS.map((item) => (
             <button
               key={item.key}
               type="button"
               onClick={() => navigate(item.route)}
+              // Faded out, they keep their space but must leave the tab order too.
+              tabIndex={composerActive ? -1 : undefined}
               className="flex items-center gap-1.5 rounded-full border border-border/50 bg-surface-2 px-3.5 py-1.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-surface-3 hover:text-foreground"
             >
               <item.icon className="h-4 w-4 text-muted-foreground" />
@@ -180,7 +205,11 @@ export function DashboardPage() {
           ))}
         </div>
 
-        <div className="mt-4 hidden w-full max-w-2xl px-4 sm:block">
+        <div
+          className={cn('mt-4 hidden w-full max-w-2xl px-4 sm:block', recede(composerActive))}
+          style={{ transitionDelay: composerActive ? '0ms' : '80ms' }}
+          aria-hidden={composerActive}
+        >
           <MarketHoursWidget />
         </div>
       </div>

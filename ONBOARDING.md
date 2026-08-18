@@ -114,8 +114,8 @@ docker compose pull        # ~2 min, published by CI
 Or build it yourself, which is the source of truth and works offline:
 
 ```bash
-AION_IMAGE=qlib-dev:local docker compose build qlib   # ~5-8 min
-echo 'AION_IMAGE=qlib-dev:local' >> .env              # make it stick
+AION_IMAGE=qlib-dev:local docker compose build api   # ~5-8 min
+echo 'AION_IMAGE=qlib-dev:local' >> .env             # make it stick
 ```
 
 If the GHCR package is private, authenticate first with a PAT carrying
@@ -184,6 +184,9 @@ change without spending quota.
 
 ## 8. Start it
 
+The platform itself is just the backend API and the Vite UI. Supabase is still
+part of the same compose project, but it stays as it is in `infra/supabase/`.
+
 ```bash
 docker compose up -d api ui
 ```
@@ -192,40 +195,82 @@ docker compose up -d api ui
 |---|---|---|
 | UI | <http://localhost:5274> | 5173/5273 were taken on the original machine; the port is `strictPort` |
 | API | <http://localhost:8770> | `/api/health`, OpenAPI at `/docs` |
-| RAG API | <http://localhost:8001> | `docker compose up -d rag-api`; needs the Supabase stack below |
-| Supabase (Kong) | <http://localhost:8010> | separate compose project, see "The RAG stack" |
-| JupyterLab | <http://localhost:8888/lab?token=qlib> | `docker compose up -d jupyter` |
-| MLflow | <http://localhost:5500> | `docker compose up -d mlflow-ui` |
+| Supabase (Kong) | <http://localhost:8010> | included from `infra/supabase/` |
 
-Everything except MLflow binds `127.0.0.1` only. The UI sits behind a Supabase
-login (see below); the EODHD/OpenRouter API keys stay server-side either way and
-never reach the browser.
+Everything binds `127.0.0.1` only. The UI sits behind a Supabase login (see
+below); the EODHD/OpenRouter API keys stay server-side either way and never
+reach the browser.
 
-### The RAG stack
+### Optional dev/utility services
 
-The document/chat assistant (routes `/chats`, `/documents`, `/corpus`,
-`/lab/roster`) is the vendored `rag/` subtree running as the `rag-api` service,
-backed by an **isolated Supabase instance** that lives outside this repo:
+RAG, Vibe, the scalability agent, JupyterLab and MLflow are kept in a separate
+compose file so they do not clutter the default platform startup and do not
+force their separate images onto the core services.
 
-- Compose project `supabase-aq` at `C:\Users\TBVis\Supabase\supabase-project`
-  (`docker compose -p supabase-aq up -d` from that directory). Kong publishes it
-  on host `:8010` (REST, auth, storage) with the pooler on `:5442`. It is
-  deliberately separate from any other Supabase install on the machine.
+```bash
+# Start the platform plus all optional services
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+| Service | URL | Command |
+|---|---|---|
+| Scalability agent | <http://localhost:8771> | health endpoint only — work arrives via the jobs table |
+| RAG API | <http://localhost:8001> | needs `rag/backend/.env`; proxies through the UI at `/rag-api` |
+| Vibe API | <http://localhost:8899> | needs `vibe/.env`; proxied at `/api/vibe/*` |
+| JupyterLab | <http://localhost:8888/lab?token=qlib> | interactive notebooks |
+| MLflow | <http://localhost:5500> | experiment tracking UI |
+
+Or use the convenience wrapper, which also waits for Postgres before starting
+the API:
+
+```powershell
+# Platform only
+powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up
+
+# Platform + optional services
+powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up -Dev
+```
+
+`down`, `restart`, `status` and `logs <service>` work the same way. Add `-Dev`
+to any of them when the dev file is in use.
+
+### The Supabase stack
+
+Supabase is the platform's identity and user-data layer: it authenticates
+everyone, and both halves of the app store per-user records in its Postgres.
+
+Plain `docker compose` from the repo root drives the platform and Supabase as
+one project: Supabase is pulled in by the `include:` at the top of
+`docker-compose.yml`.
+
+- Supabase lives in-repo at `infra/supabase/` and is gitignored. Kong publishes
+  it on host `:8010` (REST, auth, storage) with the pooler on `:5442`.
+- Two details in `docker-compose.yml` keep that merge safe, and `infra/README.md`
+  explains both: `project_directory` on the `include:` (Supabase's bind mounts
+  are relative, and `./volumes/db/data` *is* the database), and the `external`
+  declarations on `db-config` / `deno-cache` (one of them holds the pgsodium
+  root encryption key, which a fresh empty volume would silently replace).
 - `rag/backend/.env` (gitignored) configures `rag-api`: Supabase URL/keys,
   embedding backend, and the test-user credentials (`TEST_USER1_PASSWORD`).
 - `webapp/ui/.env.local` (gitignored) gives the browser `VITE_SUPABASE_URL`
   (the Kong URL) and `VITE_SUPABASE_ANON_KEY`.
 
-Start order: Supabase first, then `docker compose up -d rag-api ui`. The UI's
-auth gate wraps the whole shell — sign in as `test@test.com` with the password
+The UI's auth gate wraps the whole shell — sign in as `test@test.com` with the password
 from `rag/backend/.env`. The Vite dev server proxies `/rag-api/*` to the
 `rag-api` container with the prefix stripped, so the app stays same-origin.
 
-Only `src/features/rag/**` attaches the Supabase JWT to requests; the original
-qlib `/api` endpoints remain keyless and server-side. A quick end-to-end check:
+**Both halves are authenticated.** Every `/api` route except `/api/health`
+requires the same Supabase token, and what a request can see is decided by row
+level security in the `aion` schema rather than by application filters -- so
+each person's strategies, portfolios, projects and runs are private, and shared
+only when they deliberately share them with their workspace. A quick
+end-to-end check:
 upload a small markdown file on `/documents`, watch it reach `completed`,
 inspect its chunks on `/corpus`, then ask a question about it on `/chats` — the
 answer should carry a citation back to the uploaded file.
+
+MLflow is published on 5500 because macOS ControlCenter owns 5000. On Linux 5000
+is usually free, but the mapping is kept so both machines match.
 
 MLflow is published on 5500 because macOS ControlCenter owns 5000. On Linux 5000
 is usually free, but the mapping is kept so both machines match.

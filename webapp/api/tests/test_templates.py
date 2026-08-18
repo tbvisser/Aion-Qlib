@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 from webapp.api import marketdata
 from webapp.api.main import app
 from webapp.api.strategies import HANDLERS, MODEL_SPECS, StrategySpec, build_workflow_config
-from webapp.api.strategy_gen import draft as draft_mod
+from webapp.api.strategy_gen import compat as compat_mod
 from webapp.api.strategy_gen import templates as tpl
 from webapp.api.tests.helpers import import_check
 
@@ -41,7 +41,7 @@ def every_model_available(monkeypatch):
     is asserted separately, which is the claim that actually matters.
     """
     monkeypatch.setattr(
-        draft_mod, "available_models",
+        compat_mod, "available_models",
         lambda: [{"id": k, "label": v["label"], "class": v["class"]}
                  for k, v in MODEL_SPECS.items()])
 

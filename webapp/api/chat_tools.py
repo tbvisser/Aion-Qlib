@@ -18,13 +18,14 @@ depend on the prompt being obeyed.
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, ConfigDict
 
 from .config import get_settings
 from .factorlab.operators import expression_language_block
-from .strategies import MODEL_SPECS, StrategySpec, StrategyStore, build_workflow_config
+from .strategies import MODEL_SPECS, StrategySpec, build_workflow_config
 from .strategy_gen import templates as strategy_templates
 from .strategy_gen.draft import (
     AssumedParam, DraftError, StrategyDraft, draft_json_schema, lower_draft,
@@ -149,6 +150,75 @@ _TOOL_SCHEMAS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "start_scalability_analysis",
+            "description": (
+                "Queue a venue-scalability analysis on the user's uploaded trading "
+                "data: how large the fund can grow on its current venue before costs "
+                "consume the edge, and what a better-matched venue would allow. Runs "
+                "in the background and takes minutes; check later with "
+                "get_scalability_report. Leave upload_id null to use the most recent "
+                "parsed upload."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "upload_id": {
+                        "type": ["string", "null"],
+                        "description": "Which upload to analyze; null = the latest parsed one.",
+                    },
+                    "candidate_venues": {
+                        "type": ["array", "null"],
+                        "items": {"type": "string"},
+                        "description": "Venues to compare against; null = every venue in the catalog.",
+                    },
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_scalability_report",
+            "description": (
+                "The user's venue-scalability report: the ceiling on their current "
+                "venue, what caps it (fees vs. liquidity vs. conditions), and the "
+                "best alternative venue with reasons. If the analysis is still "
+                "running, returns the job status instead."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "report_id": {
+                        "type": ["string", "null"],
+                        "description": "Which report; null = the latest one.",
+                    },
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "book_venue_consultation",
+            "description": (
+                "Book a consultation with a venue and return its booking link. "
+                "IMPORTANT: booking is also the user's consent to share the "
+                "scalability report with that venue -- only call this when the user "
+                "has explicitly asked to book, and say that the report will be shared."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "report_id": {"type": "string"},
+                    "venue": {"type": "string", "description": "e.g. 'UBS'"},
+                },
+                "required": ["report_id", "venue"],
+            },
+        },
+    },
 ]
 
 
@@ -180,9 +250,9 @@ class BuilderContext(BaseModel):
     assumed: list[AssumedParam] | None = None
 
 
-def render_context(context: BuilderContext | None) -> str | None:
-    """The context as a system message, or None when there is nothing to say."""
-    if context is None or (context.spec is None and not context.expression):
+def _render_builder_context(context: BuilderContext) -> str | None:
+    """Render the Strategy Builder context."""
+    if context.spec is None and not context.expression:
         return None
 
     lines = ["The user currently has this in the Strategy Builder."]
@@ -208,6 +278,13 @@ def render_context(context: BuilderContext | None) -> str | None:
         rows = "; ".join(f"{a.path}={a.value!r} ({a.why})" for a in context.assumed)
         lines.append(f"Filled in by an earlier proposal rather than chosen: {rows}")
     return "\n".join(lines)
+
+
+def render_context(context: BuilderContext | None) -> str | None:
+    """The context as a system message, or None when there is nothing to say."""
+    if context is None:
+        return None
+    return _render_builder_context(context)
 
 
 def _propose_strategy_schema() -> dict:
@@ -293,17 +370,64 @@ def system_prompt(profile: str = "general") -> str:
     return PROFILES[profile].system_prompt
 
 
+def _compact_scalability_report(report: dict) -> dict:
+    """The slice of a scalability report the model needs to narrate it.
+
+    The report row is the durable contract; the ``result`` blob is written by
+    the scalability agent and versioned with its engine. Keys are therefore
+    read defensively: a missing one degrades to None in a chat turn rather
+    than raising, and the model narrates only what is there.
+    """
+    result = report.get("result") or {}
+    # The engine nests the ceiling math under "comparison"
+    # (scalability_agent.engine.compare.compare_venues).
+    comparison = result.get("comparison") or {}
+    alternatives = comparison.get("alternatives") or []
+    best = comparison.get("best_alternative") or next(
+        (a for a in alternatives if a.get("eligible", True)), None
+    )
+    current = comparison.get("current") or {}
+    return {
+        "report_id": str(report["id"]),
+        "created_at": str(report["created_at"]),
+        "job_status": report.get("job_status"),
+        "current_venue": report.get("current_venue"),
+        "catalog_version": report.get("catalog_version"),
+        # Ceiling and the fees/impact/conditions decomposition for the venue
+        # the fund trades on today.
+        "current": current or None,
+        # The highest-ranked eligible alternative: venue, ceiling, and the
+        # plain-language reasons for it.
+        "best_alternative": best,
+        # Ineligible and near-miss ("you almost qualify") venues, kept
+        # explicit because surfacing them is a feature, not an error.
+        "eligibility_notes": [
+            {k: a.get(k) for k in ("venue", "eligible", "near_miss", "reasons")}
+            for a in alternatives if not a.get("eligible", True) or a.get("near_miss")
+        ],
+        "confidence": current.get("confidence_band_usd"),
+    }
+
+
 def build_registry(
-    run_manager, profile: str = "general", context: BuilderContext | None = None,
+    run_manager, principal, profile: str = "general",
+    context: BuilderContext | None = None,
 ) -> dict[str, Callable[..., dict]]:
     """Bind the tools to the live RunManager so chat-started runs are real runs.
 
     Returns only the profile's own tools. That is the enforcement point for
     "the builder assistant cannot run a backtest": the handler is not there to
     dispatch to, whatever the model asks for.
+
+    ``principal`` is who the assistant is acting for. Every strategy it saves
+    and every run it starts is owned by that person -- an agent is a way of
+    doing your own work, not a shared account, and without this a strategy the
+    assistant created would belong to nobody and be visible to no one.
     """
     settings = get_settings()
-    store = StrategyStore(settings.strategies_dir)
+    from .repositories import StrategyRepo
+
+    store = StrategyRepo(principal)
 
     from . import qlib_session, results
 
@@ -399,6 +523,7 @@ def build_registry(
         config = build_workflow_config(spec, provider_uri, region)
         stored = store.create(spec)
         run = run_manager.start(
+            principal,
             name=spec.name, config=config, kind="backtest", strategy_id=stored.id,
             extra={"model": spec.model, "handler": spec.handler,
                    "universe": spec.universe, "benchmark": spec.benchmark},
@@ -411,7 +536,7 @@ def build_registry(
         }
 
     def get_run_status(run_id: str) -> dict:
-        run = run_manager.get(run_id)
+        run = run_manager.get(principal, run_id)
         if run is None:
             return {"error": f"No run {run_id}"}
         payload = {k: run.meta.get(k) for k in
@@ -428,8 +553,115 @@ def build_registry(
         return {
             "runs": [
                 {k: r.get(k) for k in ("id", "name", "status", "phase", "model", "created_at")}
-                for r in run_manager.list(limit=limit)
+                for r in run_manager.list(principal, limit=limit)
             ]
+        }
+
+    def start_scalability_analysis(
+        upload_id: str | None = None,
+        candidate_venues: list[str] | None = None,
+    ) -> dict:
+        """Queue an analysis; the scalability agent does the work, not the API.
+
+        Control plane / data plane: this only writes a job row, exactly as the
+        upload and REST paths do. The agent service claims it with
+        SELECT ... FOR UPDATE SKIP LOCKED and writes the report back.
+        """
+        from .db import user_tx
+
+        with user_tx(principal.user_id) as cur:
+            if upload_id:
+                cur.execute(
+                    "SELECT id, status FROM aion.scalability_uploads WHERE id = %s",
+                    (upload_id,))
+                upload = cur.fetchone()
+                if upload is None:
+                    return {"error": f"No upload {upload_id} -- upload a trading "
+                                     "statement first, or omit upload_id to use the latest."}
+            else:
+                cur.execute(
+                    "SELECT id, status FROM aion.scalability_uploads "
+                    "WHERE status = 'parsed' ORDER BY created_at DESC LIMIT 1")
+                upload = cur.fetchone()
+                if upload is None:
+                    return {"error": "No parsed upload yet -- upload a trading "
+                                     "statement and wait for it to parse."}
+            if upload["status"] != "parsed":
+                return {"error": f"Upload {upload['id']} is '{upload['status']}', "
+                                 "not parsed yet."}
+            params = json.dumps({
+                "upload_id": str(upload["id"]),
+                "candidate_venues": candidate_venues or [],
+            })
+            cur.execute(
+                "INSERT INTO aion.scalability_jobs (user_id, org_id, kind, params, upload_id) "
+                "VALUES (%s, %s, 'analyze', %s, %s) RETURNING id",
+                (principal.user_id, principal.org_id, params, upload["id"]))
+            job = cur.fetchone()
+        return {
+            "job_id": str(job["id"]),
+            "upload_id": str(upload["id"]),
+            "status": "queued",
+            "note": "The analysis runs in the background and takes minutes. "
+                    "Check later with get_scalability_report.",
+        }
+
+    def get_scalability_report(report_id: str | None = None) -> dict:
+        """A compact summary of a report, or the job status while it runs."""
+        from .db import user_tx
+
+        with user_tx(principal.user_id) as cur:
+            if report_id:
+                cur.execute(
+                    "SELECT r.*, j.status AS job_status FROM aion.scalability_reports r "
+                    "LEFT JOIN aion.scalability_jobs j ON j.id = r.job_id "
+                    "WHERE r.id = %s",
+                    (report_id,))
+            else:
+                cur.execute(
+                    "SELECT r.*, j.status AS job_status FROM aion.scalability_reports r "
+                    "LEFT JOIN aion.scalability_jobs j ON j.id = r.job_id "
+                    "ORDER BY r.created_at DESC LIMIT 1")
+            report = cur.fetchone()
+            if report is None:
+                # No finished report: say whether the agent is still on it, so
+                # the model answers "still running" instead of "no report".
+                cur.execute(
+                    "SELECT id, status, error FROM aion.scalability_jobs "
+                    "WHERE kind = 'analyze' ORDER BY created_at DESC LIMIT 1")
+                job = cur.fetchone()
+                if job and job["status"] in ("queued", "running"):
+                    return {"status": job["status"], "job_id": str(job["id"]),
+                            "note": "The analysis is still running; ask again shortly."}
+                if job and job["status"] == "failed":
+                    return {"status": "failed", "job_id": str(job["id"]),
+                            "error": job["error"]}
+                return {"error": "No scalability report yet -- start one with "
+                                 "start_scalability_analysis."}
+        return _compact_scalability_report(report)
+
+    def book_venue_consultation(report_id: str, venue: str) -> dict:
+        """Book a consultation; booking IS the consent to share the report.
+
+        CONSENT GATE: `report_shared_at` is the one flag that lets the
+        platform forward the report to the venue, and it may be set only on a
+        completed booking, never by the agent. The gate has a single
+        implementation -- `routers/scalability.py::book_consultation_for`,
+        shared with the REST endpoint (PRD M8: enforced in one place).
+        """
+        from .routers.scalability import BookingError, book_consultation_for
+
+        try:
+            out = book_consultation_for(principal, report_id, venue)
+        except BookingError as exc:
+            return {"error": str(exc)}
+        booking = out["booking"]
+        return {
+            "booking_id": str(booking["id"]),
+            "venue": venue,
+            "booking_link": out["booking_link"],
+            "note": "Booked. The report is now shared with the venue "
+                    "(report_shared_at set).",
         }
 
     def list_templates() -> dict:
@@ -523,6 +755,9 @@ def build_registry(
         "run_backtest": run_backtest,
         "get_run_status": get_run_status,
         "list_runs": list_runs,
+        "start_scalability_analysis": start_scalability_analysis,
+        "get_scalability_report": get_scalability_report,
+        "book_venue_consultation": book_venue_consultation,
         "propose_strategy": propose_strategy,
         "list_templates": list_templates,
     }
@@ -625,7 +860,9 @@ PROFILES: dict[str, Profile] = {
     "general": Profile(
         system_prompt=SYSTEM_PROMPT,
         tools=("get_data_status", "search_instruments", "get_price_summary",
-               "evaluate_factor", "run_backtest", "get_run_status", "list_runs"),
+               "evaluate_factor", "run_backtest", "get_run_status", "list_runs",
+               "start_scalability_analysis", "get_scalability_report",
+               "book_venue_consultation"),
     ),
     "builder": Profile(
         system_prompt=BUILDER_PROMPT,

@@ -18,25 +18,32 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
 import type { FeatureMode } from '@/lib/api'
+import { CompatField, choiceOptions } from './compat'
 import type { InspectorProps } from './types'
 
-export function FeaturesInspector({
-  spec, setSpec, models, unfinished, onOpenFeatureCanvas,
-}: InspectorProps) {
+export function FeaturesInspector(props: InspectorProps) {
+  const { spec, setSpec, models, unfinished, onOpenFeatureCanvas } = props
   const columns = spec.features ?? []
 
   return (
     <Section title="Features" columns={1}>
-      <Field
+      {/* A handler can be incompatible with the columns already written: under
+          `extend`, a column called `MA5` would silently replace Alpha158's own
+          `MA5` — qlib's loader keeps the later one and raises nothing. Which
+          names collide depends on the handler, so this list is judged against
+          the current columns rather than being the two constants it looks like. */}
+      <CompatField
+        field="handler"
         label="Feature set"
         hint="What the model sees: Alpha158 is 158 engineered factors, Alpha360 is 360 raw price and volume lags."
+        ctx={props}
       >
         <Choice
           value={spec.handler}
           onChange={(handler) => setSpec((prev) => ({ ...prev, handler }))}
-          options={(models?.handlers ?? [spec.handler]).map((h) => ({ value: h, label: h }))}
+          options={choiceOptions(props, 'handler', models?.handlers ?? [spec.handler])}
         />
-      </Field>
+      </CompatField>
 
       <Field label="Your columns" hint={columns.length ? undefined : 'None yet — the handler’s own set is used as it is.'}>
         {columns.length > 0 && (

@@ -17,9 +17,11 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from webapp.api.auth import Principal
 from webapp.api import chat_tools
 from webapp.api.chat_tools import (
-    PROFILES, BuilderContext, build_registry, render_context, system_prompt, tool_schemas,
+    PROFILES, BuilderContext, build_registry, render_context, system_prompt,
+    tool_schemas,
 )
 from webapp.api.main import app
 from webapp.api.strategies import StrategySpec
@@ -44,8 +46,20 @@ class ExplodingRunManager:
         raise AssertionError("the builder assistant listed runs")
 
 
+#: Who the assistant is acting for. Every strategy it saves and every run it
+#: starts is owned by this account -- an agent is a way of doing your own work,
+#: not a shared login. These tests only need the identity to exist.
+FAKE_PRINCIPAL = Principal(
+    user_id="00000000-0000-0000-0000-000000000001",
+    email="tests@example.invalid",
+    org_id="00000000-0000-0000-0000-000000000002",
+    org_role="owner",
+)
+
+
 def builder(context: BuilderContext | None = None):
-    return build_registry(ExplodingRunManager(), profile="builder", context=context)
+    return build_registry(ExplodingRunManager(), FAKE_PRINCIPAL,
+                          profile="builder", context=context)
 
 
 # --------------------------------------------------------------------------
@@ -68,7 +82,23 @@ def test_the_general_profile_keeps_everything_it_had():
     """The builder is an addition, not a downgrade of the existing Chat page."""
     names = {t["function"]["name"] for t in tool_schemas("general")}
     assert names == {"get_data_status", "search_instruments", "get_price_summary",
-                     "evaluate_factor", "run_backtest", "get_run_status", "list_runs"}
+                     "evaluate_factor", "run_backtest", "get_run_status", "list_runs",
+                     "start_scalability_analysis", "get_scalability_report",
+                     "book_venue_consultation"}
+
+
+def test_the_scalability_tools_are_general_only():
+    """Booking shares user data with a venue; the builder assistants, which
+    only propose, have no business holding that handler."""
+    scalability = {"start_scalability_analysis", "get_scalability_report",
+                   "book_venue_consultation"}
+    general = build_registry(ExplodingRunManager(), FAKE_PRINCIPAL, profile="general")
+    assert scalability <= set(general)
+    for profile in ("builder",):
+        registry = build_registry(ExplodingRunManager(), FAKE_PRINCIPAL, profile=profile)
+        schemas = {t["function"]["name"] for t in tool_schemas(profile)}
+        assert not (scalability & set(registry))
+        assert not (scalability & schemas)
 
 
 @pytest.mark.parametrize("profile", PROFILE_NAMES)
@@ -79,7 +109,7 @@ def test_every_schema_has_a_handler_and_every_handler_a_schema(profile):
     with "Unknown tool"; a handler with no schema is dead code.
     """
     schemas = {t["function"]["name"] for t in tool_schemas(profile)}
-    handlers = set(build_registry(ExplodingRunManager(), profile=profile))
+    handlers = set(build_registry(ExplodingRunManager(), FAKE_PRINCIPAL, profile=profile))
     assert schemas == handlers
 
 

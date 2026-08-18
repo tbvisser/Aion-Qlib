@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useChatStream } from '@/hooks/useChatStream'
+import { authHeaders } from '@/lib/authFetch'
 import type { FeatureMode, StrategySpec } from '@/lib/api'
 import type { ChatMessage, BuilderContext, Proposal } from '@/lib/chat'
 import type { FeatureDraft } from '@/lib/factorExpr/featureSet'
@@ -112,7 +113,8 @@ export function useChatConfigured(): boolean | null {
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/chat/config?profile=builder')
+    void authHeaders()
+      .then((h) => fetch('/api/chat/config?profile=builder', { headers: h }))
       .then((r) => r.json())
       .then((c) => { if (!cancelled) setConfigured(Boolean(c.configured)) })
       // A failure is "cannot answer", not "unknown": the surfaces use `null`

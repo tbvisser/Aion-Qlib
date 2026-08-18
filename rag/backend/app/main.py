@@ -43,7 +43,7 @@ _app_logger.propagate = False
 logger = logging.getLogger(__name__)
 
 from app.config import get_settings  # noqa: E402
-from app.routers import auth, threads, chat, documents, folders, skills, sandbox, bridge, workspace, harness, citations  # noqa: E402
+from app.routers import auth, threads, chat, documents, folders, skills, sandbox, bridge, workspace, harness, citations, registry  # noqa: E402
 from app.routers import settings as settings_router  # noqa: E402
 
 settings = get_settings()
@@ -162,3 +162,6 @@ app.include_router(settings_router.router)
 app.include_router(workspace.router)
 app.include_router(harness.router)
 app.include_router(citations.router)
+# Unauthenticated capability listings, for the AION platform's Agents & Skills
+# page. Carries no user data -- see the module docstring.
+app.include_router(registry.router)

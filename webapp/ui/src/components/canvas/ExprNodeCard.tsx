@@ -9,8 +9,27 @@
  *   clay         you have not finished -- an empty slot, an unset window
  *   destructive  the engine refused it  (arrives with validation, in M5)
  *
+ * The one hue here that is not state is `--type-process`, and it is deliberately
+ * the *same* hue on every card: the whole factor canvas is the pipeline's
+ * **shape** phase, so the header wash, the icon tile and the base rule say "you
+ * are inside Features" -- which is identity, the job `StageNodeCard` and
+ * `FeatureNodeCard` already spend that token on. It is not a per-card verdict
+ * and it is not a category: the six `OpCategory` values still get no hues of
+ * their own, because six colours is a legend nobody reads and the icon plus the
+ * group badge already tell them apart.
+ *
  * Every card prints its own sub-expression in its footer, so a reader never has
  * to trace edges to find out what the card in front of them means.
+ *
+ * ## The header's padding is a number in another file
+ *
+ * `lib/factorExpr/layout.ts` sizes every card before React Flow paints --
+ * `HEADER_H + rows * ROW_H + FOOTER_H` -- and nothing measures the DOM
+ * afterwards, so the `h-[30px]` slot rows below are that file's `ROW_H` written
+ * in Tailwind and the header band is its `HEADER_H`. The `h-6` phase tile is
+ * affordable only at `py-1`: 24 + 8 + a 1px rule is 33 against a declared 32,
+ * marginally closer than the 30.5 it replaces. Anything taller has to be paid
+ * for in `layout.ts`, or parents stop centring on their children.
  */
 import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
@@ -19,6 +38,7 @@ import {
 } from 'lucide-react'
 
 import { useEditor } from './editorContext'
+import { Badge } from '@/components/ui/badge'
 import { HOLE } from '@/lib/factorExpr/serialize'
 import type { ExprCardData, ExprFlowNode } from '@/lib/factorExpr/toFlow'
 import type { OpCategory } from '@/lib/factorExpr/types'
@@ -34,6 +54,18 @@ const ICONS: Record<OpCategory | 'field' | 'const', typeof Database> = {
   elementwise: Waves,
   logic: GitBranch,
 }
+
+/**
+ * The shape phase, spelt out three times rather than mapped.
+ *
+ * `StageNodeCard` needs `TONE_WASH`/`TONE_MEDALLION`/`TONE_BASE` as records
+ * because it draws four phases; this canvas is one stage of one phase, so the
+ * same three roles are three constants. Keeping the roles named is the point --
+ * it is what stops the next hand reaching for a fourth use of the hue.
+ */
+const PHASE_WASH = 'bg-type-process/[0.06]'
+const PHASE_TILE = 'bg-type-process/10 text-type-process'
+const PHASE_RULE = 'bg-type-process/70'
 
 /**
  * What the window box is doing when it is not the obvious thing.
@@ -71,20 +103,36 @@ export const ExprNodeCard = memo(function ExprNodeCard({ data }: NodeProps<ExprF
     <div
       style={{ width: data.width }}
       className={cn(
-        'aion-expr-card rounded-lg border bg-card shadow-card transition-colors',
-        'border-border/50',
+        'aion-expr-card relative rounded-xl border bg-card shadow-card transition',
+        'border-border/50 hover:shadow-card-hover',
         incomplete && 'border-clay/50',
-        isRoot && !incomplete && 'border-primary/40 shadow-glow',
+        // The output card keeps its glow through a hover, or the one card that
+        // is different would stop being different exactly when it is pointed at.
+        isRoot && !incomplete && 'border-primary/40 shadow-glow hover:shadow-glow',
       )}
     >
-      <div className="flex items-center gap-2 border-b border-border/50 px-2.5 py-1.5">
-        <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      {/* `rounded-t-xl` because the card cannot be `overflow-hidden`: the empty
+          slot handles hang off its left edge and are content, not chrome. */}
+      <div
+        className={cn(
+          'flex items-center gap-2 rounded-t-xl border-b border-border/40 px-2.5 py-1',
+          PHASE_WASH,
+        )}
+      >
+        <span
+          className={cn(
+            'flex h-6 w-6 shrink-0 items-center justify-center rounded-md',
+            PHASE_TILE,
+          )}
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </span>
         {node.kind === 'const' ? (
           // A constant's value is its whole content, so it is edited where it is
           // read rather than through a row of its own.
           <input
             type="number"
-            className="nodrag tnum min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 font-mono text-xs font-medium outline-none hover:border-border/50 focus:border-primary/50"
+            className="nodrag tnum min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 py-0.5 font-mono text-xs font-medium transition-colors duration-200 hover:border-border/50 focus-visible:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
             value={node.value}
             onChange={(e) => {
               const next = Number(e.target.value)
@@ -98,14 +146,10 @@ export const ExprNodeCard = memo(function ExprNodeCard({ data }: NodeProps<ExprF
             {title(data)}
           </span>
         )}
-        {isRoot && (
-          <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[9px] uppercase text-primary">
-            out
-          </span>
-        )}
-        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] uppercase text-muted-foreground">
-          {data.category}
-        </span>
+        {/* Mint is state -- this is where the expression comes out -- so it is
+            the one badge here that is not `muted`. */}
+        {isRoot && <Badge variant="primary" className="shrink-0">out</Badge>}
+        <Badge className="shrink-0">{data.category}</Badge>
       </div>
 
       {slots.length > 0 && (
@@ -116,11 +160,16 @@ export const ExprNodeCard = memo(function ExprNodeCard({ data }: NodeProps<ExprF
               const child = node.kind === 'call' ? node.args[slot.name] : null
               return (
                 <div key={slot.name} className="relative flex h-[30px] items-center px-2.5">
+                  {/* Two different things wearing the same element. A filled
+                      slot is a *port*, and nothing here is connectable, so it
+                      shrinks to the pipeline's inert dot. An empty one is
+                      content -- the clay ring is the card telling you what is
+                      missing -- so it keeps the full 9px. */}
                   <Handle
                     id={slot.name}
                     type="target"
                     position={Position.Left}
-                    className={cn(!child && 'aion-handle-empty')}
+                    className={child ? 'aion-expr-handle' : 'aion-handle-empty'}
                   />
                   <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
                     {label}
@@ -141,17 +190,16 @@ export const ExprNodeCard = memo(function ExprNodeCard({ data }: NodeProps<ExprF
                 </span>
                 <span className="ml-auto flex items-center gap-1.5">
                   {slot.kind === 'window' && windowMode(value) && (
-                    <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] uppercase text-muted-foreground">
-                      {windowMode(value)}
-                    </span>
+                    <Badge className="shrink-0">{windowMode(value)}</Badge>
                   )}
                   <input
                     type="number"
                     // React Flow would otherwise read a drag on the input as a
                     // drag on the card and the caret would never land.
                     className={cn(
-                      'nodrag tnum w-16 rounded border border-border/50 bg-surface-2 px-2 py-0.5',
-                      'text-right font-mono text-[11px] outline-none focus:border-primary/50',
+                      'nodrag tnum w-16 rounded-md border border-border/50 bg-surface-2 px-2 py-0.5',
+                      'text-right font-mono text-[11px] transition-colors duration-200',
+                      'focus-visible:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20',
                       value === null && 'border-dashed border-clay/40',
                     )}
                     placeholder={HOLE}
@@ -178,7 +226,20 @@ export const ExprNodeCard = memo(function ExprNodeCard({ data }: NodeProps<ExprF
         </div>
       )}
 
-      <Handle id="out" type="source" position={Position.Right} />
+      {/* The shape phase, on the bottom edge -- the same base rule the Features
+          stage card wears on the pipeline, so a card here reads as belonging to
+          the card you came in through. Absolutely positioned, so it costs
+          `layout.ts` nothing; `rounded-b-xl` in place of the clipping the empty
+          handles forbid. */}
+      <span
+        aria-hidden
+        className={cn(
+          'pointer-events-none absolute inset-x-0 bottom-0 h-[2px] rounded-b-xl',
+          PHASE_RULE,
+        )}
+      />
+
+      <Handle id="out" type="source" position={Position.Right} className="aion-expr-handle" />
     </div>
   )
 })

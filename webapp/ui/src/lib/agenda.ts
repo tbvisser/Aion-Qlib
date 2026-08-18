@@ -1,5 +1,5 @@
 /**
- * The Inbox agenda: five item types, one day-grouped timeline.
+ * The Agenda: five item types, one day-grouped timeline.
  *
  * Pure assembly over already-fetched sources, kept out of the page so vitest
  * can pin the rules. Two deliberate day conventions live here:
@@ -316,6 +316,20 @@ export function filterEntries(entries: AgendaEntry[], filter: AgendaFilter): Age
   return filter === 'all' ? entries : entries.filter((e) => e.type === filter)
 }
 
+/**
+ * Narrow by free text over what the row actually shows — its title and its
+ * detail line. Deliberately not the payload: matching a run id or a country
+ * code the reader cannot see would return rows with no visible reason for
+ * being there. An empty or blank query is not a filter, and returns the input
+ * untouched rather than nothing.
+ */
+export function searchEntries(entries: AgendaEntry[], query: string): AgendaEntry[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return entries
+  return entries.filter((entry) => entry.title.toLowerCase().includes(needle)
+    || (entry.detail?.toLowerCase().includes(needle) ?? false))
+}
+
 export function typeCounts(entries: AgendaEntry[]): Record<AgendaType, number> {
   const counts: Record<AgendaType, number> = {
     release: 0, process: 0, trade: 0, message: 0, notification: 0,
@@ -381,18 +395,11 @@ export function heatTier(heat: number): 0 | 1 | 2 | 3 {
 }
 
 /**
- * What the detail panel is looking at: the selected day's agenda, or one
- * entry on it. Deliberately not URL state — entry keys embed run ids and
- * timestamps, too unstable to be honest deep links.
+ * What the detail panel is looking at: the whole selected day, or one entry on
+ * it. The view mode and the rest of the URL state live in `lib/agendaUrl` —
+ * this is the half that can only be resolved against the rows on screen.
  */
-export type InboxView = 'month' | 'week'
-
-/** Month is the default, so anything unrecognised in ?view= repairs to it. */
-export function resolveView(raw: string | null): InboxView {
-  return raw === 'week' ? 'week' : 'month'
-}
-
-export type InboxSelection = { kind: 'day' } | { kind: 'entry'; entryKey: string }
+export type AgendaSelection = { kind: 'day' } | { kind: 'entry'; entryKey: string }
 
 /**
  * A selected entry only lives as long as its row does: changing the day or the
@@ -403,7 +410,7 @@ export type InboxSelection = { kind: 'day' } | { kind: 'entry'; entryKey: string
 export function resolveSelection(
   entryKey: string | null,
   visible: AgendaEntry[],
-): InboxSelection {
+): AgendaSelection {
   if (entryKey && visible.some((entry) => entry.key === entryKey)) {
     return { kind: 'entry', entryKey }
   }

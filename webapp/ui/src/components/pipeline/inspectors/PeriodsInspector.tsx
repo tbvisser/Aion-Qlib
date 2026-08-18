@@ -9,9 +9,10 @@
  * different column from them, which is the wrong place for a picture whose job
  * is to show whether they are ordered sensibly.
  */
-import { DateInput, Field, Section } from '@/components/builder/FormControls'
+import { DateInput, Section } from '@/components/builder/FormControls'
 import { PeriodTimeline } from '@/components/builder/PeriodTimeline'
 import type { StrategySpec } from '@/lib/api'
+import { CompatField, fieldBounds } from './compat'
 import type { InspectorProps } from './types'
 
 const WINDOWS: { key: keyof StrategySpec; label: string }[] = [
@@ -23,7 +24,8 @@ const WINDOWS: { key: keyof StrategySpec; label: string }[] = [
   { key: 'test_end', label: 'Test to' },
 ]
 
-export function PeriodsInspector({ spec, setSpec, explain }: InspectorProps) {
+export function PeriodsInspector(props: InspectorProps) {
+  const { spec, setSpec, explain } = props
   const clamped = explain?.effective_test_end && explain.effective_test_end !== spec.test_end
 
   return (
@@ -34,13 +36,18 @@ export function PeriodsInspector({ spec, setSpec, explain }: InspectorProps) {
     >
       <PeriodTimeline spec={spec} explain={explain} />
 
+      {/* Each date carries its own problems now. They used to arrive as one
+          stack at the top of the rail, routed to this stage by matching the
+          first words of the sentence — so "Test end is before test start."
+          landed on the card but not on the field it is about. */}
       {WINDOWS.map(({ key, label }) => (
-        <Field key={key} label={label}>
+        <CompatField key={key} field={key} label={label} ctx={props}>
           <DateInput
             value={spec[key] as string}
             onChange={(v) => setSpec((prev) => ({ ...prev, [key]: v }))}
+            max={fieldBounds(props, key)?.max as string | undefined}
           />
-        </Field>
+        </CompatField>
       ))}
 
       {/* The clamp is applied by `build_workflow_config` whether or not anyone

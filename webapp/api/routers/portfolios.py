@@ -1,33 +1,41 @@
 """Portfolio CRUD, NAV, and the strategies attached to a book.
 
 Mirrors the strategy endpoints in ``runs.py`` -- same status codes, same
-module-level store singleton, same ``/validate`` -> ``/preview`` analogue.
+``/validate`` -> ``/preview`` analogue.
+
+The store is a per-request dependency rather than a module singleton: a
+repository carries the caller's identity, so there is no such thing as one
+shared instance any more.
 """
 from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Response
 
 from .. import portfolio_nav
-from ..config import get_settings
+from ..auth import Principal, get_principal
 from ..portfolio_nav import NavError
-from ..portfolios import PortfolioSpec, PortfolioStore, StoredPortfolio
+from ..portfolios import PortfolioSpec, StoredPortfolio
+from ..repositories import PortfolioRepo
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_settings = get_settings()
-_store = PortfolioStore(_settings.portfolios_dir)
+
+def _repo(principal: Principal = Depends(get_principal)) -> PortfolioRepo:
+    return PortfolioRepo(principal)
 
 
-def _require(portfolio_id: str) -> StoredPortfolio:
+def _require(repo: PortfolioRepo, portfolio_id: str) -> StoredPortfolio:
     try:
-        stored = _store.get(portfolio_id)
+        stored = repo.get(portfolio_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if stored is None:
+        # Also the answer when it exists but belongs to someone else -- saying
+        # "forbidden" would confirm the id is real to a stranger.
         raise HTTPException(status_code=404, detail=f"Unknown portfolio '{portfolio_id}'")
     return stored
 
@@ -48,8 +56,8 @@ def _summary(stored: StoredPortfolio) -> dict:
 
 
 @router.get("/portfolios")
-def list_portfolios() -> dict:
-    portfolios = _store.list()
+def list_portfolios(repo: PortfolioRepo = Depends(_repo)) -> dict:
+    portfolios = repo.list()
     return {
         "portfolios": [p.model_dump() for p in portfolios],
         "summaries": [_summary(p) for p in portfolios],
@@ -57,11 +65,13 @@ def list_portfolios() -> dict:
 
 
 @router.post("/portfolios")
-def create_portfolio(spec: PortfolioSpec) -> dict:
+def create_portfolio(
+    spec: PortfolioSpec, repo: PortfolioRepo = Depends(_repo)
+) -> dict:
     problems = spec.validate_holdings()
     if problems:
         raise HTTPException(status_code=400, detail=" ".join(problems))
-    return _store.create(spec).model_dump()
+    return repo.create(spec).model_dump()
 
 
 @router.post("/portfolios/validate")
@@ -75,33 +85,67 @@ def validate_portfolio(spec: PortfolioSpec) -> dict:
 
 
 @router.get("/portfolios/{portfolio_id}")
-def get_portfolio(portfolio_id: str) -> dict:
-    return _require(portfolio_id).model_dump()
+def get_portfolio(
+    portfolio_id: str, repo: PortfolioRepo = Depends(_repo)
+) -> dict:
+    return _require(repo, portfolio_id).model_dump()
 
 
 @router.put("/portfolios/{portfolio_id}")
-def update_portfolio(portfolio_id: str, spec: PortfolioSpec) -> dict:
-    _require(portfolio_id)
+def update_portfolio(
+    portfolio_id: str, spec: PortfolioSpec, repo: PortfolioRepo = Depends(_repo)
+) -> dict:
+    _require(repo, portfolio_id)
     problems = spec.validate_holdings()
     if problems:
         raise HTTPException(status_code=400, detail=" ".join(problems))
-    updated = _store.update(portfolio_id, spec)
-    if updated is None:  # pragma: no cover - _require already 404s
-        raise HTTPException(status_code=404, detail=f"Unknown portfolio '{portfolio_id}'")
+    updated = repo.update(portfolio_id, spec)
+    if updated is None:
+        # Readable but not writable: an org-shared book owned by a colleague.
+        raise HTTPException(
+            status_code=403,
+            detail="This portfolio belongs to someone else in your organisation.",
+        )
+    return updated.model_dump()
+
+
+@router.put("/portfolios/{portfolio_id}/visibility")
+def set_portfolio_visibility(
+    portfolio_id: str,
+    visibility: str = Body(..., embed=True),
+    repo: PortfolioRepo = Depends(_repo),
+) -> dict:
+    _require(repo, portfolio_id)
+    try:
+        updated = repo.set_visibility(portfolio_id, visibility)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if updated is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the owner can change who this portfolio is shared with.",
+        )
     return updated.model_dump()
 
 
 @router.delete("/portfolios/{portfolio_id}", status_code=204)
-def delete_portfolio(portfolio_id: str) -> Response:
-    _require(portfolio_id)
-    _store.delete(portfolio_id)
+def delete_portfolio(
+    portfolio_id: str, repo: PortfolioRepo = Depends(_repo)
+) -> Response:
+    _require(repo, portfolio_id)
+    if not repo.delete(portfolio_id):
+        raise HTTPException(
+            status_code=403,
+            detail="This portfolio belongs to someone else in your organisation.",
+        )
     return Response(status_code=204)
 
 
 @router.get("/portfolios/{portfolio_id}/nav")
 def portfolio_nav_report(portfolio_id: str, start: str | None = None,
-                         end: str | None = None) -> dict:
-    stored = _require(portfolio_id)
+                         end: str | None = None,
+                         repo: PortfolioRepo = Depends(_repo)) -> dict:
+    stored = _require(repo, portfolio_id)
     try:
         return portfolio_nav.build_nav(
             stored, start=start, end=end,
@@ -114,7 +158,8 @@ def portfolio_nav_report(portfolio_id: str, start: str | None = None,
 
 
 @router.get("/portfolios/{portfolio_id}/rebalances")
-def portfolio_rebalances(portfolio_id: str, limit: int = 10) -> dict:
+def portfolio_rebalances(portfolio_id: str, limit: int = 10,
+                         repo: PortfolioRepo = Depends(_repo)) -> dict:
     """The book's recent rebalance events, for the Inbox agenda.
 
     Unlike ``/nav``, an unpriceable book answers 200 with a reason rather than
@@ -122,7 +167,7 @@ def portfolio_rebalances(portfolio_id: str, limit: int = 10) -> dict:
     the whole feed. ``build_nav`` caches by ``(id, updated_at)``, so after the
     first compute this is a dict slice.
     """
-    stored = _require(portfolio_id)
+    stored = _require(repo, portfolio_id)
     limit = max(1, min(limit, 50))
     base = {"portfolio_id": stored.id, "name": stored.name,
             "rebalance": stored.rebalance}
@@ -138,22 +183,26 @@ def portfolio_rebalances(portfolio_id: str, limit: int = 10) -> dict:
 
 
 @router.get("/portfolios/{portfolio_id}/strategies")
-def portfolio_strategies(portfolio_id: str) -> dict:
+def portfolio_strategies(
+    portfolio_id: str,
+    repo: PortfolioRepo = Depends(_repo),
+    principal: Principal = Depends(get_principal),
+) -> dict:
     """The linked strategies, each with its latest run.
 
     Without the run status ``strategy_ids`` is just a list of names; with it
     the /book page can say "this one has never run" and link somewhere useful.
     """
-    from ..strategies import StrategyStore
+    from ..repositories import StrategyRepo
     # Reuse the runs router's RunManager; a second one would keep a divergent
     # in-memory cache of the same run records.
     from .runs import _runs as runs
 
-    stored = _require(portfolio_id)
-    strategies = StrategyStore(_settings.strategies_dir)
+    stored = _require(repo, portfolio_id)
+    strategies = StrategyRepo(principal)
     # `list` already returns the run metadata dicts. The default limit of 100
     # would start hiding older runs once a few strategies have been iterated on.
-    all_runs = runs.list(limit=1000)
+    all_runs = runs.list(principal, limit=1000)
 
     out = []
     for strategy_id in stored.strategy_ids:

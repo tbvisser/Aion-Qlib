@@ -455,11 +455,20 @@ def client():
 
 
 @pytest.fixture
-def temp_store(tmp_path, monkeypatch):
-    from webapp.api.routers import portfolios as router_module
+def temp_store(needs_db):
+    """A clean slate for portfolio rows.
 
-    monkeypatch.setattr(router_module, "_store", PortfolioStore(tmp_path))
-    return tmp_path
+    It no longer patches anything. Portfolios moved from a directory of JSON
+    files to rows in aion.portfolios, so there is no module-level store to swap
+    for a tmp_path one -- the repository is built per request from the caller's
+    identity. Isolation comes instead from conftest's `_authenticated` fixture,
+    which signs every test in as a throwaway organisation and deletes that
+    organisation's rows after each test.
+
+    Kept as a fixture rather than deleted so the tests that ask for it keep
+    declaring that they need storage, and skip cleanly when there is none.
+    """
+    return None
 
 
 def _create(client, **overrides):

@@ -73,8 +73,12 @@ function year(date: string): string {
  * Read off the name rather than tabulated, because that is what the name means
  * and a table would go stale against a handler this file has never heard of.
  * Unknown names get no count rather than a guess.
+ *
+ * Exported for the base feature chip, which prints the same count beside the
+ * handler's name -- deriving it twice is how the card and the chip would come
+ * to disagree.
  */
-function handlerColumns(handler: string): number | null {
+export function handlerColumns(handler: string): number | null {
   const digits = /(\d+)$/.exec(handler)
   return digits ? Number(digits[1]) : null
 }

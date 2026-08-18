@@ -49,6 +49,45 @@ class Settings(BaseSettings):
     vibe_api_url: str = "http://vibe-api:8000"
     vibe_mcp_url: str = "http://vibe-mcp:8900/mcp"
     vibe_api_token: str = ""
+    # The vendored Aion-RAG backend (compose service rag-api). This API reaches
+    # it for one thing only: the unauthenticated capability listings at
+    # /registry/*, which the Agents & Skills page federates. Everything else it
+    # serves is per-user behind a Supabase JWT and stays a browser concern --
+    # see webapp/api/registry/providers/rag_registry.py.
+    rag_api_url: str = "http://rag-api:8001"
+    # The scalability agent (compose service `agent`, top-level
+    # scalability_agent/ package). It has exactly one inbound endpoint --
+    # /health -- which is all this API needs: the Agents & Skills roster
+    # probes it to show whether the background worker is alive. Work reaches
+    # the agent through the aion.scalability_jobs table, never over HTTP.
+    scalability_agent_url: str = "http://agent:8771"
+
+    # --- identity and per-user storage --------------------------------------
+    # The same Supabase the RAG half already uses (compose project supabase-aq,
+    # in-repo at infra/supabase/). Two distinct connections to it, for two
+    # distinct jobs:
+    #
+    # supabase_url is HTTP, and is used only to fetch the JWKS that verifies
+    # access tokens. supabase_anon_key accompanies that fetch; it is public by
+    # design. The service role key is NOT needed here -- this API never calls
+    # PostgREST -- but is read so a future admin path has it in one place.
+    supabase_url: str = "http://host.docker.internal:8010"
+    supabase_anon_key: str = ""
+    supabase_service_role_key: str = ""
+    # database_url is raw Postgres, and is how every user record is read and
+    # written. It must connect as `authenticator`: that role cannot bypass RLS,
+    # which is the entire point. Connecting as `postgres` would silently defeat
+    # every policy in the aion schema, because superusers are exempt.
+    #
+    # The api service joins the supabase-aq_default network so it can reach the
+    # database container directly, rather than going out through the supavisor
+    # pooler and inheriting its user.tenant username form.
+    database_url: str = ""
+    # Pool bounds. Small on purpose: this is one uvicorn worker serving a team,
+    # not a public site, and every connection held here is one the rest of the
+    # Supabase stack cannot use.
+    db_pool_min: int = 1
+    db_pool_max: int = 8
 
     # --- local paths --------------------------------------------------------
     strategies_dir: Path = WEBAPP_DIR / "data" / "strategies"
@@ -65,6 +104,11 @@ class Settings(BaseSettings):
     # Ticker -> name/class/exchange/store, written by the ingest. Without it the
     # UI can only search tickers, so "apple" finds nothing.
     catalog_path: Path = WEBAPP_DIR / "data" / "catalog.json"
+    # The searchable index over every collection the Database page browses.
+    # Derived, never authoritative: deleting it costs one POST /api/catalog/
+    # reindex, which is why it lives under the gitignored data/ dir beside the
+    # stores it indexes rather than in the repo.
+    catalog_db_path: Path = WEBAPP_DIR / "data" / "catalog.db"
     # qrun writes its MLflow file store relative to its working directory; runs
     # are launched from examples/ so they land in the same store the existing
     # qlib-mlflow-ui service already serves.
@@ -76,6 +120,7 @@ class Settings(BaseSettings):
     # so both are per-machine and rebuilt rather than committed.
     macro_dir: Path = WEBAPP_DIR / "data" / "macro"
     portfolios_dir: Path = WEBAPP_DIR / "data" / "portfolios"
+    projects_dir: Path = WEBAPP_DIR / "data" / "projects"
 
     # A GET never fetches. These only decide when a read path calls its own
     # cache stale in the response -- actuals land through the day, so the
@@ -120,4 +165,5 @@ def get_settings() -> Settings:
     settings.runs_dir.mkdir(parents=True, exist_ok=True)
     settings.macro_dir.mkdir(parents=True, exist_ok=True)
     settings.portfolios_dir.mkdir(parents=True, exist_ok=True)
+    settings.projects_dir.mkdir(parents=True, exist_ok=True)
     return settings

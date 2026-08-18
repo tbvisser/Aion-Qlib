@@ -7,29 +7,31 @@
  * body of the stage it describes.
  */
 import { RefreshDataDialog } from '@/components/RefreshDataDialog'
-import { Choice, Field, Section } from '@/components/builder/FormControls'
+import { Choice, Section } from '@/components/builder/FormControls'
 import { CoverageBanner } from '@/components/builder/CoverageBanner'
 import { applyStore } from '@/lib/storeSwitch'
+import { CompatField, choiceOptions } from './compat'
 import type { InspectorProps } from './types'
 
-export function StoreInspector({
-  spec, setSpec, stores, coverage, onStoresChanged,
-}: InspectorProps) {
+export function StoreInspector(props: InspectorProps) {
+  const { spec, setSpec, stores, coverage, onStoresChanged } = props
   const store = stores.find((s) => s.key === spec.data_store)
+  const labels = new Map<string, string>(stores.map((s) => [s.key, s.label]))
 
   return (
     <Section title="Data store" columns={1}>
-      <Field label="Store">
+      <CompatField field="data_store" label="Store" ctx={props}>
         {/* The cascade — universe, benchmark and end date all follow the store
             — is `lib/storeSwitch`'s, shared with the pre-run dialog so the two
             cannot drift into producing different specs from the same click. */}
+        {/* The "(not built)" suffix this used to append is gone: the server
+            disables the option and gives its own reason, and printing both
+            says the same thing twice in the same row. */}
         <Choice
           value={spec.data_store}
           onChange={(v) => setSpec((prev) => applyStore(prev, stores, v))}
-          options={stores.map((s) => ({
-            value: s.key,
-            label: s.exists ? s.label : `${s.label} (not built)`,
-          }))}
+          options={choiceOptions(props, 'data_store', stores.map((s) => s.key),
+                                 (v) => labels.get(v) ?? v)}
         />
         {store?.exists && (
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/70">
@@ -45,7 +47,7 @@ export function StoreInspector({
             <RefreshDataDialog onFinished={onStoresChanged} />
           </div>
         )}
-      </Field>
+      </CompatField>
 
       <CoverageBanner coverage={coverage} />
 

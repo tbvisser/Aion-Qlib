@@ -1,5 +1,5 @@
 /**
- * The Inbox agenda's secondary feeds: run signals, chat threads, portfolio
+ * The Agenda's secondary feeds: run signals, chat threads, portfolio
  * rebalances.
  *
  * Each degrades independently — the RAG backend being down, a book being
@@ -16,6 +16,13 @@ import type { SignalSnapshot, ThreadSummary } from '@/lib/agenda'
 const THREADS_POLL_MS = 5 * 60_000
 const REBALANCE_POLL_MS = 15 * 60_000
 const SIGNAL_RUNS = 5
+
+/**
+ * Rebalance events fetched per book. Exported so the summary row that
+ * footnotes a possibly-truncated count names this number rather than a second
+ * copy of it — the two had already drifted once.
+ */
+export const REBALANCE_LIMIT = 5
 
 /**
  * One signal snapshot per recent succeeded run — the model's top picks on the
@@ -109,7 +116,7 @@ export function useRebalanceFeed(): PortfolioRebalances[] {
         const { summaries } = await api.listPortfolios()
         const candidates = summaries.filter((s) => s.rebalance !== 'none')
         const settled = await Promise.allSettled(
-          candidates.map((s) => api.portfolioRebalances(s.id, { limit: 5 })),
+          candidates.map((s) => api.portfolioRebalances(s.id, { limit: REBALANCE_LIMIT })),
         )
         if (cancelled) return
         setBooks(settled

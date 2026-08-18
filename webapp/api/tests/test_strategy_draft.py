@@ -23,7 +23,7 @@ from fastapi.testclient import TestClient
 from webapp.api import marketdata
 from webapp.api.main import app
 from webapp.api.strategies import HANDLERS, MODEL_SPECS, StrategySpec, build_workflow_config
-from webapp.api.strategy_gen import draft as draft_mod
+from webapp.api.strategy_gen import compat as compat_mod
 from webapp.api.strategy_gen.draft import (
     UNSUPPORTED_SCHEMA_KEYWORDS,
     DraftError,
@@ -95,7 +95,7 @@ def test_schema_enums_come_from_the_live_registries(fake_stores):
 def test_schema_offers_only_importable_models(monkeypatch):
     """qlib skips an uninstalled backend silently, so offering one is offering a
     run that dies after training starts."""
-    monkeypatch.setattr(draft_mod, "available_models",
+    monkeypatch.setattr(compat_mod, "available_models",
                         lambda: [{"id": "lightgbm", "label": "LightGBM", "class": "LGBModel"}])
     enum = draft_json_schema()["properties"]["model"]["enum"]
     assert enum == ["lightgbm", None]
@@ -261,7 +261,7 @@ def test_unknown_store_is_a_defect():
 
 
 def test_uninstalled_model_is_a_defect(monkeypatch):
-    monkeypatch.setattr(draft_mod, "available_models",
+    monkeypatch.setattr(compat_mod, "available_models",
                         lambda: [{"id": "lightgbm", "label": "LightGBM", "class": "LGBModel"}])
     with pytest.raises(DraftError) as exc:
         lower_draft(_draft(model="xgboost"))

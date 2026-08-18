@@ -10,6 +10,7 @@
  */
 import { useCallback, useRef, useState } from 'react'
 
+import { authHeaders } from '@/lib/authFetch'
 import { toWire, type BuilderContext, type ChatMessage, type ChatProfile } from '@/lib/chat'
 
 interface Options {
@@ -56,7 +57,7 @@ export function useChatStream({ profile = 'general', context, onToolResult }: Op
     try {
       const resp = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         signal: controller.signal,
         body: JSON.stringify({
           profile,
