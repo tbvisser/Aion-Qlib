@@ -1,5 +1,5 @@
 /**
- * The strategy, drawn as its seven stages in a ring around a hub.
+ * The strategy, drawn as its seven stages in a vertical stack with a hub above.
  *
  * The spec is the source of truth and this graph is derived from it on every
  * render -- nothing is written back, not even positions. That is the same rule
@@ -17,17 +17,21 @@ import {
 } from '@xyflow/react'
 
 import { FeatureNodeCard } from './FeatureNodeCard'
+import { StageEdge } from './StageEdge'
 import { StageHubCard } from './StageHubCard'
 import { StageNodeCard } from './StageNodeCard'
 import type { StrategySpec } from '@/lib/api'
 import type { GlanceContext } from '@/lib/strategyGraph/glance'
-import { STAGE_H, STAGE_W, featureBlockBounds, stagePositions } from '@/lib/strategyGraph/layout'
+import {
+  STAGE_H, STAGE_WIDTHS, featureBlockBounds, stagePositions,
+} from '@/lib/strategyGraph/layout'
 import {
   PHASE_LABELS, PHASE_ORDER, isStageId, type StageId, type StagePhase,
 } from '@/lib/strategyGraph/stages'
 import type { StageBadge } from '@/lib/strategyGraph/stageStatus'
 import {
-  FEATURE_MORE_ID, FEATURE_NODE_TYPE, HUB_NODE_ID, HUB_NODE_TYPE, STAGE_NODE_TYPE,
+  FEATURE_MORE_ID, FEATURE_NODE_TYPE, HUB_NODE_ID, HUB_NODE_TYPE,
+  STAGE_EDGE_TYPE, STAGE_NODE_TYPE,
   hasFeatureOverflow, isFeatureNodeId, pipelineEdges, toPipelineNodes,
 } from '@/lib/strategyGraph/toFlow'
 import { cn } from '@/lib/utils'
@@ -40,6 +44,10 @@ const nodeTypes: NodeTypes = {
   [STAGE_NODE_TYPE]: StageNodeCard,
   [HUB_NODE_TYPE]: StageHubCard,
   [FEATURE_NODE_TYPE]: FeatureNodeCard,
+}
+
+const edgeTypes = {
+  [STAGE_EDGE_TYPE]: StageEdge,
 }
 
 /** The legend the strip used to spell out, back where the hues actually are. */
@@ -55,14 +63,13 @@ const PHASE_DOT: Record<StagePhase, string> = {
  *
  * `fitView` was rejected while the pipeline was a row: seven cards was ~2,000px,
  * which fitted into a pane at about 0.6 zoom, where a 10px mono eyebrow is
- * unreadable. The ring is 784x718, so the arithmetic is different -- it fits at
- * zoom 1 in every pane this app sees except the narrowest (a 1440px window with
- * the sidebar expanded and the inspector open leaves 569px, which cannot show
- * seven readable cards at any card size).
+ * unreadable. The vertical stack is a narrow column, so the arithmetic is
+ * different -- it fits at zoom 1 in every pane this app sees except the
+ * narrowest.
  *
  *   maxZoom 1     never zoom *in*: a card is never bigger than it was designed.
- *   minZoom 0.85  never zoom out past 0.85, where the card's 11px eyebrow still
- *                 renders at 9.35px. Past that the ring overflows and you pan --
+ *   minZoom 0.85  never zoom out past 0.85, where the card's 9px eyebrow still
+ *                 renders at 7.65px. Past that the stack overflows and you pan --
  *                 which is what you are doing anyway with the inspector open.
  */
 const FIT_PADDING = 0.08
@@ -120,7 +127,7 @@ function ViewportDirector({
       return
     }
     const at = stagePositions()[selected]
-    void setCenter(at.x + STAGE_W / 2, at.y + STAGE_H / 2, {
+    void setCenter(at.x + STAGE_WIDTHS[selected] / 2, at.y + STAGE_H / 2, {
       zoom: getZoom(), duration: 220,
     })
     // `chipCount` is a scalar on purpose. The node list it comes from is
@@ -174,13 +181,14 @@ export function PipelineCanvas({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         // The whole picture is derived. Position changes have nowhere to go and
         // selection is the page's state, so React Flow is told about neither.
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
         deleteKeyCode={null}
-        // Replaces `defaultViewport`: the ring is centred on the origin, so the
+        // Replaces `defaultViewport`: the stack is centred on the origin, so the
         // first viewport can only be computed once the pane has been measured.
         fitView
         fitViewOptions={FIT}
