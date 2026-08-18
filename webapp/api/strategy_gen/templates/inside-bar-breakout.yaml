@@ -1,0 +1,29 @@
+id: inside-bar-breakout
+title: Inside Bar Breakout
+family: factors
+tags: [price-action, breakout, alpha158]
+
+rationale: >
+  Price-action template: today's range contracts inside yesterday's, then breaks
+  out. The signal is the ratio of today's range to yesterday's, combined with a
+  short-term price breakout. Added to Alpha158 rather than replacing it.
+
+good_for:
+  - A first look at price-action factors without giving up the baseline handler
+  - Learning whether contraction-expansion patterns add information
+
+bad_for:
+  - Attribution; the handler still carries 158 other columns
+  - Markets where intraday patterns matter more than daily ranges
+
+draft:
+  name: Inside Bar Breakout
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  feature_mode: extend
+  features:
+    - name: INSIDE_RANGE_RATIO
+      expression: "($high - $low)/(Ref($high,1) - Ref($low,1) + 1e-12)"
+    - name: BREAKOUT_5
+      expression: "$close/(Max($high,5)+1e-12) - 1"

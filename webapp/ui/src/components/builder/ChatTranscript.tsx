@@ -47,7 +47,7 @@ export function ChatTranscript({ chat, spec, onApply, primaryLabel, className }:
       {messages.map((m, i) => (
         <div key={i} className={cn('flex', m.role === 'user' && 'justify-end')}>
           {m.role === 'user' ? (
-            <div className="max-w-[85%] rounded-2xl bg-accent px-3 py-2 text-[13px] text-accent-foreground">
+            <div className="max-w-[85%] rounded-2xl bg-accent px-3 py-2 text-sm text-accent-foreground">
               {m.content}
             </div>
           ) : (
@@ -78,7 +78,7 @@ export function ChatTranscript({ chat, spec, onApply, primaryLabel, className }:
                 return <ToolCard key={key} tool={t} />
               })}
               {m.content ? (
-                <div className="prose prose-sm max-w-none text-[13px] dark:prose-invert">
+                <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                 </div>
               ) : (
@@ -86,7 +86,7 @@ export function ChatTranscript({ chat, spec, onApply, primaryLabel, className }:
                 // thinking is AION, and the reader should be able to tell at a
                 // glance that something is happening rather than read that it is.
                 streaming && (
-                  <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <AionMark thinking alt="" className="h-4" />
                     <span className="animate-subtle-pulse">Thinking…</span>
                   </div>
@@ -141,7 +141,7 @@ export function ChatComposer({
         placeholder={placeholder}
         disabled={disabled}
         data-testid="builder-chat-input"
-        className="min-h-0 resize-none text-[13px]"
+        className="min-h-0 resize-none text-sm"
       />
       {streaming ? (
         <Button size="icon" variant="outline" onClick={onStop} title="Stop">

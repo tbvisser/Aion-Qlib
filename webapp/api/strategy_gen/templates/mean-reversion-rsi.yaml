@@ -1,0 +1,29 @@
+id: mean-reversion-rsi
+title: Mean Reversion RSI
+family: factors
+tags: [mean-reversion, rsi, oscillators]
+
+rationale: >
+  Oscillator mean-reversion. Adds RSI and Bollinger %B to the handler so the model
+  can learn when stretched prices revert. The two columns capture overbought and
+  oversold conditions at different time scales.
+
+good_for:
+  - A reversion view on short-term price moves
+  - Markets where extremes tend to mean-revert
+
+bad_for:
+  - Strong trending regimes, where oscillators can stay stretched
+  - The first years of any training window; some columns need history to warm up
+
+draft:
+  name: Mean Reversion RSI
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  feature_mode: extend
+  features:
+    - name: RSI_14_WILDER
+      expression: "100 - 100/(1 + EMA(Greater($close-Ref($close,1),0),0.0714285714)/(EMA(Greater(Ref($close,1)-$close,0),0.0714285714)+1e-12))"
+    - name: BB_PCTB_20
+      expression: "($close - (Mean($close,20)-2*Std($close,20)))/(4*Std($close,20)+1e-12)"

@@ -24,6 +24,8 @@ from typing import Literal, get_args
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ..keycards.adapter import keycard_to_strategy
+from ..keycards.repo import KeycardRepo
 from .draft import DraftError, StrategyDraft, lower_draft
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -152,3 +154,32 @@ def materialise(template: StrategyTemplate) -> dict:
 def catalog() -> list[dict]:
     """Every template, lowered against this machine."""
     return [materialise(t) for t in load_templates()]
+
+
+def load_templates_from_keycards(repo: KeycardRepo) -> list[dict]:
+    """Keycard-stored templates formatted like :func:`catalog`.
+
+    This is the migration target for curated templates: once they live in
+    ``aion.keycards`` as ``is_template=true`` rows, the gallery can read them
+    from the same store as user keycards instead of from disk.
+    """
+    out: list[dict] = []
+    for keycard in repo.list_templates():
+        spec = keycard_to_strategy(keycard)
+        entry: dict = {
+            "id": keycard.id,
+            "title": keycard.name,
+            "family": keycard.template_family,
+            "tags": keycard.tags,
+            "rationale": keycard.description,
+            "good_for": [],
+            "bad_for": [],
+            "runnable": spec is not None,
+            "blocked_by": [],
+        }
+        if spec is not None:
+            entry["spec"] = spec.model_dump()
+            entry["assumed"] = []
+            entry["warnings"] = []
+        out.append(entry)
+    return out

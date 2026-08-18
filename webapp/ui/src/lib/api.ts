@@ -751,6 +751,45 @@ export const api = {
     }
     return resp.blob()
   },
+
+  // ── Keycard workflow builder ─────────────────────────────────────────────
+
+  listKeycards: (filters: KeycardListFilters = {}) =>
+    request<{ keycards: Keycard[] }>(`/keycards${qs(filters)}`),
+
+  getKeycard: (id: string) => request<Keycard>(`/keycards/${encodeURIComponent(id)}`),
+
+  createKeycard: (spec: KeycardSpec) =>
+    request<Keycard>('/keycards', { method: 'POST', body: JSON.stringify(spec) }),
+
+  updateKeycard: (id: string, spec: KeycardSpec) =>
+    request<Keycard>(`/keycards/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(spec),
+    }),
+
+  deleteKeycard: (id: string) =>
+    request<void>(`/keycards/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  forkKeycard: (id: string) =>
+    request<Keycard>(`/keycards/${encodeURIComponent(id)}/fork`, { method: 'POST' }),
+
+  listNodeTypes: () => request<{ node_types: KeycardNodeCategory[] }>('/keycards/node-types'),
+
+  compileKeycard: (spec: KeycardSpec) =>
+    request<KeycardCompileResult>('/keycards/compile', {
+      method: 'POST',
+      body: JSON.stringify(spec),
+    }),
+
+  startKeycardRun: (id: string) =>
+    request<Run>(`/keycards/${encodeURIComponent(id)}/runs`, { method: 'POST' }),
+
+  importKeycard: (payload: string | KeycardSpec) =>
+    request<KeycardImportResult>('/keycards/import', {
+      method: 'POST',
+      body: typeof payload === 'string' ? JSON.stringify({ text: payload }) : JSON.stringify(payload),
+    }),
 }
 
 export type OrgRole = 'owner' | 'admin' | 'member'
@@ -2484,4 +2523,152 @@ export interface ScheduledTask {
   cadence: string
   /** Demo rows are not persisted; the UI hides destructive actions on them. */
   is_demo?: boolean
+}
+
+// ── Keycard workflow builder ───────────────────────────────────────────────
+
+export type KeycardPortType = 'data' | 'features' | 'signal' | 'trades' | 'config' | 'trigger' | 'trade' | 'value'
+export type KeycardPortDirection = 'in' | 'out'
+
+export interface KeycardPort {
+  id: string
+  label: string
+  type: KeycardPortType
+  direction: KeycardPortDirection
+  required: boolean
+}
+
+export interface KeycardNodeTypeMeta {
+  id: string
+  category: string
+  label: string
+  icon: string | null
+  description: string
+  ports: KeycardPort[]
+  config_schema: Record<string, unknown>
+}
+
+export interface KeycardNodeCategory {
+  id: string
+  label: string
+  items: KeycardNodeTypeMeta[]
+}
+
+export interface KeycardNode {
+  id: string
+  type: string
+  position: { x: number; y: number }
+  config: Record<string, unknown>
+  notes: string
+}
+
+export interface KeycardEdge {
+  id: string
+  source: string
+  source_port: string
+  target: string
+  target_port: string
+}
+
+export interface KeycardWindows {
+  train_start: string
+  train_end: string
+  valid_start: string
+  valid_end: string
+  test_start: string
+  test_end: string
+}
+
+export interface KeycardDefect {
+  code: string
+  message: string
+  path: string
+  severity: 'blocking' | 'advisory'
+}
+
+export interface KeycardSpec {
+  name: string
+  description: string
+  tags: string[]
+  is_template: boolean
+  template_family: string | null
+  nodes: KeycardNode[]
+  edges: KeycardEdge[]
+  windows: KeycardWindows
+}
+
+export interface Keycard extends KeycardSpec {
+  id: string
+  created_at: string
+  updated_at: string
+  user_id: string
+  visibility: string
+}
+
+export interface KeycardCompileResult {
+  yaml: string | null
+  defects: KeycardDefect[]
+  warnings: string[]
+}
+
+export interface KeycardImportResult {
+  spec: KeycardSpec
+  unknown_fields: string[]
+  rejected: { path: string; message: string; value: unknown }[]
+  defects: KeycardDefect[]
+}
+
+export interface KeycardListFilters extends Record<string, string | boolean | undefined> {
+  is_template?: boolean
+  family?: string
+  tag?: string
+}
+
+export const DEFAULT_KEYCARD_WINDOWS: KeycardWindows = {
+  train_start: '2010-01-04',
+  train_end: '2019-12-31',
+  valid_start: '2020-01-01',
+  valid_end: '2021-12-31',
+  test_start: '2022-01-01',
+  test_end: '2026-08-07',
+}
+
+export function defaultKeycardSpec(name = 'New keycard'): KeycardSpec {
+  const scheduleId = 'schedule-1'
+  const rule1Id = 'rule-1'
+  const rule2Id = 'rule-2'
+  const buyId = 'buy-1'
+  const portfolioId = 'portfolio-1'
+  const costsId = 'costs-1'
+  const recordsId = 'records-1'
+
+  const column = 0
+  const pitch = 110
+  const nodeAt = (index: number) => ({ x: column, y: index * pitch })
+
+  return {
+    name,
+    description: 'Aion opening-range breakout rule workflow.',
+    tags: ['aion', 'breakout'],
+    is_template: false,
+    template_family: 'aion',
+    windows: { ...DEFAULT_KEYCARD_WINDOWS },
+    nodes: [
+      { id: scheduleId, type: 'run_per_candle', position: nodeAt(0), config: { timeframe: '1d' }, notes: '' },
+      { id: rule1Id, type: 'previous_day_bullish', position: nodeAt(1), config: { lookback: 1 }, notes: '' },
+      { id: rule2Id, type: 'candle_close_above_opening_range', position: nodeAt(2), config: { minutes: 30 }, notes: '' },
+      { id: buyId, type: 'buy_now', position: nodeAt(3), config: { side: 'long', size: '100%' }, notes: '' },
+      { id: portfolioId, type: 'portfolio', position: nodeAt(4), config: { strategy: 'TopkDropoutStrategy', topk: 50, n_drop: 5 }, notes: '' },
+      { id: costsId, type: 'costs', position: nodeAt(5), config: { open_cost: 0.0005, close_cost: 0.0015, min_cost: 5, account: 100_000_000 }, notes: '' },
+      { id: recordsId, type: 'records', position: nodeAt(6), config: {}, notes: '' },
+    ],
+    edges: [
+      { id: 'e1', source: scheduleId, source_port: 'trigger', target: rule1Id, target_port: 'trigger' },
+      { id: 'e2', source: rule1Id, source_port: 'trigger', target: rule2Id, target_port: 'trigger' },
+      { id: 'e3', source: rule2Id, source_port: 'trigger', target: buyId, target_port: 'trigger' },
+      { id: 'e4', source: buyId, source_port: 'signal', target: portfolioId, target_port: 'signal' },
+      { id: 'e5', source: portfolioId, source_port: 'trades', target: costsId, target_port: 'trades' },
+      { id: 'e6', source: costsId, source_port: 'trades', target: recordsId, target_port: 'trades' },
+    ],
+  }
 }

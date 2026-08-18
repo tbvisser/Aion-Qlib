@@ -1,0 +1,30 @@
+id: sp500-breakout
+title: SP500 Breakout
+family: universe
+tags: [sp500, breakout, momentum]
+
+rationale: >
+  Momentum breakout on the broad US large-cap universe, framed as an S&P 500
+  breakout strategy. The model is given the distance to the 20-day high as an
+  extra signal, then holds the top-ranked names.
+
+good_for:
+  - Expressing a breakout view on large-cap US equities
+  - A liquid book where every name is easy to trade
+
+bad_for:
+  - Small-cap effects, which are diluted in the largest names
+  - Comparing directly to the broad baseline; the signal, not the universe, differs
+
+draft:
+  name: SP500 Breakout
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  benchmark: SPY
+  topk: 20
+  n_drop: 5
+  feature_mode: extend
+  features:
+    - name: BREAKOUT_20
+      expression: "$close/(Max($high,20)+1e-12) - 1"

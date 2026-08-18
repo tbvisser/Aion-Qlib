@@ -1,0 +1,32 @@
+id: etf-momentum
+title: ETF Momentum
+family: universe
+tags: [etf, momentum, rotation]
+
+rationale: >
+  Cross-asset momentum on the top 100 ETFs. Correlations are high, so read this
+  as rotation between exposures rather than stock selection. XGBoost ranks the
+  funds and the book holds the top fifteen.
+
+good_for:
+  - Expressing a view about sectors or asset classes rather than companies
+  - A universe where single-name blowups cannot dominate the result
+
+bad_for:
+  - Cross-sectional breadth; correlated instruments give the model little to separate
+  - Comparing IC against an equity run; the denominators are not the same
+
+draft:
+  name: ETF Momentum
+  model: xgboost
+  handler: Alpha158
+  universe: etf_top100
+  benchmark: SPY
+  topk: 15
+  n_drop: 3
+  feature_mode: extend
+  features:
+    - name: MOM_12_1
+      expression: "Ref($close,21)/(Ref($close,252)+1e-12) - 1"
+    - name: MOM_3_1
+      expression: "Ref($close,21)/(Ref($close,63)+1e-12) - 1"

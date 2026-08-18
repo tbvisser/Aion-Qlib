@@ -6,9 +6,9 @@ Tools tab should not be 78 sidecar-and-RAG entries with a hole where our own
 sit.
 
 Each row records which profiles carry it -- that is the interesting fact.
-`evaluate_factor` and `get_data_status` are in both; `run_backtest` and
+`evaluate_factor` and `get_data_status` are in all three; `run_backtest` and
 the three scalability tools are in `general` alone, and that absence is the
-builder's safety model rather than a prompt instruction.
+builders' safety model rather than a prompt instruction.
 """
 from __future__ import annotations
 

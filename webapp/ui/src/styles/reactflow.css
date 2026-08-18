@@ -228,3 +228,47 @@
 .react-flow__attribution a {
   color: hsl(var(--muted-foreground) / 0.5);
 }
+
+/* -- Keycard workflow edges ------------------------------------------------ */
+
+.react-flow__edge.aion-keycard-edge .react-flow__edge-path {
+  stroke: hsl(var(--border));
+  stroke-width: 1.5;
+}
+
+.react-flow__edge.aion-keycard-edge:hover .react-flow__edge-path,
+.react-flow__edge.aion-keycard-edge.selected .react-flow__edge-path {
+  stroke: hsl(var(--primary));
+  stroke-width: 2;
+}
+
+.react-flow__edge.aion-keycard-edge .aion-keycard-edge-defect {
+  stroke: hsl(var(--destructive));
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+}
+
+.react-flow__edge.aion-keycard-edge:hover .aion-keycard-edge-defect,
+.react-flow__edge.aion-keycard-edge.selected .aion-keycard-edge-defect {
+  stroke: hsl(var(--destructive));
+}
+
+.react-flow__handle.aion-keycard-handle {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  border: 2px solid hsl(var(--card));
+  transition: transform 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.react-flow__handle.aion-keycard-handle:hover,
+.react-flow__handle.aion-keycard-handle-connecting {
+  transform: scale(1.35);
+}
+
+.react-flow__handle.aion-keycard-handle::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+}

@@ -103,6 +103,12 @@ export const mainNavSections: NavSection[] = [
       // this app — the proxy's allowlist (webapp/api/routers/vibe.py) stops at
       // read + paper, and vibe's own mandate gates sit behind that.
       { key: 'accounts', label: 'Broker Accounts', icon: Wallet, route: '/accounts', built: true },
+      // Journal-driven mimicry via the Vibe-Trading sidecar: upload a broker
+      // trade export, mine it into if-then rules, backtest and forward-scan
+      // them. (The original vision — forward-tracking a backtested strategy —
+      // needs per-trade data our runs don't produce; the journal route is what
+      // the sidecar's engine actually supports.)
+      { key: 'tl-shadow', label: 'Shadow Accounts', icon: Copy, route: '/lab/shadow-accounts', built: true },
       {
         key: 'investors', label: 'Investors', icon: Users, route: '/investors',
         blurb:
@@ -121,7 +127,7 @@ export const mainNavSections: NavSection[] = [
   {
     heading: 'Strategy Lab',
     items: [
-      { key: 'tl-builder', label: 'Strategy Builder', icon: SlidersHorizontal, route: '/lab/builder', built: true },
+      { key: 'tl-builder', label: 'Strategy Builder', icon: SlidersHorizontal, route: '/lab/keycards/new', built: true },
       { key: 'tl-mlstudio', label: 'ML Studio', icon: Brain, route: '/lab/ml-studio', built: true },
       // The Databank grew into the Database: one destination with a sub-tab per
       // collection, over a searchable index of every source at once. Three rows
@@ -133,12 +139,6 @@ export const mainNavSections: NavSection[] = [
       // and land on the sub-tab that took the work over; see ROUTE_OWNERS and
       // `tabForLegacyRoute`.
       { key: 'tl-database', label: 'Database', icon: Boxes, route: '/lab/database', built: true },
-      // Journal-driven mimicry via the Vibe-Trading sidecar: upload a broker
-      // trade export, mine it into if-then rules, backtest and forward-scan
-      // them. (The original vision — forward-tracking a backtested strategy —
-      // needs per-trade data our runs don't produce; the journal route is what
-      // the sidecar's engine actually supports.)
-      { key: 'tl-shadow', label: 'Shadow Accounts', icon: Copy, route: '/lab/shadow-accounts', built: true },
       // Vibe Agent folded in here rather than into the Database: it is an agent
       // console, not a collection. `/vibe-agent` still resolves and highlights
       // this row, and the roster surfaces it — the sidecar's API forbids
@@ -191,6 +191,8 @@ export const allNavSections: NavSection[] = mainNavSections
  */
 const ROUTE_OWNERS: Array<[string, SectionKey]> = [
   ['/runs', 'tl-builder'],      // backtests belong to the builder that started them
+  ['/lab/keycards', 'tl-builder'], // new workflow builder
+  ['/lab/builder', 'tl-builder'],  // legacy builder, still reachable
   ['/models', 'tl-mlstudio'],   // legacy, redirected
   ['/data', 'markets'],         // legacy, redirected
   // Folded into the Database. Each still resolves — App.tsx redirects it to the

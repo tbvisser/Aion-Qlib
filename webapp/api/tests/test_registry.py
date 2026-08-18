@@ -306,13 +306,14 @@ def test_the_row_shape_matches_the_catalog(fake, settings):
 
 
 def test_chat_profiles_describe_the_builders_capability_boundary(settings):
-    """`run_backtest` in general and not in builder is the safety model."""
+    """`run_backtest` in general and not in the builders is the safety model."""
     from webapp.api.registry.providers import chat_profiles
 
     rows = {e.local_id: e for e in chat_profiles.fetch(settings)}
-    assert set(rows) == {"general", "builder"}
+    assert set(rows) == {"general", "builder", "keycard-builder"}
     assert "run_backtest" in rows["general"].payload["tools"]
     assert "run_backtest" not in rows["builder"].payload["tools"]
+    assert "run_backtest" not in rows["keycard-builder"].payload["tools"]
     for row in rows.values():
         row.validate_shape()
 
@@ -324,6 +325,7 @@ def test_chat_tools_record_which_profiles_carry_them(settings):
     assert rows["evaluate_factor"].payload["in_every_profile"] is True
     assert rows["run_backtest"].payload["profiles"] == ["general"]
     assert rows["propose_strategy"].payload["profiles"] == ["builder"]
+    assert rows["propose_keycard"].payload["profiles"] == ["keycard-builder"]
 
 
 def test_repo_skills_are_found_and_labelled_by_what_they_are(settings):

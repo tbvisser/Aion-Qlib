@@ -1,0 +1,31 @@
+id: momentum-quality
+title: Momentum Quality
+family: factors
+tags: [momentum, quality, alpha158]
+
+rationale: >
+  Combines 12-month momentum with a quality filter: momentum is scaled by inverse
+  volatility, preferring smoother trends. This blends two well-known anomalies
+  into a single signal.
+
+good_for:
+  - A momentum signal that avoids the most volatile names
+  - Testing whether volatility-adjusted momentum improves ranking
+
+bad_for:
+  - Regimes where raw volatility is the premium
+  - Attribution between the momentum and quality components
+
+draft:
+  name: Momentum Quality
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  topk: 40
+  n_drop: 5
+  feature_mode: extend
+  features:
+    - name: MOM_12_1
+      expression: "Ref($close,21)/(Ref($close,252)+1e-12) - 1"
+    - name: MOM_VOL_ADJ
+      expression: "(Ref($close,21)/(Ref($close,252)+1e-12) - 1)/(Std($change,60)+1e-12)"

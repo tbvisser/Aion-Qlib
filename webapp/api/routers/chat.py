@@ -17,7 +17,8 @@ from pydantic import BaseModel, ConfigDict
 from sse_starlette.sse import EventSourceResponse
 
 from ..chat_tools import (
-    PROFILES, BuilderContext, build_registry, render_context, system_prompt, tool_schemas,
+    PROFILES, BuilderContext, KeycardContext, build_registry, render_context, system_prompt,
+    tool_schemas,
 )
 from ..auth import Principal, get_principal
 from ..config import get_settings
@@ -62,9 +63,9 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     model: str | None = None
-    profile: Literal["general", "builder"] = "general"
-    #: What the Strategy Builder has on screen. Only meaningful for "builder".
-    context: BuilderContext | None = None
+    profile: Literal["general", "builder", "keycard-builder"] = "general"
+    #: What the Strategy Builder or Keycard Builder has on screen.
+    context: BuilderContext | KeycardContext | None = None
 
 
 def truncate(text: str, limit: int) -> str:

@@ -1,0 +1,29 @@
+id: low-volatility
+title: Low Volatility
+family: factors
+tags: [low-vol, risk, alpha158]
+
+rationale: >
+  Explicit low-volatility signal. Adds normalized ATR and 20-day return volatility
+  so the model can learn the low-volatility anomaly directly, rather than relying
+  on Alpha158 to discover it.
+
+good_for:
+  - A risk-aware book that avoids the most volatile names
+  - Testing the low-volatility anomaly on this universe
+
+bad_for:
+  - High-volatility regimes where the anomaly can underperform sharply
+  - Attribution; the handler still carries most of the signal
+
+draft:
+  name: Low Volatility
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  feature_mode: extend
+  features:
+    - name: ATR_14_NORM
+      expression: "EMA((Greater($high,Ref($close,1)) - Less($low,Ref($close,1))),0.0714285714)/($close+1e-12)"
+    - name: VOL_20
+      expression: "Std($change,20)"

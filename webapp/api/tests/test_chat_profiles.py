@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 from webapp.api.auth import Principal
 from webapp.api import chat_tools
 from webapp.api.chat_tools import (
-    PROFILES, BuilderContext, build_registry, render_context, system_prompt,
+    PROFILES, BuilderContext, KeycardContext, build_registry, render_context, system_prompt,
     tool_schemas,
 )
 from webapp.api.main import app
@@ -94,7 +94,7 @@ def test_the_scalability_tools_are_general_only():
                    "book_venue_consultation"}
     general = build_registry(ExplodingRunManager(), FAKE_PRINCIPAL, profile="general")
     assert scalability <= set(general)
-    for profile in ("builder",):
+    for profile in ("builder", "keycard-builder"):
         registry = build_registry(ExplodingRunManager(), FAKE_PRINCIPAL, profile=profile)
         schemas = {t["function"]["name"] for t in tool_schemas(profile)}
         assert not (scalability & set(registry))
@@ -290,3 +290,48 @@ def test_the_builder_prompt_refuses_to_claim_it_ran_anything():
 def test_the_two_profiles_do_not_share_a_prompt():
     assert system_prompt("builder") != system_prompt("general")
     assert chat_tools.SYSTEM_PROMPT == system_prompt("general")
+
+
+def keycard_builder(context: KeycardContext | None = None):
+    return build_registry(ExplodingRunManager(), FAKE_PRINCIPAL,
+                          profile="keycard-builder", context=context)
+
+
+def test_the_keycard_builder_cannot_run_anything():
+    registry = keycard_builder()
+    assert "run_backtest" not in registry
+    assert "run_backtest" not in [t["function"]["name"] for t in tool_schemas("keycard-builder")]
+    assert "propose_keycard" in registry
+
+
+def test_propose_keycard_from_defaults_builds_a_workflow():
+    result = keycard_builder()["propose_keycard"](name="Breakout")
+    assert "spec" in result
+    assert result["source"] == "defaults"
+    assert result["spec"]["name"] == "Breakout"
+    assert any(n["type"] == "buy_now" for n in result["spec"]["nodes"])
+    assert any(a["path"] == "description" for a in result["assumed"])
+
+
+def test_propose_keycard_from_current_carries_unstated_fields():
+    from webapp.api.keycards.models import KeycardSpec
+
+    spec = KeycardSpec(name="On screen", nodes=[], edges=[])
+    context = KeycardContext(spec=spec, keycard_id="kc-1", saved=True)
+    result = keycard_builder(context)["propose_keycard"](description="Added a note")
+
+    assert result["source"] == "current"
+    assert result["spec"]["name"] == "On screen"
+    assert result["spec"]["description"] == "Added a note"
+    assert not any(a["path"] == "name" for a in result["assumed"])
+
+
+def test_keycard_context_rendering_includes_node_count():
+    from webapp.api.keycards.models import KeycardSpec
+
+    spec = KeycardSpec(name="Test", nodes=[{"id": "n1", "type": "buy_now",
+         "position": {"x": 0, "y": 0}, "config": {}, "notes": ""}], edges=[])
+    rendered = render_context(KeycardContext(spec=spec, saved=False))
+    assert "Keycard Builder" in rendered
+    assert "buy_now" in rendered
+    assert "Not saved yet" in rendered

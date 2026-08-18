@@ -1,0 +1,31 @@
+id: value-momentum
+title: Value Momentum
+family: factors
+tags: [value, momentum, alpha158]
+
+rationale: >
+  Combines a value proxy (distance from the 52-week high) with 12-month momentum.
+  Cheap and strong names are favoured. Both effects are well-known in isolation;
+  this template asks the model to combine them.
+
+good_for:
+  - Testing whether value and momentum interact in the same model
+  - A factor blend that is easy to reason about
+
+bad_for:
+  - A pure value story; distance from 52-week high is only a value proxy
+  - Regimes where the two effects point in opposite directions and cancel
+
+draft:
+  name: Value Momentum
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  topk: 40
+  n_drop: 5
+  feature_mode: extend
+  features:
+    - name: VALUE_52W
+      expression: "$close/(Max($high,252)+1e-12) - 1"
+    - name: MOM_12_1
+      expression: "Ref($close,21)/(Ref($close,252)+1e-12) - 1"

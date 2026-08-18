@@ -120,7 +120,7 @@ export function toWire(messages: ChatMessage[]): WireMessage[] {
   return out
 }
 
-export type ChatProfile = 'general' | 'builder'
+export type ChatProfile = 'general' | 'builder' | 'keycard-builder'
 
 export interface ChatConfig {
   configured: boolean
@@ -139,6 +139,15 @@ export interface BuilderContext {
   /** Every column on the canvas, finished or not. */
   features?: { name: string; expression: string; complete: boolean }[] | null
   feature_mode?: 'extend' | 'replace' | null
+  /** Rows from the last applied proposal that are still true of `spec`. */
+  assumed?: { path: string; value: unknown; why: string }[] | null
+}
+
+/** What the Keycard Builder has on screen. Only sent by the keycard-builder profile. */
+export interface KeycardContext {
+  spec?: unknown
+  keycard_id?: string | null
+  saved?: boolean
   /** Rows from the last applied proposal that are still true of `spec`. */
   assumed?: { path: string; value: unknown; why: string }[] | null
 }
