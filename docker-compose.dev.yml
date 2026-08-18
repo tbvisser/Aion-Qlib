@@ -1,0 +1,225 @@
+# Optional dev/utility services for the AION platform.
+#
+# Use this file together with docker-compose.yml:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml ps
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+#
+# Services here are NOT started by default. The platform itself (api + ui +
+# Supabase) lives in docker-compose.yml and starts with:
+#
+#   docker compose up -d api ui
+
+services:
+  # Development shell for the qlib checkout. Same image as the API; kept as a
+  # long-running interactive container so `docker compose exec qlib bash` works.
+  qlib:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: ${AION_IMAGE:-ghcr.io/tbvisser/aion-qlib:dev}
+    container_name: qlib-dev
+    working_dir: /qlib
+    user: "${DOCKER_UID:-0}:${DOCKER_GID:-0}"
+    environment:
+      HOME: /home/qlib
+    volumes:
+      - .:/qlib
+      - ${HOME}/.qlib:/home/qlib/.qlib
+    # Keep the container alive so it is usable via `docker compose exec`.
+    stdin_open: true
+    tty: true
+    command: bash
+
+  # Scalability agent. Same image, mounts and env as the api service, but it is
+  # the data plane rather than a web service: it polls aion.scalability_jobs
+  # (SELECT ... FOR UPDATE SKIP LOCKED), runs the analysis engine, and writes
+  # reports back to Postgres + Supabase Storage. The API only ever enqueues.
+  agent:
+    image: ${AION_IMAGE:-ghcr.io/tbvisser/aion-qlib:dev}
+    container_name: qlib-scalability-agent
+    depends_on:
+      - qlib
+    working_dir: /qlib
+    user: "${DOCKER_UID:-0}:${DOCKER_GID:-0}"
+    environment:
+      HOME: /home/qlib
+    env_file:
+      - path: webapp/.env
+        required: false
+    volumes:
+      - .:/qlib
+      - ${HOME}/.qlib:/home/qlib/.qlib
+    # Health endpoint only -- the agent has no other inbound API; work arrives
+    # via the jobs table, not the network.
+    ports:
+      - "127.0.0.1:8771:8771"
+    command: python -m scalability_agent.agent.main
+
+  # Interactive frontend for strategy work: run a backtest, then chart it with
+  # qlib.contrib.report (cumulative return, risk analysis, IC, positions).
+  # Start from examples/workflow_by_code.ipynb.
+  jupyter:
+    image: ${AION_IMAGE:-ghcr.io/tbvisser/aion-qlib:dev}
+    container_name: qlib-jupyter
+    depends_on:
+      - qlib
+    working_dir: /qlib
+    user: "${DOCKER_UID:-0}:${DOCKER_GID:-0}"
+    env_file:
+      - path: webapp/.env
+        required: false
+    volumes:
+      - .:/qlib
+      - ${HOME}/.qlib:/home/qlib/.qlib
+    environment:
+      HOME: /home/qlib
+      # Fixed token so the URL stays stable across restarts. Safe here only
+      # because the port below is bound to 127.0.0.1 and is not reachable
+      # from the network; change it if you ever publish this on 0.0.0.0.
+      JUPYTER_TOKEN: qlib
+    ports:
+      - "127.0.0.1:8888:8888"
+    command:
+      - jupyter
+      - lab
+      - --ip=0.0.0.0
+      - --port=8888
+      - --no-browser
+      - --allow-root
+      - --ServerApp.root_dir=/qlib
+
+  # When the dev file is used, the UI also proxies /rag-api to the RAG backend
+  # container so the Knowledge tabs stay same-origin.
+  ui:
+    environment:
+      VITE_RAG_API_PROXY: http://rag-api:8001
+
+  # Vendored Aion-RAG backend (documents/RAG/chat engine behind the Knowledge
+  # tabs). Deliberately its own image: its fastapi/uvicorn pins conflict with
+  # the qlib API's, and docling's native parsers stay isolated from backtests.
+  # Talks to the Supabase stack via host.docker.internal:8010 and to host
+  # Ollama (:11434) for embeddings. Config: rag/backend/.env (gitignored).
+  # Rebuild only when rag/backend/requirements.txt changes.
+  rag-api:
+    build:
+      context: ./rag/backend
+    image: ${AION_RAG_IMAGE:-aion-rag:dev}
+    container_name: qlib-rag-api
+    working_dir: /rag/backend
+    environment:
+      HOME: /home/rag
+      # docling layout/table + OCR models download here on first ingest; the
+      # named volume makes that a one-time cost.
+      HF_HOME: /home/rag/.cache/huggingface
+    env_file:
+      - path: rag/backend/.env
+        required: false
+    volumes:
+      - ./rag:/rag
+      - rag-model-cache:/home/rag/.cache
+    ports:
+      - "127.0.0.1:8001:8001"
+
+  mlflow-ui:
+    image: ${AION_IMAGE:-ghcr.io/tbvisser/aion-qlib:dev}
+    container_name: qlib-mlflow-ui
+    depends_on:
+      - qlib
+    working_dir: /qlib
+    user: "${DOCKER_UID:-0}:${DOCKER_GID:-0}"
+    environment:
+      HOME: /home/qlib
+    volumes:
+      - .:/qlib
+    # Host 5000 is occupied by macOS ControlCenter (AirPlay), hence 5500.
+    ports:
+      - "5500:5000"
+    command:
+      - mlflow
+      - ui
+      - --backend-store-uri
+      - file:///qlib/examples/mlruns
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+
+  # Vibe-Trading sidecar (HKUDS/Vibe-Trading, MIT — THIRD_PARTY_NOTICES.md).
+  # Own image for the same reason as rag-api: its LangChain-era dependency tree
+  # conflicts with the qlib image's pins. The qlib API proxies a whitelisted
+  # subset at /api/vibe/* (webapp/api/routers/vibe.py); live order placement is
+  # deliberately not in that whitelist. Config: vibe/.env (gitignored) — its
+  # API_AUTH_KEY must match VIBE_API_TOKEN in webapp/.env, because the proxy
+  # connects over the docker network and vibe rejects non-loopback callers
+  # without a key. State persists in vibe-home (~/.vibe-trading).
+  vibe-api:
+    build:
+      context: ./vibe
+    image: ${AION_VIBE_IMAGE:-aion-vibe:dev}
+    container_name: qlib-vibe-api
+    env_file:
+      - path: vibe/.env
+        required: false
+    volumes:
+      - vibe-home:/home/vibe
+    ports:
+      - "127.0.0.1:8899:8000"
+    # Mirrors upstream's own compose hardening — this container will eventually
+    # hold broker credentials. (No read-only rootfs yet: write paths outside
+    # ~/.vibe-trading are unverified; revisit after first bring-up.)
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 4g
+    cpus: 2
+    command:
+      - vibe-trading
+      - serve
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    healthcheck:
+      # Loopback requests pass vibe's peer-IP check without a key, so this
+      # works before vibe/.env exists.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Same image, MCP transport: 64 read-only research/trading tools over
+  # streamable HTTP at http://vibe-mcp:8900/mcp. Internal-only (no host port);
+  # consumers are the qlib API proxy and, in a later phase, rag-api. The
+  # allowed-hosts env answers vibe's DNS-rebinding guard for the service name.
+  vibe-mcp:
+    image: ${AION_VIBE_IMAGE:-aion-vibe:dev}
+    container_name: qlib-vibe-mcp
+    depends_on:
+      - vibe-api
+    env_file:
+      - path: vibe/.env
+        required: false
+    environment:
+      VIBE_TRADING_MCP_ALLOWED_HOSTS: vibe-mcp,localhost,127.0.0.1
+    volumes:
+      - vibe-home:/home/vibe
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 4g
+    cpus: 2
+    command:
+      - vibe-trading-mcp
+      - --transport
+      - http
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8900"
+
+volumes:
+  rag-model-cache:
+  vibe-home:

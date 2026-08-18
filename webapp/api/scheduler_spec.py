@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 Frequency = Literal["daily", "weekdays", "weekly"]
 WeekDay = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
-_KINDS = ("macro_refresh", "data_refresh", "run_strategy", "outlook_report")
+_KINDS = ("macro_refresh", "data_refresh", "run_strategy", "outlook_report", "scalability_report")
 
 _WEEKDAY_ORDER: dict[WeekDay, int] = {
     "mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6,
@@ -104,7 +104,7 @@ class ScheduledTaskSpec(BaseModel):
     """What the user supplies when creating or updating a scheduled task."""
 
     name: str = Field(..., min_length=1, max_length=120)
-    kind: Literal["macro_refresh", "data_refresh", "run_strategy", "outlook_report"]
+    kind: Literal["macro_refresh", "data_refresh", "run_strategy", "outlook_report", "scalability_report"]
     schedule: Schedule
     params: dict = Field(default_factory=dict)
     enabled: bool = True
@@ -136,6 +136,18 @@ class ScheduledTaskSpec(BaseModel):
             if scope not in ("day", "week", "month"):
                 raise ValueError("outlook_report.scope must be day, week or month")
             self.params["scope"] = scope
+        elif self.kind == "scalability_report":
+            # Both params are optional: the dispatcher falls back to the user's
+            # latest parsed upload and the full venue catalog.
+            upload_id = self.params.get("upload_id")
+            if upload_id is not None and not isinstance(upload_id, str):
+                raise ValueError("scalability_report.upload_id must be a string")
+            candidate_venues = self.params.get("candidate_venues")
+            if candidate_venues is not None and (
+                not isinstance(candidate_venues, list)
+                or not all(isinstance(venue, str) for venue in candidate_venues)
+            ):
+                raise ValueError("scalability_report.candidate_venues must be a list of strings")
         return self
 
 

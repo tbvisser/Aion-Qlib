@@ -1,14 +1,14 @@
-"""The 9 tools this API's chat profiles are built from.
+"""The tools this API's chat profiles are built from.
 
-Listed as their own collection, not only as a field on the two profiles, because
+Listed as their own collection, not only as a field on the profiles, because
 the question "what can this platform actually do" is answered by tools and the
 Tools tab should not be 78 sidecar-and-RAG entries with a hole where our own
-nine sit.
+sit.
 
 Each row records which profiles carry it -- that is the interesting fact.
-`evaluate_factor` and `get_data_status` are in both; `run_backtest` is in
-`general` alone, and that absence is the builder's safety model rather than a
-prompt instruction.
+`evaluate_factor` and `get_data_status` are in both; `run_backtest` and
+the three scalability tools are in `general` alone, and that absence is the
+builder's safety model rather than a prompt instruction.
 """
 from __future__ import annotations
 
