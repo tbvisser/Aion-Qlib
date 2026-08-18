@@ -1,27 +1,19 @@
-import { AlertTriangle, Check, CircleSlash, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Boxes, Check, Clock, Database, Server } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Notice } from '@/components/ui/notice'
+import { Panel } from '@/components/ui/panel'
+import { RosterStatTile } from '@/components/roster/RosterStatTile'
+import { SourceBreakdownChart } from '@/components/roster/SourceBreakdownChart'
+import { ProviderStatusPanel } from '@/components/roster/ProviderStatusPanel'
 import { sourceLabel } from '@/lib/catalog'
+import { formatRelativeStamp } from '@/lib/time'
 import {
-  ROSTER_TABS, providerState, rosterBreakdown, rosterSummaryLine, rosterTabCount,
+  ROSTER_TABS, rosterBreakdown, rosterSummaryLine, rosterTabCount,
   type RosterTab,
 } from '@/lib/roster'
-import type { RegistrySummary } from '@/lib/api'
+import type { RegistrySummary, RegistryProvider } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-/**
- * What the platform can do, where each piece comes from, and what is reachable.
- *
- * The Database's Overview answers "is the index fresh". This one answers a
- * harder question, because nothing here is stored: every row on screen is one
- * HTTP call away from vanishing. So the provider table is the point of the tab,
- * and it distinguishes three states rather than two — reachable, unreachable
- * but showing cached rows, and unreachable with nothing to show. A single red
- * dot for the last two would hide whether the numbers above are real.
- */
 export function RosterOverview({
   summary, onRefresh, refreshing, onOpenTab,
 }: {
@@ -31,108 +23,164 @@ export function RosterOverview({
   onOpenTab: (tab: RosterTab) => void
 }) {
   const collections = ROSTER_TABS.filter((spec) => spec.kinds.length)
+  const down = summary.providers.filter((p) => p.error && !p.stale).length
+  const stale = summary.providers.filter((p) => p.error && p.stale).length
+  const backendSet = new Set(summary.providers.map((p) => p.source))
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <p className="max-w-3xl text-sm text-muted-foreground">{rosterSummaryLine(summary)}</p>
-        <Button size="sm" variant="outline" disabled={refreshing} onClick={onRefresh}>
-          <RefreshCw className={cn('mr-1.5 h-3.5 w-3.5', refreshing && 'animate-spin')} />
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </Button>
-      </div>
+    <div className="grid grid-cols-12 gap-4">
+      <RosterStatTile
+        className="col-span-6 lg:col-span-3"
+        icon={<Boxes className="h-4 w-4" />}
+        label="Total items"
+        value={summary.total.toLocaleString()}
+      />
+      <RosterStatTile
+        className="col-span-6 lg:col-span-3"
+        icon={<Database className="h-4 w-4" />}
+        label="Collections"
+        value={summary.collections.length.toLocaleString()}
+      />
+      <RosterStatTile
+        className="col-span-6 lg:col-span-3"
+        icon={<Server className="h-4 w-4" />}
+        label="Backends"
+        value={backendSet.size.toLocaleString()}
+        statusDot={down > 0 ? 'down' : stale > 0 ? 'warning' : 'ok'}
+      />
+      <RosterStatTile
+        className="col-span-6 lg:col-span-3"
+        icon={down > 0 ? <AlertTriangle className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+        label={down > 0 ? 'Unreachable' : stale > 0 ? 'Stale cache' : 'All reachable'}
+        value={down > 0 || stale > 0 ? `${down + stale}` : 'ok'}
+        statusDot={down > 0 ? 'down' : stale > 0 ? 'warning' : 'ok'}
+      />
 
       {summary.degraded.length > 0 && (
-        <Notice tone="clay">
-          {summary.providers.filter((p) => p.error).map((p) => (
-            <div key={p.name}>
-              <span className="font-medium">{p.label}</span> — {providerState(p).detail}
-            </div>
-          ))}
-        </Notice>
+        <div className="col-span-12">
+          <Notice tone="clay">
+            {summary.providers.filter((p) => p.error).map((p) => (
+              <div key={p.name}>
+                <span className="font-medium">{p.label}</span> — {p.error}
+              </div>
+            ))}
+          </Notice>
+        </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {collections.map((spec) => {
-          const count = rosterTabCount(spec, summary.collections)
-          const breakdown = spec.kinds.flatMap((kind) => {
-            const collection = summary.collections.find((c) => c.kind === kind)
-            return collection ? rosterBreakdown(collection) : []
-          })
-          return (
-            <Card
-              key={spec.tab}
-              onClick={() => onOpenTab(spec.tab)}
-              className="cursor-pointer transition-colors hover:border-border"
+      {collections.map((spec) => {
+        const count = rosterTabCount(spec, summary.collections)
+        const breakdown = spec.kinds.flatMap((kind) => {
+          const collection = summary.collections.find((c) => c.kind === kind)
+          return collection ? rosterBreakdown(collection) : []
+        })
+        const sources = breakdown.reduce<Record<string, number>>((acc, entry) => {
+          acc[entry.value] = entry.count
+          return acc
+        }, {})
+
+        return (
+          <button
+            key={spec.tab}
+            type="button"
+            onClick={() => onOpenTab(spec.tab)}
+            className="col-span-12 md:col-span-6 xl:col-span-3 text-left"
+          >
+            <Panel
+              title={spec.label}
+              hint={`${count.toLocaleString()} items`}
+              className="h-full transition-shadow hover:shadow-card"
             >
-              <CardContent className="space-y-2 p-4">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-sm font-medium">{spec.label}</span>
-                  <span className="font-mono text-lg tabular-nums">
-                    {count.toLocaleString()}
-                  </span>
+              <div className="space-y-3">
+                <div className="tnum text-3xl font-semibold">{count.toLocaleString()}</div>
+                <div className="h-[120px]">
+                  <SourceBreakdownChart sources={sources} height={120} />
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {breakdown.length ? breakdown.map((entry) => (
-                    <Badge key={entry.value} variant="outline" className="font-normal">
+                    <span
+                      key={entry.value}
+                      className="inline-flex items-center rounded-md border border-border/50 bg-foreground/[0.02] px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    >
                       {sourceLabel(entry.value)} {entry.count.toLocaleString()}
-                    </Badge>
+                    </span>
                   )) : (
                     <span className="text-[11px] text-muted-foreground/70">Unreachable</span>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+              </div>
+            </Panel>
+          </button>
+        )
+      })}
+
+      <div className="col-span-12 lg:col-span-5">
+        <RecentFetchesPanel providers={summary.providers} />
       </div>
 
-      <div>
-        <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
-          Backends
-        </div>
-        <div className="overflow-hidden rounded-lg border border-border/50">
-          <table className="w-full border-collapse text-left">
-            <tbody>
-              {summary.providers.map((provider) => {
-                const state = providerState(provider)
-                return (
-                  <tr key={provider.name} className="border-b border-border/30 last:border-0">
-                    <td className="px-3 py-2">
-                      <div className="text-[12px]">{provider.label}</div>
-                      <div className="font-mono text-[10px] text-muted-foreground/70">
-                        {provider.name} · {sourceLabel(provider.source)}
-                        {provider.remote ? ' · over the network' : ' · in process'}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1.5 text-[11px]',
-                          state.state === 'down' ? 'text-destructive'
-                            : state.state === 'stale' ? 'text-clay'
-                              : 'text-muted-foreground',
-                        )}
-                      >
-                        {state.state === 'ok' ? <Check className="h-3 w-3" />
-                          : state.state === 'stale' ? <AlertTriangle className="h-3 w-3" />
-                            : <CircleSlash className="h-3 w-3" />}
-                        {state.detail}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-2 text-[11px] text-muted-foreground/70">
-          {/* The one thing a live-federated page must say out loud, or someone
-              will wonder why a service they just restarted has not appeared. */}
-          Nothing here is stored. Each backend is re-read at most once every{' '}
-          {summary.ttl_seconds} seconds; Refresh drops that cache.
+      <div className="col-span-12 lg:col-span-7">
+        <ProviderStatusPanel
+          providers={summary.providers}
+          ttlSeconds={summary.ttl_seconds}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+        />
+      </div>
+
+      <div className="col-span-12">
+        <p className="text-[11px] text-muted-foreground/70">
+          {rosterSummaryLine(summary)}
         </p>
       </div>
     </div>
+  )
+}
+
+function RecentFetchesPanel({ providers }: { providers: RegistryProvider[] }) {
+  const sorted = [...providers]
+    .filter((p) => p.fetched_at)
+    .sort((a, b) => new Date(b.fetched_at!).getTime() - new Date(a.fetched_at!).getTime())
+
+  return (
+    <Panel title="Recent fetches" hint="when each backend was last reached">
+      {sorted.length === 0 ? (
+        <div className="flex h-[120px] items-center justify-center text-xs text-muted-foreground">
+          No fetch history yet.
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {sorted.map((provider) => (
+            <div
+              key={provider.name}
+              className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-foreground/[0.02]"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                <div className="min-w-0">
+                  <div className="truncate text-[12px]">{provider.label}</div>
+                  <div className="font-mono text-[10px] text-muted-foreground/70">
+                    {sourceLabel(provider.source)}
+                    {provider.remote ? ' · over the network' : ' · in process'}
+                  </div>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <span
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full',
+                    provider.error
+                      ? provider.stale ? 'bg-amber-500' : 'bg-destructive'
+                      : 'bg-emerald-500',
+                  )}
+                />
+                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                  {formatRelativeStamp(provider.fetched_at!)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
   )
 }

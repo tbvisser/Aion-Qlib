@@ -134,7 +134,7 @@ describe('buildAgendaEntries', () => {
       key: 'reb:p1:2026-07-31', type: 'trade', date: '2026-07-31',
       title: '60/40 rebalanced to target',
       detail: 'monthly rule · turnover 8.3%',
-      href: '/book/p1',
+      href: '/book/portfolios/p1',
     })])
   })
 

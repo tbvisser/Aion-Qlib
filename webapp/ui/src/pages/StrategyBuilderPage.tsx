@@ -191,6 +191,15 @@ export function StrategyBuilderPage() {
     setSpecRevision((r) => r + 1)
   }, [])
 
+  // Deep-linking a saved strategy from the book. The guard is unnecessary on a
+  // fresh page load, and using openSavedNow keeps the id so Save updates it.
+  const strategyIdFromUrl = params.get('strategy')
+  useEffect(() => {
+    if (!strategyIdFromUrl || saved.length === 0 || currentId) return
+    const s = saved.find((x) => x.id === strategyIdFromUrl)
+    if (s) openSavedNow(s)
+  }, [strategyIdFromUrl, saved.length, currentId, openSavedNow])
+
   /**
    * Unsaved edits, and the guard around losing them.
    *
