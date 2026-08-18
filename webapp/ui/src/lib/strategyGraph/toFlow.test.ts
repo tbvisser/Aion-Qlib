@@ -3,14 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_STRATEGY, type StrategySpec } from '@/lib/api'
 import {
   featureChipPositions, featureFanPositions, hubPosition, stagePositions, stageSides,
-  FEATURE_CHIP_H, FEATURE_CHIP_W, FEATURE_FAN_MAX, FEATURE_GRID_MAX, STAGE_H, STAGE_W,
+  FEATURE_CHIP_H, FEATURE_CHIP_W, FEATURE_FAN_MAX, FEATURE_GRID_MAX, STAGE_H, STAGE_WIDTHS,
 } from './layout'
 import { routeWarnings } from './routeWarning'
 import { STAGE_ORDER, isStageId, type StageId } from './stages'
 import { stageStatus } from './stageStatus'
 import {
   FEATURE_BASE_ID, FEATURE_MORE_ID, FEATURE_NODE_TYPE, HUB_NODE_ID, HUB_NODE_TYPE,
-  HUB_SPOKES, MAX_FEATURE_CHIPS, STAGE_EDGES, STAGE_NODE_TYPE,
+  HUB_SPOKES, MAX_FEATURE_CHIPS, STAGE_EDGE_TYPE, STAGE_EDGES, STAGE_NODE_TYPE,
   featureEdges, hasFeatureOverflow, isFeatureNodeId, pipelineEdges, stageEdges,
   toFeatureNodes, toHubNode, toPipelineNodes, toStageNodes,
 } from './toFlow'
@@ -78,8 +78,8 @@ describe('stageEdges', () => {
   })
 
   it('points the arrow the way the run goes, and clays it past a blocker', () => {
-    // A row was read left to right and needed no arrowhead; a ring has no such
-    // convention. CSS cannot recolour these: a marker is shared by reference and
+    // A row was read left to right and needed no arrowhead; a vertical stack has
+    // no such convention. CSS cannot recolour these: a marker is shared by reference and
     // cannot see the class on the path pointing at it -- which is why a healthy
     // arrowhead carries its phase token inline and a broken one carries clay.
     const colours = stageEdges(stageStatus(routeWarnings([TEST_OVERLAP])))
@@ -102,10 +102,10 @@ describe('HUB_SPOKES', () => {
 
   it('draws membership straight and flow curved, so the two never read alike', () => {
     expect(HUB_SPOKES.every((e) => e.type === 'straight')).toBe(true)
-    expect(stageEdges().every((e) => e.type === 'default')).toBe(true)
+    expect(stageEdges().every((e) => e.type === STAGE_EDGE_TYPE)).toBe(true)
   })
 
-  it('anchors both ends on node centres — a radius is right at every bearing', () => {
+  it('anchors both ends on node centres', () => {
     expect(HUB_SPOKES.every((e) => e.sourceHandle === 'core' && e.targetHandle === 'core'))
       .toBe(true)
   })
@@ -122,7 +122,7 @@ describe('HUB_SPOKES', () => {
     expect(spokes.every((e) => e.className === 'aion-edge-spoke')).toBe(true)
   })
 
-  it('is frozen — a user cannot join or leave the ring', () => {
+  it('is frozen — a user cannot join or leave the stack', () => {
     expect(Object.isFrozen(HUB_SPOKES)).toBe(true)
   })
 })
@@ -131,7 +131,7 @@ describe('pipelineEdges', () => {
   it('puts the spokes first, so a spoke can never paint over the chain', () => {
     const edges = pipelineEdges(stageStatus([]))
     expect(edges.slice(0, STAGE_ORDER.length).every((e) => e.type === 'straight')).toBe(true)
-    expect(edges.slice(STAGE_ORDER.length).every((e) => e.type === 'default')).toBe(true)
+    expect(edges.slice(STAGE_ORDER.length).every((e) => e.type === STAGE_EDGE_TYPE)).toBe(true)
     expect(edges).toHaveLength(STAGE_ORDER.length + (STAGE_ORDER.length - 1))
   })
 })
@@ -167,9 +167,10 @@ describe('toStageNodes', () => {
 
   it('sizes cards from the layout constants, so edges and cards cannot disagree', () => {
     for (const node of toStageNodes(DEFAULT_STRATEGY)) {
-      expect(node.width).toBe(STAGE_W)
+      const expectedW = STAGE_WIDTHS[node.id as keyof typeof STAGE_WIDTHS]
+      expect(node.width).toBe(expectedW)
       expect(node.height).toBe(STAGE_H)
-      expect(node.data.width).toBe(STAGE_W)
+      expect(node.data.width).toBe(expectedW)
       expect(node.data.height).toBe(STAGE_H)
     }
   })
@@ -207,7 +208,7 @@ describe('toStageNodes', () => {
 })
 
 describe('toHubNode', () => {
-  it('sits at the centre of the ring', () => {
+  it('sits above the stage stack', () => {
     expect(toHubNode(DEFAULT_STRATEGY).position).toEqual(hubPosition())
     expect(toHubNode(DEFAULT_STRATEGY).type).toBe(HUB_NODE_TYPE)
   })
@@ -221,7 +222,7 @@ describe('toHubNode', () => {
    * strategy, so it is the one thing that could contradict it. It counts the
    * cards' own badges rather than re-deriving anything.
    */
-  it('cannot disagree with the ring: it counts the cards\' own badges', () => {
+  it('cannot disagree with the stack: it counts the cards\' own badges', () => {
     const status = stageStatus(routeWarnings([TEST_OVERLAP]))
     const hub = toHubNode(DEFAULT_STRATEGY, status)
     const cards = toStageNodes(DEFAULT_STRATEGY, {}, status)
@@ -471,7 +472,7 @@ describe('pipelineEdges with a feature set', () => {
       .toBe(true)
     expect(edges.slice(STAGE_ORDER.length, STAGE_ORDER.length + 4)
       .every((e) => e.className === 'aion-edge-feature')).toBe(true)
-    expect(edges.slice(STAGE_ORDER.length + 4).every((e) => e.type === 'default')).toBe(true)
+    expect(edges.slice(STAGE_ORDER.length + 4).every((e) => e.type === STAGE_EDGE_TYPE)).toBe(true)
   })
 
   it('draws the fixed picture when it is not given a spec', () => {
@@ -504,7 +505,7 @@ describe('pipelineEdges with a feature set', () => {
     expect(edges.slice(STAGE_ORDER.length, STAGE_ORDER.length + FEATURE_GRID_MAX)
       .every((e) => e.className === 'aion-edge-feature')).toBe(true)
     expect(edges.slice(STAGE_ORDER.length + FEATURE_GRID_MAX)
-      .every((e) => e.type === 'default')).toBe(true)
+      .every((e) => e.type === STAGE_EDGE_TYPE)).toBe(true)
   })
 
   it('never blocks a tether when expanded either', () => {

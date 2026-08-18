@@ -22,7 +22,7 @@ import { handlerColumns, stageGlance, type GlanceContext, type StageGlance } fro
 import {
   featureChipPositions, hubPosition, stagePositions, stageSides,
   FEATURE_CHIP_H, FEATURE_CHIP_W, FEATURE_GRID_MAX,
-  HUB_H, HUB_W, STAGE_H, STAGE_W, type StageSides,
+  HUB_H, HUB_W, STAGE_H, STAGE_WIDTHS, type StageSides,
 } from './layout'
 import { STAGE_ORDER, STAGES, type StageDef, type StageId, type StagePhase } from './stages'
 import type { StageBadge, StageStatus } from './stageStatus'
@@ -86,13 +86,13 @@ export type StageCardData = {
   glance: StageGlance
   status: StageStatus
   notes: string[]
-  /** Which sides the chain enters and leaves by. A ring has no fixed left/right. */
+  /** Which sides the chain enters and leaves by. A vertical stack has no fixed left/right. */
   sides: StageSides
   width: number
   height: number
 }
 
-/** What the seven cards add up to, for the node in the middle of the ring. */
+/** What the seven cards add up to, for the node at the top of the stack. */
 export type HubCardData = {
   name: string
   /** Stages with nothing to say at all. The dots carry the other two states. */
@@ -100,7 +100,7 @@ export type HubCardData = {
   total: number
   blocking: number
   advisory: number
-  /** One per stage, in pipeline order, so the hub is a map of the ring. */
+  /** One per stage, in pipeline order, so the hub is a map of the stack. */
   dots: { id: StageId; status: StageStatus }[]
   width: number
   height: number
@@ -133,7 +133,7 @@ export type PipelineFlowNode = StageFlowNode | HubFlowNode | FeatureFlowNode
 /**
  * The chain's arrowheads.
  *
- * A row was read left to right and needed none; a ring has no such convention.
+ * A row was read left to right and needed none; a vertical stack has no such convention.
  * The colour is an inline style on the marker rather than CSS, which is why a
  * variable works in it -- and why every tint needs its own marker: a marker is
  * shared by reference and cannot see the class on the path pointing at it.
@@ -151,15 +151,22 @@ const ARROW_BY_PHASE: Record<StagePhase, Edge['markerEnd']> = {
   execute: { ...ARROW, color: 'hsl(var(--type-trade) / 0.8)' },
 }
 
-/**
- * `default` is React Flow's bezier, and it takes its control direction from each
- * handle's side -- so with the tangential sides `stageSides` hands out, the curve
- * bulges along the ring for free, with no custom edge component. `smoothstep`
- * would draw orthogonal elbows that fight a radial layout.
- */
-const CHAIN_EDGE_TYPE = 'default'
+export const STAGE_EDGE_TYPE = 'aion-stage-edge'
 
-function chainEdge(source: StageId, target: StageId, broken: boolean): Edge {
+/** Which way a chain edge curves away from the vertical stack. */
+export type StageEdgeCurve = 'left' | 'right'
+
+/**
+ * A custom bezier edge is used so the line can curve even though the cards are
+ * centred on the same x. The curve alternates left/right down the stack, giving
+ * the connection lines the slight S-shape shown in the reference screenshot.
+ */
+function chainEdge(
+  source: StageId,
+  target: StageId,
+  broken: boolean,
+  curve: StageEdgeCurve,
+): Edge<{ curve: StageEdgeCurve }> {
   // The *target's* phase: the tint answers "what kind of work does the run
   // flow into here", which is also the accent on the card the arrow points at.
   const phase = STAGES[target].phase
@@ -169,9 +176,10 @@ function chainEdge(source: StageId, target: StageId, broken: boolean): Edge {
     sourceHandle: 'out',
     target,
     targetHandle: 'in',
-    type: CHAIN_EDGE_TYPE,
+    type: STAGE_EDGE_TYPE,
     className: broken ? 'aion-edge-blocked' : `aion-edge-phase-${phase}`,
     markerEnd: broken ? ARROW_BLOCKED : ARROW_BY_PHASE[phase],
+    data: { curve },
   }
 }
 
@@ -179,14 +187,19 @@ function chainEdge(source: StageId, target: StageId, broken: boolean): Edge {
  * The chain. No arguments and frozen, because the topology is not a function of
  * anything -- a user cannot add, remove or reconnect a stage.
  */
-export const STAGE_EDGES: readonly Edge[] = Object.freeze(
-  STAGE_ORDER.slice(0, -1).map((source, i) => chainEdge(source, STAGE_ORDER[i + 1], false)),
+export const STAGE_EDGES: readonly Edge<{ curve: StageEdgeCurve }>[] = Object.freeze(
+  STAGE_ORDER.slice(0, -1).map((source, i) => chainEdge(
+    source,
+    STAGE_ORDER[i + 1],
+    false,
+    i % 2 === 0 ? 'right' : 'left',
+  )),
 )
 
 /** `STAGE_EDGES` with the clay dashed class on everything downstream of a blocker. */
 export function stageEdges(
   status?: Readonly<Record<StageId, StageBadge>>,
-): Edge[] {
+): Edge<{ curve: StageEdgeCurve }>[] {
   if (!status) return STAGE_EDGES.map((e) => ({ ...e }))
   // Once a stage is blocked the run stops there, so every edge after it is
   // drawn broken. The point is that a problem stays visible when the canvas is
@@ -194,7 +207,7 @@ export function stageEdges(
   let broken = false
   return STAGE_ORDER.slice(0, -1).map((source, i) => {
     broken = broken || status[source].status === 'blocked'
-    return chainEdge(source, STAGE_ORDER[i + 1], broken)
+    return chainEdge(source, STAGE_ORDER[i + 1], broken, i % 2 === 0 ? 'right' : 'left')
   })
 }
 
@@ -204,7 +217,7 @@ export function stageEdges(
  * Straight where the chain is curved and faint where the chain is solid, so the
  * two families can never be read as the same thing. Both ends anchor on the
  * node's own *centre* (`core`), which makes a spoke a true radius at every
- * bearing with no per-angle handle maths -- and since edges paint beneath nodes,
+ * handle with no per-angle maths -- and since edges paint beneath nodes,
  * what is visible is only the segment crossing the gap.
  *
  * Never blocked-styled: a blocker breaks flow, not membership. Frozen and
@@ -231,7 +244,7 @@ export const HUB_SPOKES: readonly Edge[] = Object.freeze(
  * Nothing at all when a strategy has no custom columns: the features card
  * already prints the handler and its column count, so a lone base chip would
  * restate the card it is tethered to, and the default strategy stays the clean
- * ring it was designed as. The chips appear when there is something the card
+ * stack it was designed as. The chips appear when there is something the card
  * cannot say -- which columns, by name.
  *
  * The base chip leads because the handler's set is what the custom columns are
@@ -355,13 +368,14 @@ export function toStageNodes(
   const sides = stageSides()
   return STAGE_ORDER.map((id, i) => {
     const badge = status?.[id]
+    const cardW = STAGE_WIDTHS[id]
     return {
       id,
       type: STAGE_NODE_TYPE,
       position: positions[id],
       // React Flow needs the size up front to lay edges out before first paint;
       // the card reads the same numbers so the two can never disagree.
-      width: STAGE_W,
+      width: cardW,
       height: STAGE_H,
       data: {
         stage: STAGES[id],
@@ -370,7 +384,7 @@ export function toStageNodes(
         status: badge?.status ?? 'ok',
         notes: badge?.notes ?? [],
         sides: sides[id],
-        width: STAGE_W,
+        width: cardW,
         height: STAGE_H,
       },
     }
@@ -381,7 +395,7 @@ export function toStageNodes(
  * What the seven cards add up to.
  *
  * Everything here is derived from the same badges the cards wear, so the hub can
- * never disagree with the ring around it -- the same reason positions are
+ * never disagree with the stack below it -- the same reason positions are
  * computed rather than stored.
  */
 export function toHubNode(
