@@ -37,6 +37,7 @@ export interface KeycardNodeData extends Record<string, unknown> {
   selected: boolean
   onDoubleClick?: (nodeId: string) => void
   onCreateNode?: (sourceNodeId: string, sourcePortId: string, type: string) => void
+  onReplaceStartNode?: (type: string) => void
 }
 
 export interface KeycardEdgeData extends Record<string, unknown> {
@@ -60,6 +61,7 @@ export function toFlowNodes(
   selectedId?: string | null,
   onDoubleClick?: (nodeId: string) => void,
   onCreateNode?: (sourceNodeId: string, sourcePortId: string, type: string) => void,
+  onReplaceStartNode?: (type: string) => void,
 ): KeycardFlowNode[] {
   const routed = routeDefects(defects)
   return keycard.nodes.map((node) => {
@@ -72,11 +74,12 @@ export function toFlowNodes(
         keycardNode: node,
         meta,
         defects: routed.get(node.id) ?? [],
-        selected: node.id === selectedId,
+        selected: node.id === selectedId && node.type !== 'start',
         onDoubleClick,
         onCreateNode,
+        onReplaceStartNode,
       },
-      selected: node.id === selectedId,
+      selected: node.id === selectedId && node.type !== 'start',
     }
   })
 }

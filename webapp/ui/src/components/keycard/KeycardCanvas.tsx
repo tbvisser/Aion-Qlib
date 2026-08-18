@@ -53,6 +53,26 @@ export function KeycardCanvas({
 }: Props) {
   const { screenToFlowPosition } = useReactFlow()
 
+  const handleReplaceStartNode = useCallback((type: string) => {
+    const meta = metaByType.get(type)
+    if (!meta) return
+    const startNode = spec.nodes.find((n) => n.type === 'start')
+    const id = `${type}-${Date.now()}`
+    const newNode: KeycardNode = {
+      id,
+      type,
+      position: startNode ? { ...startNode.position } : { x: 0, y: 0 },
+      config: defaultConfig(meta),
+      notes: '',
+    }
+    onChange({
+      ...spec,
+      nodes: [...spec.nodes.filter((n) => n.type !== 'start'), newNode],
+      edges: [],
+    })
+    onSelectNode(id)
+  }, [spec, metaByType, onChange, onSelectNode])
+
   const handleCreateNode = useCallback((sourceNodeId: string, sourcePortId: string, type: string) => {
     const sourceNode = spec.nodes.find((n) => n.id === sourceNodeId)
     const sourceMeta = metaByType.get(sourceNode?.type ?? '')
@@ -85,8 +105,8 @@ export function KeycardCanvas({
   }, [spec, metaByType, onChange])
 
   const nodes = useMemo(
-    () => toFlowNodes(spec, metaByType, defects, selectedNodeId, onNodeDoubleClick, handleCreateNode),
-    [spec, metaByType, defects, selectedNodeId, onNodeDoubleClick, handleCreateNode],
+    () => toFlowNodes(spec, metaByType, defects, selectedNodeId, onNodeDoubleClick, handleCreateNode, handleReplaceStartNode),
+    [spec, metaByType, defects, selectedNodeId, onNodeDoubleClick, handleCreateNode, handleReplaceStartNode],
   )
   const edges = useMemo<KeycardFlowEdge[]>(() => {
     const routed = new Map<string, KeycardDefect[]>()
@@ -137,6 +157,8 @@ export function KeycardCanvas({
     const selectChanges = changes.filter((c) => c.type === 'select')
     if (selectChanges.length === 1) {
       const c = selectChanges[0]
+      const node = spec.nodes.find((n) => n.id === c.id)
+      if (node?.type === 'start') return
       onSelectNode(c.selected ? c.id : null)
     }
   }, [spec, onChange, onSelectNode])

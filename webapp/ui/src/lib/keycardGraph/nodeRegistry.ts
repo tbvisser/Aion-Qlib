@@ -667,6 +667,16 @@ export function nodeInfo(type: string): NodeTypeInfo | undefined {
 }
 
 /**
+ * Return every node type that can begin a workflow — i.e. it has no required
+ * input ports. Used by the canvas starter node to offer the first block.
+ */
+export function getRootNodeTypes(): NodeTypeInfo[] {
+  return Object.values(NODE_TYPE_INFO).filter((info) =>
+    info.ports.every((p) => p.direction !== 'in' || p.required === false),
+  )
+}
+
+/**
  * Return every node type that can accept a connection from a source port of the
  * given type. Used by the canvas "+" menu to offer compatible downstream blocks.
  */

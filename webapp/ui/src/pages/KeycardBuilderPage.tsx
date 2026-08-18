@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   Database,
+  MessageSquare,
   Settings2,
   Tag,
 } from 'lucide-react'
@@ -362,7 +363,7 @@ export function KeycardBuilderPage() {
               />
             </div>
 
-            {assistantOpen && (
+            {assistantOpen ? (
               <div className="pointer-events-auto absolute right-3 bottom-3 z-10 flex h-[50%] w-[34rem] flex-col overflow-hidden rounded-xl border border-border/50 bg-card/50 backdrop-blur shadow-card font-sans">
                 <KeycardAssistantDock
                   chat={keycardChat}
@@ -372,6 +373,17 @@ export function KeycardBuilderPage() {
                   onClose={() => setAssistantOpen(false)}
                 />
               </div>
+            ) : (
+              <Button
+                type="button"
+                size="icon"
+                onClick={() => setAssistantOpen(true)}
+                aria-label="Open SANA"
+                title="Open SANA"
+                className="pointer-events-auto absolute right-3 bottom-3 z-10 h-10 w-10 rounded-full shadow-card btn-press"
+              >
+                <MessageSquare className="h-5 w-5" />
+              </Button>
             )}
           </div>
         </div>

@@ -11,6 +11,7 @@ import { useChatStream } from '@/hooks/useChatStream'
 import { authHeaders } from '@/lib/authFetch'
 import type { KeycardSpec } from '@/lib/api'
 import type { ChatMessage, KeycardContext, Proposal } from '@/lib/chat'
+import { readModelConfig } from '@/features/rag/hooks/useModelConfig'
 
 /** What the keycard builder has on screen. Read through a ref, so it is never a dependency. */
 export interface KeycardChatState {
@@ -56,6 +57,11 @@ export function useKeycardChat(state: KeycardChatState): KeycardChat {
     profile: 'keycard-builder', context,
   })
 
+  const sendWithModel = useCallback(async (text: string) => {
+    const cfg = readModelConfig()
+    await send(text, { model: cfg.model || undefined })
+  }, [send])
+
   const markApplied = useCallback((key: string, proposal: Proposal) => {
     lastApplied.current = proposal
     setApplied((prev) => new Set(prev).add(key))
@@ -66,9 +72,9 @@ export function useKeycardChat(state: KeycardChatState): KeycardChat {
   }, [])
 
   return useMemo(
-    () => ({ messages, streaming, error, send, stop, applied, dismissed,
+    () => ({ messages, streaming, error, send: sendWithModel, stop, applied, dismissed,
              markApplied, markDismissed }),
-    [messages, streaming, error, send, stop, applied, dismissed, markApplied, markDismissed],
+    [messages, streaming, error, sendWithModel, stop, applied, dismissed, markApplied, markDismissed],
   )
 }
 

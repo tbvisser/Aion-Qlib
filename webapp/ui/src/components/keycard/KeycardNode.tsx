@@ -38,6 +38,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import {
+  getRootNodeTypes,
   getValidChildren,
   isNodeConfigComplete,
   NODE_CATEGORY_INFO,
@@ -165,6 +166,10 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
   const description = meta?.description ?? info?.description ?? ''
 
   const [openMenuPortId, setOpenMenuPortId] = useState<string | null>(null)
+
+  if (keycardNode.type === 'start') {
+    return <StartNodeView onReplace={data.onReplaceStartNode} />
+  }
 
   return (
     <div
@@ -388,3 +393,69 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
     </div>
   )
 })
+
+function StartNodeView({ onReplace }: { onReplace?: (type: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const options = useMemo(() => getRootNodeTypes(), [])
+
+  return (
+    <div style={{ width: 236 }} data-testid="keycard-start-node">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              'group flex w-full cursor-pointer flex-col items-center justify-center gap-2',
+              'rounded-xl border border-dashed border-border/60 bg-card p-5 shadow-card',
+              'transition-colors hover:border-primary/50 hover:bg-surface-2',
+            )}
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Plus className="h-5 w-5" />
+            </span>
+            <span className="text-sm font-medium">Add your first block</span>
+            <span className="text-[11px] text-muted-foreground">Click to start building</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="center" side="right" sideOffset={12} className="w-60 p-2">
+          <div className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            Start here
+          </div>
+          <ul className="max-h-60 space-y-0.5 overflow-y-auto">
+            {options.map((info) => {
+              const category = (info.category ?? 'Data') as NodeCategory
+              const categoryInfo = NODE_CATEGORY_INFO[category] ?? { color: '#9ca3af' }
+              const Icon = getIcon(info.icon)
+              return (
+                <li key={info.id}>
+                  <button
+                    type="button"
+                    className="flex w-full items-start gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-accent"
+                    onClick={() => {
+                      onReplace?.(info.id)
+                      setOpen(false)
+                    }}
+                  >
+                    <span
+                      className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded"
+                      style={{ background: `${categoryInfo.color}15`, color: categoryInfo.color }}
+                    >
+                      <Icon className="h-3 w-3" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="truncate text-[11px] font-medium">{info.label}</div>
+                      <div className="line-clamp-2 text-[10px] text-muted-foreground/80">
+                        {info.description}
+                      </div>
+                    </div>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+}

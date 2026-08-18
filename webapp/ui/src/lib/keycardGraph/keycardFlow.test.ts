@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { defaultKeycardSpec } from '@/lib/api'
+import type { KeycardSpec } from '@/lib/api'
 import {
   KEYCARD_EDGE_TYPE,
   KEYCARD_NODE_TYPE,
@@ -9,6 +9,33 @@ import {
   toFlowEdges,
   toFlowNodes,
 } from './keycardFlow'
+
+function makeKeycardSpec(): KeycardSpec {
+  const storeId = 'store-1'
+  const universeId = 'universe-1'
+  return {
+    name: 'Test keycard',
+    description: '',
+    tags: [],
+    is_template: false,
+    template_family: null,
+    windows: {
+      train_start: '2010-01-04',
+      train_end: '2019-12-31',
+      valid_start: '2020-01-01',
+      valid_end: '2021-12-31',
+      test_start: '2022-01-01',
+      test_end: '2026-08-07',
+    },
+    nodes: [
+      { id: storeId, type: 'data_store', position: { x: 0, y: 0 }, config: { store: 'us' }, notes: '' },
+      { id: universeId, type: 'universe', position: { x: 0, y: 100 }, config: {}, notes: '' },
+    ],
+    edges: [
+      { id: 'e1', source: storeId, source_port: 'data', target: universeId, target_port: 'data' },
+    ],
+  }
+}
 
 function makeMetaByType() {
   return new Map([
@@ -38,7 +65,7 @@ function makeMetaByType() {
 
 describe('toFlowNodes', () => {
   it('produces one React Flow node per keycard node', () => {
-    const keycard = defaultKeycardSpec()
+    const keycard = makeKeycardSpec()
     const nodes = toFlowNodes(keycard, makeMetaByType())
     expect(nodes).toHaveLength(keycard.nodes.length)
     nodes.forEach((n, i) => {
@@ -50,21 +77,14 @@ describe('toFlowNodes', () => {
   })
 
   it('marks the selected node', () => {
-    const keycard = defaultKeycardSpec()
+    const keycard = makeKeycardSpec()
     const nodes = toFlowNodes(keycard, makeMetaByType(), [], keycard.nodes[0].id)
     expect(nodes[0].selected).toBe(true)
     expect(nodes[1].selected).toBe(false)
   })
 
   it('attaches metadata by node type', () => {
-    const keycard = {
-      ...defaultKeycardSpec(),
-      nodes: [
-        { id: 'store-1', type: 'data_store', position: { x: 0, y: 0 }, config: { store: 'us' }, notes: '' },
-        { id: 'universe-1', type: 'universe', position: { x: 0, y: 100 }, config: {}, notes: '' },
-      ],
-      edges: [],
-    }
+    const keycard = makeKeycardSpec()
     const nodes = toFlowNodes(keycard, makeMetaByType())
     expect(nodes[0].data.meta?.label).toBe('Data Store')
     expect(nodes[1].data.meta?.label).toBe('Universe')
@@ -73,7 +93,7 @@ describe('toFlowNodes', () => {
 
 describe('toFlowEdges', () => {
   it('produces one React Flow edge per keycard edge with typed handles', () => {
-    const keycard = defaultKeycardSpec()
+    const keycard = makeKeycardSpec()
     const edges = toFlowEdges(keycard)
     expect(edges).toHaveLength(keycard.edges.length)
     edges.forEach((e, i) => {
@@ -87,7 +107,7 @@ describe('toFlowEdges', () => {
 
 describe('fromFlow', () => {
   it('preserves positions from React Flow nodes', () => {
-    const keycard = defaultKeycardSpec()
+    const keycard = makeKeycardSpec()
     const rfNodes = keycard.nodes.map((n) => ({
       id: n.id,
       type: KEYCARD_NODE_TYPE,
@@ -104,7 +124,7 @@ describe('fromFlow', () => {
   })
 
   it('drops nodes and edges removed from the canvas', () => {
-    const keycard = defaultKeycardSpec()
+    const keycard = makeKeycardSpec()
     const rfNodes = keycard.nodes.slice(1).map((n) => ({
       id: n.id,
       type: KEYCARD_NODE_TYPE,
@@ -119,7 +139,7 @@ describe('fromFlow', () => {
   })
 
   it('copies scalar metadata unchanged', () => {
-    const keycard = defaultKeycardSpec()
+    const keycard = makeKeycardSpec()
     const next = fromFlow(keycard, toFlowNodes(keycard, makeMetaByType()), toFlowEdges(keycard))
     expect(next.name).toBe(keycard.name)
     expect(next.windows).toEqual(keycard.windows)
