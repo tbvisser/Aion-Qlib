@@ -736,3 +736,227 @@ def test_start_stop_lifecycle(monkeypatch):
     sched.start()
     assert sched._thread.is_alive()
     sched.stop()
+
+
+# ---------------------------------------------------------------------------
+# scalability_report kind
+# ---------------------------------------------------------------------------
+def test_spec_scalability_report_defaults():
+    spec = ScheduledTaskSpec(name="Scalability", kind="scalability_report", schedule=Schedule(frequency="weekly", time="07:00", day="mon"), params={})
+    assert spec.params == {}
+
+
+def test_spec_scalability_report_valid_params():
+    spec = ScheduledTaskSpec(name="Scalability", kind="scalability_report", schedule=Schedule(frequency="weekly", time="07:00", day="mon"), params={"upload_id": "u-1", "candidate_venues": ["IBKR", "UBS"]})
+    assert spec.params["upload_id"] == "u-1"
+    assert spec.params["candidate_venues"] == ["IBKR", "UBS"]
+
+
+def test_spec_scalability_report_invalid_upload_id():
+    with pytest.raises(ValueError, match="upload_id"):
+        ScheduledTaskSpec(name="Scalability", kind="scalability_report", schedule=Schedule(frequency="weekly", time="07:00", day="mon"), params={"upload_id": 42})
+
+
+def test_spec_scalability_report_invalid_candidate_venues():
+    with pytest.raises(ValueError, match="candidate_venues"):
+        ScheduledTaskSpec(name="Scalability", kind="scalability_report", schedule=Schedule(frequency="weekly", time="07:00", day="mon"), params={"candidate_venues": "UBS"})
+    with pytest.raises(ValueError, match="candidate_venues"):
+        ScheduledTaskSpec(name="Scalability", kind="scalability_report", schedule=Schedule(frequency="weekly", time="07:00", day="mon"), params={"candidate_venues": ["UBS", 7]})
+
+
+class _ScalabilityCursor:
+    """Scripts the SQL sequence the scalability_report dispatch issues."""
+
+    def __init__(
+        self,
+        upload_row: dict | None = ...,
+        job_statuses: list[str] | None = None,
+        report_row: dict | None = ...,
+    ) -> None:
+        self.calls: list[tuple[str, tuple[Any, ...] | None]] = []
+        self.upload_row = {"id": "u-1", "status": "parsed"} if upload_row is ... else upload_row
+        self.job_statuses = list(job_statuses or ["succeeded"])
+        self.report_row = (
+            {
+                "id": "rep-1",
+                "current_venue": "IBKR",
+                "result": {
+                    "comparison": {
+                        "current": {"venue": "IBKR", "ceiling_usd": 12_000_000},
+                        "alternatives": [{"venue": "UBS", "ceiling_usd": 40_000_000}],
+                        "best_alternative": {"venue": "UBS", "ceiling_usd": 40_000_000},
+                    },
+                },
+            }
+            if report_row is ...
+            else report_row
+        )
+        self._one: dict | None = None
+
+    def execute(self, sql: str, params: tuple[Any, ...] | None = None) -> None:
+        sql = sql.strip()
+        self.calls.append((sql, params))
+        if sql.startswith("SELECT id, status FROM aion.scalability_uploads"):
+            self._one = self.upload_row
+        elif sql.startswith("SELECT id FROM aion.scalability_uploads"):
+            self._one = {"id": self.upload_row["id"]} if self.upload_row else None
+        elif sql.startswith("INSERT INTO aion.scalability_jobs"):
+            self._one = {"id": "job-1"}
+        elif sql.startswith("SELECT status, error, report_id FROM aion.scalability_jobs"):
+            status = self.job_statuses.pop(0) if self.job_statuses else "succeeded"
+            self._one = {
+                "status": status,
+                "error": "engine blew up" if status == "failed" else None,
+                "report_id": "rep-1" if status == "succeeded" else None,
+            }
+        elif sql.startswith("SELECT id, current_venue, result FROM aion.scalability_reports"):
+            self._one = self.report_row
+        else:
+            self._one = None
+
+    def fetchone(self) -> dict | None:
+        return self._one
+
+    def fetchall(self) -> list[dict]:
+        return []
+
+
+def _scalability_task(params: dict | None = None) -> dict:
+    return {
+        "id": "t-scal",
+        "org_id": "org1",
+        "user_id": "user1",
+        "name": "Scalability check",
+        "kind": "scalability_report",
+        "schedule": {"frequency": "weekly", "time": "07:00", "day": "mon"},
+        "params": params or {},
+    }
+
+
+def _run_scalability_dispatch(monkeypatch, cursor: _ScalabilityCursor, params: dict | None = None):
+    """Tick a scheduler whose only due task is a scalability_report; return outcomes."""
+    sched = TaskScheduler(tick_seconds=3600)
+    outcomes = _stub_tick_environment(monkeypatch, sched, [_scalability_task(params)])
+    monkeypatch.setattr(scheduler_mod, "service_tx", lambda: _FakeTx(cursor))
+    sched._tick()
+    return outcomes
+
+
+def test_tick_dispatches_scalability_report(monkeypatch):
+    cursor = _ScalabilityCursor()
+    outcomes = _run_scalability_dispatch(monkeypatch, cursor)
+
+    # The dispatch enqueues an analyze job instead of running anything itself.
+    inserts = [c for c in cursor.calls if c[0].startswith("INSERT INTO aion.scalability_jobs")]
+    assert len(inserts) == 1
+    sql, params = inserts[0]
+    assert "'analyze'" in sql and "'queued'" in sql
+    assert params[0] == "user1"
+    assert params[1] == "org1"
+    assert json.loads(params[2]) == {"upload_id": "u-1"}
+    assert params[3] == "u-1"
+
+    assert outcomes == [(
+        "t-scal", "ok", None, "rep-1", "scalability_report",
+        {
+            "kind": "scalability_report",
+            "current_venue": "IBKR",
+            "current_ceiling": 12_000_000,
+            "best_alternative": "UBS",
+            "best_alternative_ceiling": 40_000_000,
+        },
+    )]
+
+
+def test_scalability_report_passes_candidate_venues(monkeypatch):
+    cursor = _ScalabilityCursor()
+    _run_scalability_dispatch(monkeypatch, cursor, params={"upload_id": "u-9", "candidate_venues": ["UBS"]})
+
+    inserts = [c for c in cursor.calls if c[0].startswith("INSERT INTO aion.scalability_jobs")]
+    assert json.loads(inserts[0][1][2]) == {"upload_id": "u-1", "candidate_venues": ["UBS"]}
+    # An explicit upload_id is resolved (and ownership-scoped) rather than
+    # falling back to the latest parsed upload.
+    lookups = [c for c in cursor.calls if c[0].startswith("SELECT id, status FROM aion.scalability_uploads")]
+    assert lookups and lookups[0][1] == ("u-9", "user1")
+
+
+def test_scalability_report_records_error_when_job_fails(monkeypatch):
+    cursor = _ScalabilityCursor(job_statuses=["failed"])
+    outcomes = _run_scalability_dispatch(monkeypatch, cursor)
+
+    assert len(outcomes) == 1
+    assert outcomes[0][0] == "t-scal"
+    assert outcomes[0][1] == "error"
+    assert "engine blew up" in outcomes[0][2]
+    assert outcomes[0][3] is None  # no output id
+
+
+def test_scalability_report_records_error_without_parsed_upload(monkeypatch):
+    cursor = _ScalabilityCursor(upload_row=None)
+    outcomes = _run_scalability_dispatch(monkeypatch, cursor)
+
+    assert outcomes[0][1] == "error"
+    assert "no parsed scalability upload" in outcomes[0][2]
+    assert not any(c[0].startswith("INSERT") for c in cursor.calls)
+
+
+def test_scalability_report_rejects_unparsed_upload(monkeypatch):
+    cursor = _ScalabilityCursor(upload_row={"id": "u-1", "status": "pending"})
+    outcomes = _run_scalability_dispatch(monkeypatch, cursor, params={"upload_id": "u-1"})
+
+    assert outcomes[0][1] == "error"
+    assert "not parsed" in outcomes[0][2]
+    assert not any(c[0].startswith("INSERT") for c in cursor.calls)
+
+
+def test_scalability_summary_shapes_report_row():
+    from webapp.api.scheduler import _scalability_summary
+
+    summary = _scalability_summary({
+        "id": "rep-1",
+        "current_venue": "IBKR",
+        "result": {
+            "comparison": {
+                "current": {"venue": "IBKR", "ceiling_usd": 12_000_000},
+                "alternatives": [
+                    {"venue": "UBS", "ceiling_usd": 40_000_000},
+                    {"venue": "Other", "ceiling_usd": 20_000_000},
+                ],
+                "best_alternative": {"venue": "UBS", "ceiling_usd": 40_000_000},
+            },
+        },
+    })
+
+    assert summary == {
+        "kind": "scalability_report",
+        "current_venue": "IBKR",
+        "current_ceiling": 12_000_000,
+        "best_alternative": "UBS",
+        "best_alternative_ceiling": 40_000_000,
+    }
+
+
+def test_scalability_summary_tolerates_missing_pieces():
+    from webapp.api.scheduler import _scalability_summary
+
+    summary = _scalability_summary({"id": "rep-1", "current_venue": "IBKR", "result": {}})
+
+    assert summary["kind"] == "scalability_report"
+    assert summary["current_venue"] == "IBKR"
+    assert summary["current_ceiling"] is None
+    assert summary["best_alternative"] is None
+    assert summary["best_alternative_ceiling"] is None
+
+
+def test_wait_for_scalability_job_polling(monkeypatch):
+    """The dispatch thread polls the job row until the agent finishes it."""
+    cursor = _ScalabilityCursor(job_statuses=["queued", "running", "succeeded"])
+    monkeypatch.setattr(scheduler_mod, "service_tx", lambda: _FakeTx(cursor))
+    monkeypatch.setattr(scheduler_mod, "time", SimpleNamespace(monotonic=lambda: 0, sleep=lambda _s: None))
+
+    row = TaskScheduler._wait_for_scalability_job("job-1")
+
+    assert row["status"] == "succeeded"
+    assert row["report_id"] == "rep-1"
+    polls = [c for c in cursor.calls if c[0].startswith("SELECT status, error, report_id")]
+    assert len(polls) == 3

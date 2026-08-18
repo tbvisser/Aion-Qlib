@@ -1,9 +1,10 @@
-"""This API's own agents: 2 chat profiles and the 9 tools behind them.
+"""This API's own agents: 2 chat profiles and the tools behind them.
 
 A profile is a system prompt plus a tool tuple, and the tuple is the whole
 safety model -- `build_registry` returns only the named tools, so absence is
 structural rather than an instruction the model might ignore. `general` gets
-seven tools including `run_backtest`; `builder` gets four and cannot act.
+ten tools including `run_backtest` and the scalability trio; `builder` gets
+four and cannot act.
 
 That distinction is the one thing a roster of agents must show, so the tool list
 rides in the payload and the summary says how many.
@@ -24,8 +25,9 @@ from ..aggregate import Provider
 _ABOUT = {
     "general": (
         "The assistant behind the dashboard chat. Reads data status, searches "
-        "instruments, summarises prices, measures factors and can start and "
-        "follow a backtest."
+        "instruments, summarises prices, measures factors, can start and "
+        "follow a backtest, and can kick off the scalability agent on an "
+        "uploaded trade file and book the venue consultation it leads to."
     ),
     "builder": (
         "The Strategy Builder's assistant. Proposes a strategy spec and reads "

@@ -3,17 +3,18 @@
   Start, stop and inspect the Aion platform.
 
 .DESCRIPTION
-  Everything -- Supabase, the qlib API, the UI, RAG and the Vibe sidecar -- is a
-  single compose project, so plain `docker compose` works from the repo root and
-  this script is a convenience rather than a requirement.
+  Supabase + the AION API + UI are one compose project. Optional dev/utility
+  services (qlib shell, agent, Jupyter, MLflow, RAG, Vibe) live in
+  docker-compose.dev.yml and are only started when -Dev is used.
 
-  What it adds over `docker compose up -d` is the wait: the API resolves every
+  What this adds over plain `docker compose` is the wait: the API resolves every
   caller's organisation out of Supabase's Postgres, and starting it before
   Postgres accepts connections leaves it serving errors until someone restarts
   it -- which reads as a bug in the app rather than a race at boot.
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up
+  powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up -Dev
   powershell -ExecutionPolicy Bypass -File infra\stack.ps1 status
   powershell -ExecutionPolicy Bypass -File infra\stack.ps1 down
   powershell -ExecutionPolicy Bypass -File infra\stack.ps1 logs api
@@ -25,19 +26,33 @@ param(
 
     # Passed through to `docker compose logs` (for example: api, rag-api, db).
     [Parameter(Position = 1)]
-    [string]$Service
+    [string]$Service,
+
+    # Start the optional dev/utility services from docker-compose.dev.yml too.
+    [switch]$Dev
 )
 
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $supabaseDir = Join-Path $PSScriptRoot 'supabase'
+$devFile = Join-Path $repoRoot 'docker-compose.dev.yml'
 
 if (-not (Test-Path (Join-Path $supabaseDir 'docker-compose.yml'))) {
     Write-Host "Supabase is missing from $supabaseDir." -ForegroundColor Red
     Write-Host "The root docker-compose.yml includes it, so nothing will start." -ForegroundColor Yellow
     Write-Host "See infra/README.md." -ForegroundColor Yellow
     exit 1
+}
+
+# Compose file arguments. Base file is always used; dev file is appended when -Dev is set.
+$composeFiles = @('-f', (Join-Path $repoRoot 'docker-compose.yml'))
+if ($Dev) {
+    if (-not (Test-Path $devFile)) {
+        Write-Host "Dev compose file not found: $devFile" -ForegroundColor Red
+        exit 1
+    }
+    $composeFiles += @('-f', $devFile)
 }
 
 function Invoke-Compose {
@@ -48,7 +63,7 @@ function Invoke-Compose {
         # Not `2>&1`: docker writes progress to stderr, and in Windows PowerShell
         # redirecting a native command's stderr wraps every line in an
         # ErrorRecord and sets $? to false even on success.
-        & docker compose @ComposeArgs
+        & docker compose @composeFiles @ComposeArgs
         if ($LASTEXITCODE -ne 0) { throw "$Label failed (exit $LASTEXITCODE)" }
     }
     finally { Pop-Location }
@@ -57,7 +72,7 @@ function Invoke-Compose {
 switch ($Action) {
     'up' {
         # Supabase first and explicitly, so the wait below has something to wait
-        # for. `up -d` afterwards starts everything else in the same project.
+        # for. `up -d` afterwards starts the platform services in the same project.
         Invoke-Compose @('up', '-d', 'db', 'kong', 'auth', 'rest', 'storage', 'meta') 'Supabase'
 
         Write-Host '==> Waiting for Postgres to accept connections' -ForegroundColor Cyan
@@ -74,12 +89,23 @@ switch ($Action) {
         }
         Write-Host '    ready' -ForegroundColor Green
 
-        Invoke-Compose @('up', '-d') 'Everything else'
+        if ($Dev) {
+            Invoke-Compose @('up', '-d') 'Platform + dev services'
+        }
+        else {
+            Invoke-Compose @('up', '-d', 'api', 'ui') 'Platform (api + ui)'
+        }
 
         Write-Host ''
         Write-Host 'UI       http://127.0.0.1:5274' -ForegroundColor Green
         Write-Host 'API      http://127.0.0.1:8770/api/health' -ForegroundColor Green
         Write-Host 'Studio   http://127.0.0.1:8010' -ForegroundColor Green
+        if ($Dev) {
+            Write-Host 'RAG API  http://127.0.0.1:8001' -ForegroundColor Green
+            Write-Host 'Vibe API http://127.0.0.1:8899' -ForegroundColor Green
+            Write-Host 'Jupyter  http://127.0.0.1:8888/lab?token=qlib' -ForegroundColor Green
+            Write-Host 'MLflow   http://127.0.0.1:5500' -ForegroundColor Green
+        }
     }
 
     'down' {

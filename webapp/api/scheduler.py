@@ -212,6 +212,8 @@ class TaskScheduler:
             return self._run_strategy(task, params)
         if kind == "outlook_report":
             return self._run_outlook_report(task, params)
+        if kind == "scalability_report":
+            return self._run_scalability_report(task, params)
         raise ValueError(f"unknown scheduled task kind: {kind}")
 
     def _run_macro_refresh(
@@ -306,6 +308,118 @@ class TaskScheduler:
         )
         report_id, summary = outlook_report.generate_outlook_report(task, principal)
         return report_id, "outlook_report", summary
+
+    def _run_scalability_report(
+        self, task: dict[str, Any], params: dict[str, Any]
+    ) -> tuple[str, str, dict[str, Any] | None]:
+        """Enqueue an ``analyze`` job for the scalability agent and wait for its report.
+
+        Unlike the other kinds, nothing runs in-process here: the platform is
+        the control plane, the scalability agent (a separate service polling
+        ``aion.scalability_jobs``) is the data plane. The scheduler has no
+        user token, so upload resolution and the enqueue go through
+        ``service_tx`` under the task's stored user_id/org_id, mirroring how
+        ``_run_strategy`` uses service-level access.
+        """
+        with service_tx() as cur:
+            upload_id = self._resolve_scalability_upload(cur, task, params)
+            job_id = self._enqueue_scalability_job(cur, task, upload_id, params)
+        job = self._wait_for_scalability_job(job_id)
+        if job is None:
+            # Timed out waiting: the agent may still finish, so record the job
+            # id without a summary, as the other kinds do for slow work.
+            return job_id, "scalability_report", None
+        with service_tx() as cur:
+            cur.execute(
+                "SELECT id, current_venue, result FROM aion.scalability_reports "
+                "WHERE id = %s",
+                (str(job["report_id"]),),
+            )
+            report = cur.fetchone()
+        if report is None:
+            raise RuntimeError(
+                f"scalability job {job_id} succeeded but report {job['report_id']} is missing"
+            )
+        return str(report["id"]), "scalability_report", _scalability_summary(report)
+
+    @staticmethod
+    def _resolve_scalability_upload(
+        cur: Any, task: dict[str, Any], params: dict[str, Any]
+    ) -> str:
+        """Pick the upload to analyze: ``params.upload_id``, else the task
+        owner's latest parsed upload. Service-role access, so ownership is
+        scoped explicitly in the queries."""
+        upload_id = params.get("upload_id")
+        if upload_id:
+            cur.execute(
+                "SELECT id, status FROM aion.scalability_uploads "
+                "WHERE id = %s AND user_id = %s",
+                (upload_id, str(task["user_id"])),
+            )
+            row = cur.fetchone()
+            if row is None:
+                raise ValueError(f"scalability upload '{upload_id}' not found")
+            if row["status"] != "parsed":
+                raise ValueError(
+                    f"scalability upload '{upload_id}' is not parsed "
+                    f"(status={row['status']})"
+                )
+            return str(row["id"])
+        cur.execute(
+            "SELECT id FROM aion.scalability_uploads "
+            "WHERE user_id = %s AND status = 'parsed' "
+            "ORDER BY created_at DESC LIMIT 1",
+            (str(task["user_id"]),),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise ValueError("no parsed scalability upload for this user")
+        return str(row["id"])
+
+    @staticmethod
+    def _enqueue_scalability_job(
+        cur: Any, task: dict[str, Any], upload_id: str, params: dict[str, Any]
+    ) -> str:
+        """Insert the queued ``analyze`` job the agent will claim; returns the job id."""
+        job_params: dict[str, Any] = {"upload_id": upload_id}
+        candidate_venues = params.get("candidate_venues")
+        if candidate_venues:
+            job_params["candidate_venues"] = candidate_venues
+        cur.execute(
+            "INSERT INTO aion.scalability_jobs (user_id, org_id, kind, status, params, upload_id) "
+            "VALUES (%s, %s, 'analyze', 'queued', %s, %s) RETURNING id",
+            (str(task["user_id"]), str(task["org_id"]), json.dumps(job_params), upload_id),
+        )
+        return str(cur.fetchone()["id"])
+
+    @staticmethod
+    def _wait_for_scalability_job(job_id: str) -> dict[str, Any] | None:
+        """Poll the job row until the agent finishes it; return the terminal row.
+
+        A failed job raises so ``_dispatch`` records the error; a timeout
+        returns None like the other summary waiters.
+        """
+        deadline = time.monotonic() + _SUMMARY_WAIT_SECONDS
+        poll = 2.0
+        while time.monotonic() < deadline:
+            with service_tx() as cur:
+                cur.execute(
+                    "SELECT status, error, report_id FROM aion.scalability_jobs "
+                    "WHERE id = %s",
+                    (job_id,),
+                )
+                row = cur.fetchone()
+            if row is None:
+                raise ValueError(f"scalability job {job_id} disappeared")
+            if row["status"] == "succeeded":
+                return row
+            if row["status"] == "failed":
+                raise RuntimeError(f"scalability job {job_id} failed: {row['error']}")
+            time.sleep(poll)
+            poll = min(poll * 1.5, 10.0)
+        logger.warning("timed out waiting for scalability job %s", job_id)
+        return None
+
 
     # ------------------------------------------------------------------
     # Summary capture
@@ -420,6 +534,29 @@ def _run_summary(meta: dict[str, Any]) -> dict[str, Any] | None:
         "volatility": excess.get("volatility"),
         "period_start": period.get("start"),
         "period_end": period.get("end"),
+    }
+
+
+def _scalability_summary(report: dict[str, Any]) -> dict[str, Any] | None:
+    """Distill a scalability_reports row into the scheduled-task output summary.
+
+    Reads the ceilings out of the engine's ``result`` jsonb: the current
+    venue's ceiling under ``result.comparison.current.ceiling_usd`` and the
+    best-ranked eligible alternative under ``result.comparison.best_alternative``
+    (falling back to the first alternative, which compare orders best-first).
+    Keys must stay in sync with scalability_agent's engine.
+    """
+    result = report.get("result") or {}
+    comparison = result.get("comparison") or {}
+    current = comparison.get("current") or {}
+    alternatives = comparison.get("alternatives") or []
+    best = comparison.get("best_alternative") or (alternatives[0] if alternatives else {})
+    return {
+        "kind": "scalability_report",
+        "current_venue": report.get("current_venue"),
+        "current_ceiling": current.get("ceiling_usd"),
+        "best_alternative": best.get("venue"),
+        "best_alternative_ceiling": best.get("ceiling_usd"),
     }
 
 

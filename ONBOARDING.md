@@ -114,8 +114,8 @@ docker compose pull        # ~2 min, published by CI
 Or build it yourself, which is the source of truth and works offline:
 
 ```bash
-AION_IMAGE=qlib-dev:local docker compose build qlib   # ~5-8 min
-echo 'AION_IMAGE=qlib-dev:local' >> .env              # make it stick
+AION_IMAGE=qlib-dev:local docker compose build api   # ~5-8 min
+echo 'AION_IMAGE=qlib-dev:local' >> .env             # make it stick
 ```
 
 If the GHCR package is private, authenticate first with a PAT carrying
@@ -184,6 +184,9 @@ change without spending quota.
 
 ## 8. Start it
 
+The platform itself is just the backend API and the Vite UI. Supabase is still
+part of the same compose project, but it stays as it is in `infra/supabase/`.
+
 ```bash
 docker compose up -d api ui
 ```
@@ -192,35 +195,53 @@ docker compose up -d api ui
 |---|---|---|
 | UI | <http://localhost:5274> | 5173/5273 were taken on the original machine; the port is `strictPort` |
 | API | <http://localhost:8770> | `/api/health`, OpenAPI at `/docs` |
-| RAG API | <http://localhost:8001> | `docker compose up -d rag-api`; needs the Supabase stack below |
-| Supabase (Kong) | <http://localhost:8010> | `infra\stack.ps1 up`, see "The Supabase stack" |
-| JupyterLab | <http://localhost:8888/lab?token=qlib> | `docker compose up -d jupyter` |
-| MLflow | <http://localhost:5500> | `docker compose up -d mlflow-ui` |
+| Supabase (Kong) | <http://localhost:8010> | included from `infra/supabase/` |
 
-Everything except MLflow binds `127.0.0.1` only. The UI sits behind a Supabase
-login (see below); the EODHD/OpenRouter API keys stay server-side either way and
-never reach the browser.
+Everything binds `127.0.0.1` only. The UI sits behind a Supabase login (see
+below); the EODHD/OpenRouter API keys stay server-side either way and never
+reach the browser.
+
+### Optional dev/utility services
+
+RAG, Vibe, the scalability agent, JupyterLab and MLflow are kept in a separate
+compose file so they do not clutter the default platform startup and do not
+force their separate images onto the core services.
+
+```bash
+# Start the platform plus all optional services
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+| Service | URL | Command |
+|---|---|---|
+| Scalability agent | <http://localhost:8771> | health endpoint only — work arrives via the jobs table |
+| RAG API | <http://localhost:8001> | needs `rag/backend/.env`; proxies through the UI at `/rag-api` |
+| Vibe API | <http://localhost:8899> | needs `vibe/.env`; proxied at `/api/vibe/*` |
+| JupyterLab | <http://localhost:8888/lab?token=qlib> | interactive notebooks |
+| MLflow | <http://localhost:5500> | experiment tracking UI |
+
+Or use the convenience wrapper, which also waits for Postgres before starting
+the API:
+
+```powershell
+# Platform only
+powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up
+
+# Platform + optional services
+powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up -Dev
+```
+
+`down`, `restart`, `status` and `logs <service>` work the same way. Add `-Dev`
+to any of them when the dev file is in use.
 
 ### The Supabase stack
 
 Supabase is the platform's identity and user-data layer: it authenticates
 everyone, and both halves of the app store per-user records in its Postgres.
 
-**Start everything with one command:**
-
-```powershell
-powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up
-```
-
-That starts Supabase, waits for Postgres to accept connections, then starts
-everything else -- in that order, because the API resolves every caller's
-organisation out of that database and would otherwise serve errors until it was
-restarted. `down`, `restart`, `status` and `logs <service>` work the same way.
-
-Plain `docker compose` from the repo root also works and drives the whole thing:
-Supabase is part of **the same compose project**, pulled in by the `include:` at
-the top of `docker-compose.yml`. One `docker compose up -d`, one stack in Docker
-Desktop, nineteen containers.
+Plain `docker compose` from the repo root drives the platform and Supabase as
+one project: Supabase is pulled in by the `include:` at the top of
+`docker-compose.yml`.
 
 - Supabase lives in-repo at `infra/supabase/` and is gitignored. Kong publishes
   it on host `:8010` (REST, auth, storage) with the pooler on `:5442`.
@@ -247,6 +268,9 @@ end-to-end check:
 upload a small markdown file on `/documents`, watch it reach `completed`,
 inspect its chunks on `/corpus`, then ask a question about it on `/chats` — the
 answer should carry a citation back to the uploaded file.
+
+MLflow is published on 5500 because macOS ControlCenter owns 5000. On Linux 5000
+is usually free, but the mapping is kept so both machines match.
 
 MLflow is published on 5500 because macOS ControlCenter owns 5000. On Linux 5000
 is usually free, but the mapping is kept so both machines match.

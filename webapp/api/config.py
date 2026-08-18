@@ -55,6 +55,12 @@ class Settings(BaseSettings):
     # serves is per-user behind a Supabase JWT and stays a browser concern --
     # see webapp/api/registry/providers/rag_registry.py.
     rag_api_url: str = "http://rag-api:8001"
+    # The scalability agent (compose service `agent`, top-level
+    # scalability_agent/ package). It has exactly one inbound endpoint --
+    # /health -- which is all this API needs: the Agents & Skills roster
+    # probes it to show whether the background worker is alive. Work reaches
+    # the agent through the aion.scalability_jobs table, never over HTTP.
+    scalability_agent_url: str = "http://agent:8771"
 
     # --- identity and per-user storage --------------------------------------
     # The same Supabase the RAG half already uses (compose project supabase-aq,
