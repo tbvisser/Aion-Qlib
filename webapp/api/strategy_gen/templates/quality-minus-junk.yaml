@@ -1,0 +1,27 @@
+id: quality-minus-junk
+title: Quality Minus Junk
+family: factors
+tags: [quality, low-volatility, alpha158]
+
+rationale: >
+  Quality proxy using low return volatility as a stand-in for stable
+  fundamentals. The model is given the negative of 60-day return volatility so it
+  can learn to prefer smoother, higher-quality names.
+
+good_for:
+  - A quality tilt when fundamental data is not available
+  - Avoiding the most volatile names in the cross-section
+
+bad_for:
+  - A pure quality story; volatility is only a proxy for quality
+  - Regimes where volatility itself is the source of premium
+
+draft:
+  name: Quality Minus Junk
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  feature_mode: extend
+  features:
+    - name: QUALITY_VOL_60
+      expression: "-1 * Std($change,60)"

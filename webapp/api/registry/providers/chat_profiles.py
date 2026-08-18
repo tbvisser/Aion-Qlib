@@ -1,9 +1,9 @@
-"""This API's own agents: 2 chat profiles and the 9 tools behind them.
+"""This API's own agents: 3 chat profiles and the tools behind them.
 
 A profile is a system prompt plus a tool tuple, and the tuple is the whole
 safety model -- `build_registry` returns only the named tools, so absence is
 structural rather than an instruction the model might ignore. `general` gets
-seven tools including `run_backtest`; `builder` gets four and cannot act.
+seven tools including `run_backtest`; the builders get four and cannot act.
 
 That distinction is the one thing a roster of agents must show, so the tool list
 rides in the payload and the summary says how many.
@@ -31,6 +31,11 @@ _ABOUT = {
         "The Strategy Builder's assistant. Proposes a strategy spec and reads "
         "templates; deliberately has no tool that acts, so it can draft a "
         "backtest but never launch one."
+    ),
+    "keycard-builder": (
+        "The Keycard Builder's assistant. Proposes an Aion-style keycard "
+        "workflow; deliberately has no tool that acts, so it can draft blocks "
+        "but never save or run them."
     ),
 }
 

@@ -11,12 +11,12 @@
 import { useCallback, useRef, useState } from 'react'
 
 import { authHeaders } from '@/lib/authFetch'
-import { toWire, type BuilderContext, type ChatMessage, type ChatProfile } from '@/lib/chat'
+import { toWire, type BuilderContext, type ChatMessage, type ChatProfile, type KeycardContext } from '@/lib/chat'
 
 interface Options {
   profile?: ChatProfile
   /** Rebuilt on every send, so the model never sees a stale spec. */
-  context?: () => BuilderContext | undefined
+  context?: () => BuilderContext | KeycardContext | undefined
   onToolResult?: (name: string, result: unknown) => void
 }
 

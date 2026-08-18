@@ -8,13 +8,13 @@ Nothing here can delete data or spend money beyond an EODHD/OpenRouter call the
 user already initiated -- the destructive operations (deleting a strategy,
 refreshing the whole store) are deliberately not exposed.
 
-**Profiles.** Two surfaces share this machinery: the general Chat page, and the
-assistant docked in the Strategy Builder. They get different prompts and
-different tool sets, and the difference is load-bearing rather than cosmetic --
-the builder assistant proposes strategies and *cannot run one*, because
-`run_backtest` is simply absent from its registry. `chat.py` can only dispatch
-what `build_registry` returned, so that guarantee is structural and does not
-depend on the prompt being obeyed.
+**Profiles.** Three surfaces share this machinery: the general Chat page, the
+assistant docked in the Strategy Builder, and the Keycard Builder dock. They
+get different prompts and different tool sets, and the difference is
+load-bearing rather than cosmetic -- the builder assistants propose and
+*cannot run*, because `run_backtest` is simply absent from their registries.
+`chat.py` can only dispatch what `build_registry` returned, so that guarantee
+is structural and does not depend on the prompt being obeyed.
 """
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ from pydantic import BaseModel, ConfigDict
 
 from .config import get_settings
 from .factorlab.operators import expression_language_block
+from .keycards.models import KeycardSpec
 from .strategies import MODEL_SPECS, StrategySpec, build_workflow_config
 from .strategy_gen import templates as strategy_templates
 from .strategy_gen.draft import (
@@ -180,9 +181,23 @@ class BuilderContext(BaseModel):
     assumed: list[AssumedParam] | None = None
 
 
-def render_context(context: BuilderContext | None) -> str | None:
-    """The context as a system message, or None when there is nothing to say."""
-    if context is None or (context.spec is None and not context.expression):
+class KeycardContext(BaseModel):
+    """What the Keycard Builder currently has on screen.
+
+    Carries the current KeycardSpec and whether it has been saved, so the
+    assistant can change "this" keycard or start from defaults.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    spec: KeycardSpec | None = None
+    keycard_id: str | None = None
+    saved: bool = False
+
+
+def _render_builder_context(context: BuilderContext) -> str | None:
+    """Render the Strategy Builder context."""
+    if context.spec is None and not context.expression:
         return None
 
     lines = ["The user currently has this in the Strategy Builder."]
@@ -208,6 +223,37 @@ def render_context(context: BuilderContext | None) -> str | None:
         rows = "; ".join(f"{a.path}={a.value!r} ({a.why})" for a in context.assumed)
         lines.append(f"Filled in by an earlier proposal rather than chosen: {rows}")
     return "\n".join(lines)
+
+
+def _render_keycard_context(context: KeycardContext) -> str | None:
+    """Render the Keycard Builder context."""
+    if context.spec is None:
+        return None
+
+    spec = context.spec
+    lines = ["The user currently has this in the Keycard Builder."]
+    lines.append(f"Keycard name: {spec.name!r}")
+    lines.append(f"Blocks: {len(spec.nodes)} nodes, {len(spec.edges)} edges")
+    if spec.description:
+        lines.append(f"Description: {spec.description}")
+    if spec.tags:
+        lines.append(f"Tags: {', '.join(spec.tags)}")
+    node_summary = "; ".join(
+        f"{n.type}({n.id})" for n in spec.nodes[:10])
+    if len(spec.nodes) > 10:
+        node_summary += f"; and {len(spec.nodes) - 10} more"
+    lines.append(f"Node types: {node_summary}")
+    lines.append("Saved." if context.saved else "Not saved yet.")
+    return "\n".join(lines)
+
+
+def render_context(context: BuilderContext | KeycardContext | None) -> str | None:
+    """The context as a system message, or None when there is nothing to say."""
+    if context is None:
+        return None
+    if isinstance(context, KeycardContext):
+        return _render_keycard_context(context)
+    return _render_builder_context(context)
 
 
 def _propose_strategy_schema() -> dict:
@@ -237,9 +283,31 @@ def _propose_strategy_schema() -> dict:
     return {**base, "properties": properties, "required": list(properties)}
 
 
+def _propose_keycard_schema() -> dict:
+    """The KeycardSpec schema, plus where to start from."""
+    base = KeycardSpec.model_json_schema()
+    properties = dict(base.get("properties", {}))
+    properties["start_from"] = {
+        "type": ["string", "null"],
+        "enum": ["current", "defaults", "template", None],
+        "description": (
+            "What to build on. 'current' keeps every field of the keycard the "
+            "user has on screen and applies only what you state — use this for "
+            "any change to an existing keycard. 'defaults' starts fresh. "
+            "'template' starts from template_id. Null means 'current' when there "
+            "is a keycard on screen, otherwise 'defaults'."),
+    }
+    properties["template_id"] = {
+        "type": ["string", "null"],
+        "description": "The template to start from. Only with start_from='template'.",
+    }
+    return {**base, "properties": properties, "required": list(properties)}
+
+
 #: Tools whose parameters must be generated rather than written down.
 _SCHEMA_BUILDERS: dict[str, Callable[[], dict]] = {
     "propose_strategy": _propose_strategy_schema,
+    "propose_keycard": _propose_keycard_schema,
 }
 
 _GENERATED_SCHEMAS: dict[str, dict] = {
@@ -252,6 +320,18 @@ _GENERATED_SCHEMAS: dict[str, dict] = {
                 "or save anything — the user applies it from the panel. Leave any "
                 "field null when the user did not state it; the server fills it "
                 "from the default and records that it did."),
+            "parameters": {},  # replaced by the builder at request time
+        },
+    },
+    "propose_keycard": {
+        "type": "function",
+        "function": {
+            "name": "propose_keycard",
+            "description": (
+                "Propose a complete keycard workflow for the user to review. Does NOT "
+                "run or save anything — the user applies it from the panel. Leave any "
+                "field null when the user did not state it; the server fills it from "
+                "the default and records that it did."),
             "parameters": {},  # replaced by the builder at request time
         },
     },
@@ -293,9 +373,82 @@ def system_prompt(profile: str = "general") -> str:
     return PROFILES[profile].system_prompt
 
 
+def _default_keycard_spec() -> dict:
+    """A runnable Aion-style opening-range breakout keycard.
+
+    Mirrors the default shipped in webapp/ui/src/lib/keycardGraph/keycardTemplates.ts
+    so the assistant and the palette start from the same shape.
+    """
+    left = 200
+    top = 100
+    spacing = 180
+
+    nodes = [
+        {"id": "store-1", "type": "data_store",
+         "position": {"x": left, "y": top}, "config": {"store": "us"}, "notes": ""},
+        {"id": "universe-1", "type": "universe",
+         "position": {"x": left, "y": top + spacing},
+         "config": {"universe": "top500", "benchmark": "SPY"}, "notes": ""},
+        {"id": "schedule-1", "type": "run_per_candle",
+         "position": {"x": left + spacing * 2, "y": top},
+         "config": {"timeframe": "1d"}, "notes": ""},
+        {"id": "rule-1", "type": "previous_day_bullish",
+         "position": {"x": left + spacing * 2, "y": top + spacing},
+         "config": {"lookback": 1}, "notes": ""},
+        {"id": "rule-2", "type": "candle_close_above_opening_range",
+         "position": {"x": left + spacing * 2, "y": top + spacing * 2},
+         "config": {"minutes": 30}, "notes": ""},
+        {"id": "exec-1", "type": "buy_now",
+         "position": {"x": left + spacing * 2, "y": top + spacing * 3},
+         "config": {"side": "long", "size": "100%"}, "notes": ""},
+        {"id": "portfolio-1", "type": "portfolio",
+         "position": {"x": left + spacing * 3, "y": top + spacing * 2},
+         "config": {"strategy": "TopkDropoutStrategy", "topk": 50, "n_drop": 5},
+         "notes": ""},
+        {"id": "costs-1", "type": "costs",
+         "position": {"x": left + spacing * 3, "y": top + spacing * 3},
+         "config": {"open_cost": 0.0005, "close_cost": 0.0015, "min_cost": 5,
+                    "account": 100_000_000}, "notes": ""},
+        {"id": "records-1", "type": "records",
+         "position": {"x": left + spacing * 3, "y": top + spacing * 4},
+         "config": {}, "notes": ""},
+    ]
+
+    edges = [
+        {"id": "e1", "source": "store-1", "source_port": "data",
+         "target": "universe-1", "target_port": "data"},
+        {"id": "e2", "source": "schedule-1", "source_port": "trigger",
+         "target": "rule-1", "target_port": "trigger"},
+        {"id": "e3", "source": "rule-1", "source_port": "trigger",
+         "target": "rule-2", "target_port": "trigger"},
+        {"id": "e4", "source": "rule-2", "source_port": "trigger",
+         "target": "exec-1", "target_port": "trigger"},
+        {"id": "e5", "source": "exec-1", "source_port": "signal",
+         "target": "portfolio-1", "target_port": "signal"},
+        {"id": "e6", "source": "portfolio-1", "source_port": "trades",
+         "target": "costs-1", "target_port": "trades"},
+        {"id": "e7", "source": "costs-1", "source_port": "trades",
+         "target": "records-1", "target_port": "trades"},
+    ]
+
+    from .keycards.models import Windows
+
+    windows = Windows()
+    return {
+        "name": "Opening range breakout",
+        "description": "Aion-style opening-range breakout keycard.",
+        "tags": ["aion", "breakout"],
+        "is_template": False,
+        "template_family": "aion",
+        "nodes": nodes,
+        "edges": edges,
+        "windows": windows.model_dump(),
+    }
+
+
 def build_registry(
     run_manager, principal, profile: str = "general",
-    context: BuilderContext | None = None,
+    context: BuilderContext | KeycardContext | None = None,
 ) -> dict[str, Callable[..., dict]]:
     """Bind the tools to the live RunManager so chat-started runs are real runs.
 
@@ -524,6 +677,57 @@ def build_registry(
             # regenerates it from the spec anyway.
         }
 
+    def _keycard_merge_base(start_from: str | None, template_id: str | None) -> tuple[dict, str]:
+        """The fields a keycard proposal inherits, and where they came from."""
+        if start_from is None:
+            has_current = (isinstance(context, KeycardContext) and
+                           context is not None and context.spec is not None)
+            start_from = "current" if has_current else "defaults"
+
+        if start_from == "current":
+            if context is None or not isinstance(context, KeycardContext) or context.spec is None:
+                return _default_keycard_spec(), "defaults"
+            return context.spec.model_dump(), "current"
+
+        if start_from == "template":
+            # For now keycards do not ship backend templates; fall back to defaults
+            # with a warning source so the model knows nothing was inherited.
+            if template_id:
+                return {**_default_keycard_spec(), "template_family": template_id}, "template"
+            return _default_keycard_spec(), "defaults"
+
+        return _default_keycard_spec(), "defaults"
+
+    def propose_keycard(**kwargs) -> dict:
+        """Plain language -> a complete keycard workflow, for the user to apply."""
+        start_from = kwargs.pop("start_from", None)
+        template_id = kwargs.pop("template_id", None)
+        stated = {k: v for k, v in kwargs.items() if v is not None}
+
+        base, source = _keycard_merge_base(start_from, template_id)
+        merged = {**base, **stated}
+
+        try:
+            spec = KeycardSpec(**merged)
+        except Exception as exc:
+            return {"errors": [{"code": "invalid_keycard", "message": str(exc)}]}
+
+        if source == "defaults":
+            assumed = [{"path": k, "value": v, "why": "default"}
+                       for k, v in base.items() if k not in stated]
+            inherited = []
+        else:
+            assumed = []
+            inherited = [{"path": k, "value": v, "source": source}
+                         for k, v in base.items() if k not in stated]
+        return {
+            "spec": spec.model_dump(),
+            "assumed": assumed,
+            "inherited": inherited,
+            "warnings": [],
+            "source": source,
+        }
+
     handlers: dict[str, Callable[..., dict]] = {
         "get_data_status": get_data_status,
         "search_instruments": search_instruments,
@@ -533,6 +737,7 @@ def build_registry(
         "get_run_status": get_run_status,
         "list_runs": list_runs,
         "propose_strategy": propose_strategy,
+        "propose_keycard": propose_keycard,
         "list_templates": list_templates,
     }
     return {name: handlers[name] for name in PROFILES[profile].tools}
@@ -628,6 +833,51 @@ Keep replies short. A paragraph on the shape of what you propose, then the assum
 matter. The panel lists the parameters — do not repeat them back."""
 
 
+KEYCARD_PROMPT = f"""You are the keycard assistant inside AION's Keycard Builder. You turn a \
+plain-language description into a complete, runnable keycard workflow — and you propose it. \
+You do not apply it.
+
+A keycard is a directed graph of blocks. The Aion-style blocks are:
+- Schedule: run_per_candle, run_at_time, run_in_session (these emit triggers)
+- Rules: trade_rule, check_spread, previous_day_bullish, candle_close_above_opening_range, \
+price_above_previous_day_close, no_trade_for_day, news_filter (these filter triggers)
+- Execution: buy_now (turns a true rule chain into a signal for the portfolio)
+- Management: trade_counter, reset_trade_counter
+- Variables: variable
+- Chart Drawings: chart_drawing
+
+A rule workflow ends at buy_now, and buy_now's signal output feeds the existing portfolio node \
+(TopkDropoutStrategy). The portfolio node then connects to costs and records so the backtest \
+can run. Quant pipeline nodes (data_store, universe, handler, model, portfolio, costs, records) \
+remain available and fully runnable.
+
+You have no tool that saves a keycard or starts a backtest, and this is deliberate: the user \
+applies your proposal from the panel, or does not. Never say you have started, saved or run \
+anything.
+
+To propose, call propose_keycard. Every field may be left null. Null means "the description \
+did not state this", and the server fills it from the default and records a row saying so. \
+Leaving a field null is better than guessing it — state a field only when the user's words \
+imply it.
+
+The user usually has a keycard on screen. When they ask to change it — "add a rule", "trade \
+only in the regular session", "make it long only" — call propose_keycard with \
+start_from="current" and state only the fields that change; everything else is carried over \
+for you. Use start_from="defaults" only when they are starting something genuinely new.
+
+If propose_keycard comes back with errors, read them and call it again rather than explaining \
+the error.
+
+Report what was assumed. The proposal returns an "assumed" list — one row per decision nobody \
+made. Name the two or three that actually matter in one line each. Do not read the list out; \
+the panel shows it.
+
+{EXPRESSION_LANGUAGE}
+
+Keep replies short. A paragraph on the shape of what you propose, then the assumptions that \
+matter. The panel lists the blocks — do not repeat them back."""
+
+
 #: The general assistant gets everything; the builder gets what it needs to
 #: propose and nothing that acts. `run_backtest` is absent by design.
 PROFILES: dict[str, Profile] = {
@@ -639,5 +889,9 @@ PROFILES: dict[str, Profile] = {
     "builder": Profile(
         system_prompt=BUILDER_PROMPT,
         tools=("propose_strategy", "list_templates", "evaluate_factor", "get_data_status"),
+    ),
+    "keycard-builder": Profile(
+        system_prompt=KEYCARD_PROMPT,
+        tools=("propose_keycard", "list_templates", "evaluate_factor", "get_data_status"),
     ),
 }

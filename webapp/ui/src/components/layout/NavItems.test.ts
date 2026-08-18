@@ -82,20 +82,27 @@ describe('nav shape', () => {
   })
 
   /**
-   * The Strategy Lab is where the fold is visible: eight rows became five. This
+   * The Strategy Lab is where the fold is visible: eight rows became four. This
    * is pinned as an exact list rather than a membership check because a
    * regression here looks like a restoration -- someone "putting Indicators
    * back" would pass every other assertion in this file.
    */
-  it('shapes the Strategy Lab as five rows around the Database', () => {
+  it('shapes the Strategy Lab as four rows around the Database', () => {
     const section = (heading: string) =>
       allNavSections.find((s) => s.heading === heading)!.items.map((i) => i.key)
 
     expect(section('Strategy Lab')).toEqual([
-      'tl-builder', 'tl-mlstudio', 'tl-database', 'tl-shadow', 'tl-roster',
+      'tl-builder', 'tl-mlstudio', 'tl-database', 'tl-roster',
+    ])
+    expect(navItemFor('tl-database')?.route).toBe('/lab/database')
+  })
+
+  it('sits Shadow Accounts in the Book, under Broker Accounts', () => {
+    const book = allNavSections.find((s) => s.heading === 'Book')!
+    expect(book.items.map((i) => i.key)).toEqual([
+      'book', 'accounts', 'tl-shadow', 'investors',
     ])
     expect(navItemFor('tl-shadow')?.built).toBe(true)
-    expect(navItemFor('tl-database')?.route).toBe('/lab/database')
   })
 })
 

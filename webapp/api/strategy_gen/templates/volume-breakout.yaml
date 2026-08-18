@@ -1,0 +1,31 @@
+id: volume-breakout
+title: Volume Breakout
+family: factors
+tags: [volume, breakout, alpha158]
+
+rationale: >
+  Volume-confirmed breakout. Adds a volume z-score to the price breakout so the
+  model can distinguish real breaks from quiet ones. Both signals are added to
+  Alpha158 rather than replacing it.
+
+good_for:
+  - A breakout signal with a volume confirmation filter
+  - Regimes where volume leads price
+
+bad_for:
+  - Low-volume names where the volume signal is noisy
+  - Attribution among the handler's existing 158 columns
+
+draft:
+  name: Volume Breakout
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  topk: 30
+  n_drop: 5
+  feature_mode: extend
+  features:
+    - name: BREAKOUT_20
+      expression: "$close/(Max($high,20)+1e-12) - 1"
+    - name: VOL_Z_20
+      expression: "($volume - Mean($volume,20))/(Std($volume,20)+1e-12)"

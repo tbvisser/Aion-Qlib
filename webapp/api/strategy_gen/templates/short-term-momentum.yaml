@@ -1,0 +1,31 @@
+id: short-term-momentum
+title: Short Term Momentum
+family: factors
+tags: [short-term, momentum, 5-day]
+
+rationale: >
+  Very short-horizon momentum using 5-day and 10-day returns. Higher turnover by
+  design; pair it with cost-conscious settings if you run it live. The model is
+  asked to forecast next-day rank from recent returns.
+
+good_for:
+  - A fast signal for short-horizon regimes
+  - Testing whether recent returns predict near-term rank
+
+bad_for:
+  - Cost-sensitive accounts; turnover is higher than the baseline
+  - Noisy regimes where short-term returns are mostly random
+
+draft:
+  name: Short Term Momentum
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  topk: 30
+  n_drop: 10
+  feature_mode: extend
+  features:
+    - name: MOM_5D
+      expression: "$close/(Ref($close,5)+1e-12) - 1"
+    - name: MOM_10D
+      expression: "$close/(Ref($close,10)+1e-12) - 1"

@@ -1,0 +1,29 @@
+id: risk-parity-light
+title: Risk Parity Light
+family: shape
+tags: [risk-parity, volatility, weighting]
+
+rationale: >
+  A volatility-aware portfolio shape. The signal is an estimate of realised
+  volatility; the model learns to avoid the riskiest names. This is a light
+  version of risk parity, using the existing TopkDropout execution.
+
+good_for:
+  - A portfolio that explicitly accounts for risk
+  - Avoiding concentration in the most volatile names
+
+bad_for:
+  - A true risk-parity implementation; this is only a ranking tilt
+  - Regimes where volatility is rewarded
+
+draft:
+  name: Risk Parity Light
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  topk: 30
+  n_drop: 5
+  feature_mode: extend
+  features:
+    - name: REALISED_VOL_20
+      expression: "Std($change,20)"

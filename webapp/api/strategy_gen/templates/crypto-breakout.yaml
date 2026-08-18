@@ -1,0 +1,31 @@
+id: crypto-breakout
+title: Crypto Breakout
+family: universe
+tags: [crypto, breakout, momentum]
+
+rationale: >
+  A tight momentum book on the top 100 crypto names. Runs on the 365-day calendar
+  and benchmarks against BTC-USD. Crypto trades every calendar day and volatility
+  is much higher than in the equity templates.
+
+good_for:
+  - Testing whether a momentum signal survives outside equity market structure
+  - A universe that actually trades on the calendar it is stored under
+
+bad_for:
+  - Cost realism; spreads and slippage in crypto are far worse than a flat fee
+  - Comparison with the equity templates; different calendar, different benchmark
+
+draft:
+  name: Crypto Breakout
+  model: lightgbm
+  handler: Alpha158
+  data_store: crypto_365
+  universe: crypto_top100
+  benchmark: BTC-USD
+  topk: 10
+  n_drop: 2
+  feature_mode: extend
+  features:
+    - name: CRYPTO_BREAKOUT_20
+      expression: "$close/(Max($high,20)+1e-12) - 1"

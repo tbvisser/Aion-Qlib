@@ -31,6 +31,7 @@ from pydantic import BaseModel
 
 from .auth import Principal
 from .db import user_tx
+from .keycards.models import Keycard, KeycardSpec
 from .portfolios import PortfolioSpec, StoredPortfolio
 from .projects import ProjectSpec, StoredProject
 from .strategies import StoredStrategy, StrategySpec

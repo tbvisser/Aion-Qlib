@@ -24,8 +24,8 @@ from . import db, qlib_session
 from .auth import get_principal
 from .config import get_settings
 from .routers import (activity, agenda, catalog, chat, data, factors, health, ingest,
-                      macro, outlook_reports, registry, scheduled, vibe, portfolios,
-                      projects, runs, workspace)
+                      keycards, macro, outlook_reports, registry, scheduled,
+                      vibe, portfolios, projects, runs, workspace)
 from .scheduler import get_scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -61,6 +61,7 @@ _authenticated = [Depends(get_principal)]
 
 app.include_router(data.router, prefix="/api", tags=["data"], dependencies=_authenticated)
 app.include_router(factors.router, prefix="/api", tags=["factors"], dependencies=_authenticated)
+app.include_router(keycards.router, prefix="/api", tags=["keycards"], dependencies=_authenticated)
 app.include_router(runs.router, prefix="/api", tags=["runs"], dependencies=_authenticated)
 app.include_router(chat.router, prefix="/api", tags=["chat"], dependencies=_authenticated)
 app.include_router(ingest.router, prefix="/api", tags=["ingest"], dependencies=_authenticated)

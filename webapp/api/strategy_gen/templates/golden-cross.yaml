@@ -1,0 +1,27 @@
+id: golden-cross
+title: Golden Cross
+family: factors
+tags: [trend, moving-average, alpha158]
+
+rationale: >
+  Trend-following template built around the classic 50/200 EMA cross. The
+  normalized spread is added to Alpha158 so the model can combine the classic
+  trend signal with the rest of the factor set.
+
+good_for:
+  - Expressing a medium-to-long-term trend view
+  - A signal that is slow but widely understood
+
+bad_for:
+  - Fast reversals; the 200-day lookback reacts slowly
+  - Attribution among 159 other columns
+
+draft:
+  name: Golden Cross
+  model: lightgbm
+  handler: Alpha158
+  universe: top500
+  feature_mode: extend
+  features:
+    - name: GOLDEN_CROSS
+      expression: "(EMA($close,50) - EMA($close,200))/($close+1e-12)"

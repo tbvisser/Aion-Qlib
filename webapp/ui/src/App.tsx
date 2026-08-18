@@ -9,6 +9,7 @@ import { MarketsPage } from '@/pages/MarketsPage'
 import { DatabasePage } from '@/pages/DatabasePage'
 import { ShadowAccountsPage } from '@/pages/ShadowAccountsPage'
 import { StrategyBuilderPage } from '@/pages/StrategyBuilderPage'
+import { KeycardBuilderPage } from '@/pages/KeycardBuilderPage'
 import { RunsPage } from '@/pages/RunsPage'
 import { MLStudioPage } from '@/pages/MLStudioPage'
 import { ChatPage } from '@/pages/ChatPage'
@@ -81,6 +82,9 @@ export default function App() {
           <Route path="/chats/quick" element={<ChatPage />} />
           <Route path="/chats/:threadId" element={<ChatThreadRedirect />} />
           <Route path="/lab/builder" element={<StrategyBuilderPage />} />
+          <Route path="/lab/keycards" element={<Navigate to="/lab/keycards/new" replace />} />
+          <Route path="/lab/keycards/new" element={<KeycardBuilderPage />} />
+          <Route path="/lab/keycards/:id" element={<KeycardBuilderPage />} />
           <Route path="/lab/ml-studio" element={<MLStudioPage />} />
           {/* The Databank grew into the Database: one destination with a
               sub-tab per collection, over a searchable index of every source.

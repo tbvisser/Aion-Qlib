@@ -1,0 +1,30 @@
+id: index-breakout
+title: Index Breakout
+family: universe
+tags: [index, breakout, momentum]
+
+rationale: >
+  Momentum breakout on a curated set of index proxies. The cross-section is much
+  smaller than top500, so the model has fewer names to separate; read it as a
+  timing signal on broad exposures rather than stock selection.
+
+good_for:
+  - A broad-market timing view using index proxies
+  - Avoiding single-name idiosyncratic risk
+
+bad_for:
+  - Cross-sectional breadth; a small universe gives the model little to rank
+  - Comparing IC against a top500 run
+
+draft:
+  name: Index Breakout
+  model: lightgbm
+  handler: Alpha158
+  universe: index_top50
+  benchmark: SPY
+  topk: 10
+  n_drop: 2
+  feature_mode: extend
+  features:
+    - name: BREAKOUT_20
+      expression: "$close/(Max($high,20)+1e-12) - 1"

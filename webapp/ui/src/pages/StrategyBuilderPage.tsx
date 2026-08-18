@@ -13,7 +13,7 @@
  * see the comment on the pane container.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Bot, FileCode2, Play } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { AssistantDock } from '@/components/builder/AssistantDock'
@@ -66,6 +66,7 @@ import { cn } from '@/lib/utils'
 type Pane = 'pipeline' | 'features'
 
 export function StrategyBuilderPage() {
+  const navigate = useNavigate()
   const [params] = useSearchParams()
   // The Indicators page links in with ?mode=canvas&expression=..., so arriving
   // from a library row lands on the factor canvas with that expression already
@@ -589,6 +590,20 @@ export function StrategyBuilderPage() {
           </>
         }
       />
+
+      <div className="border-b border-border/50 bg-amber-50/50 px-4 py-2 dark:bg-amber-950/20">
+        <Notice tone="clay" icon={false}>
+          This builder is being replaced by the new{' '}
+          <button
+            type="button"
+            className="font-medium underline"
+            onClick={() => navigate('/lab/keycards/new')}
+          >
+            Keycard Builder
+          </button>
+          . Save your strategies there to keep the new workflow features.
+        </Notice>
+      </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* The pane content and the run dock share a column, so the dock spans
