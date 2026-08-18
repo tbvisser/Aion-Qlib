@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { allNavSections, sectionForPath } from '@/components/layout/NavItems'
 import { useAuth } from '@/hooks/useAuth'
@@ -15,6 +15,8 @@ import { MLStudioPage } from '@/pages/MLStudioPage'
 import { ChatPage } from '@/pages/ChatPage'
 import { MacroDeskPage } from '@/pages/MacroDeskPage'
 import { PortfoliosPage } from '@/pages/PortfoliosPage'
+import { PortfolioDetailPage } from '@/pages/PortfolioDetailPage'
+import { StrategyDetailPage } from '@/pages/StrategyDetailPage'
 import { AccountsPage } from '@/pages/AccountsPage'
 import { AgendaPage } from '@/pages/AgendaPage'
 import { CodePage } from '@/pages/CodePage'
@@ -106,7 +108,9 @@ export default function App() {
           <Route path="/markets" element={<MarketsPage />} />
           <Route path="/macro" element={<MacroDeskPage />} />
           <Route path="/book" element={<PortfoliosPage />} />
-          <Route path="/book/:portfolioId" element={<PortfoliosPage />} />
+          <Route path="/book/portfolios/:portfolioId" element={<PortfolioDetailPage />} />
+          <Route path="/book/strategies/:strategyId" element={<StrategyDetailPage />} />
+          <Route path="/book/:portfolioId" element={<LegacyPortfolioRedirect />} />
           <Route path="/accounts" element={<AccountsPage />} />
           {/* Pages that moved into a platform destination. Old links, bookmarks
               and anything already sent out keep working. Data Explorer became
@@ -129,4 +133,10 @@ export default function App() {
     </div>
     </InboxProvider>
   )
+}
+
+/** Old `/book/:id` deep links now live under `/book/portfolios/:id`. */
+function LegacyPortfolioRedirect() {
+  const { portfolioId } = useParams()
+  return <Navigate to={`/book/portfolios/${portfolioId}`} replace />
 }

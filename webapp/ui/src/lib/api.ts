@@ -340,6 +340,8 @@ export const api = {
 
   listStrategies: () => request<{ strategies: StoredStrategy[] }>('/strategies'),
 
+  getStrategy: (id: string) => request<StoredStrategy>(`/strategies/${id}`),
+
   saveStrategy: (spec: StrategySpec, id?: string) =>
     request<StoredStrategy>(id ? `/strategies/${id}` : '/strategies', {
       method: id ? 'PUT' : 'POST',

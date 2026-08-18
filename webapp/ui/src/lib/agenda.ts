@@ -210,7 +210,7 @@ export function buildAgendaEntries(
         detail: event.turnover != null
           ? `${book.rebalance} rule · turnover ${(event.turnover * 100).toFixed(1)}%`
           : `${book.rebalance} rule`,
-        href: `/book/${book.portfolio_id}`,
+        href: `/book/portfolios/${book.portfolio_id}`,
         payload: { kind: 'rebalance', portfolioId: book.portfolio_id, turnover: event.turnover },
       })
     }

@@ -1,7 +1,11 @@
 import { useRef } from 'react'
-import { Sparkles, PenLine, Upload, Globe, Zap, MessageSquare, Pencil } from 'lucide-react'
+import {
+  Sparkles, PenLine, Globe, Zap, MessageSquare, Pencil, Wand2, FileUp, Link2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Panel } from '@/components/ui/panel'
+import { RosterStatTile } from '@/components/roster/RosterStatTile'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import type { Skill } from '@/features/rag/types'
@@ -26,6 +30,8 @@ export function SkillsHome({
   onViewSkill,
 }: SkillsHomeProps) {
   const importInputRef = useRef<HTMLInputElement>(null)
+  const enabledCount = skills.filter((s) => s.enabled).length
+  const globalCount = skills.filter((s) => s.user_id === null).length
 
   const handleImportChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -42,7 +48,7 @@ export function SkillsHome({
         className="hidden"
         onChange={handleImportChange}
       />
-      <div className="p-4 sm:p-6 lg:p-8 space-y-8">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Heading */}
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Agent Skills</h1>
@@ -51,39 +57,64 @@ export function SkillsHome({
           </p>
         </div>
 
-        {/* Add-skill options — mirrors the "New Skill" dropdown */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <AddSkillCard
-            icon={Sparkles}
-            title="Create with AI"
-            description="Describe what you want and let the assistant build it."
-            onClick={onCreateWithAI}
+        {/* KPI tiles */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <RosterStatTile
+            icon={<Zap className="h-4 w-4" />}
+            label="Total skills"
+            value={skills.length.toLocaleString()}
           />
-          <AddSkillCard
-            icon={PenLine}
-            title="Create manually"
-            description="Write the name, description, and instructions yourself."
-            onClick={onCreateManually}
+          <RosterStatTile
+            icon={<Sparkles className="h-4 w-4" />}
+            label="Enabled"
+            value={enabledCount.toLocaleString()}
+            statusDot={enabledCount > 0 ? 'ok' : undefined}
           />
-          <AddSkillCard
-            icon={Upload}
-            title="Import from file"
-            description="Upload a skill packaged as a .zip archive."
-            onClick={() => importInputRef.current?.click()}
+          <RosterStatTile
+            icon={<Globe className="h-4 w-4" />}
+            label="Global"
+            value={globalCount.toLocaleString()}
           />
-          <AddSkillCard
-            icon={Globe}
-            title="Import from URL"
-            description="Pull a skill from a GitHub repo or registry link."
-            onClick={onImportUrl}
+          <RosterStatTile
+            icon={<Wand2 className="h-4 w-4" />}
+            label="Create"
+            value="New"
+            hint="with AI or by hand"
           />
         </div>
 
+        {/* Add-skill options */}
+        <Panel title="Add a skill" hint="choose how to add reusable instructions">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <AddSkillTile
+              icon={Sparkles}
+              title="Create with AI"
+              description="Describe what you want and let the assistant build it."
+              onClick={onCreateWithAI}
+            />
+            <AddSkillTile
+              icon={PenLine}
+              title="Create manually"
+              description="Write the name, description, and instructions yourself."
+              onClick={onCreateManually}
+            />
+            <AddSkillTile
+              icon={FileUp}
+              title="Import from file"
+              description="Upload a skill packaged as a .zip archive."
+              onClick={() => importInputRef.current?.click()}
+            />
+            <AddSkillTile
+              icon={Link2}
+              title="Import from URL"
+              description="Pull a skill from a GitHub repo or registry link."
+              onClick={onImportUrl}
+            />
+          </div>
+        </Panel>
+
         {/* Existing skills */}
-        <div className="space-y-3">
-          <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Your skills
-          </h2>
+        <Panel title="Your skills" hint={`${skills.length} skill${skills.length === 1 ? '' : 's'}`}>
           {skills.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 py-12 text-center">
               <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/50">
@@ -106,25 +137,25 @@ export function SkillsHome({
               ))}
             </div>
           )}
-        </div>
+        </Panel>
       </div>
     </div>
   )
 }
 
-interface AddSkillCardProps {
+interface AddSkillTileProps {
   icon: React.ComponentType<{ className?: string }>
   title: string
   description: string
   onClick: () => void
 }
 
-function AddSkillCard({ icon: Icon, title, description, onClick }: AddSkillCardProps) {
+function AddSkillTile({ icon: Icon, title, description, onClick }: AddSkillTileProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-col items-start gap-3 rounded-xl border border-border/50 bg-card p-4 text-left shadow-card transition-all duration-200 btn-press hover:border-border hover:bg-accent/40 hover:shadow-md"
+      className="group flex flex-col items-start gap-3 rounded-xl border border-border/50 bg-foreground/[0.02] p-4 text-left transition-all duration-200 hover:border-border hover:bg-accent/40 hover:shadow-md"
     >
       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
         <Icon className="h-5 w-5" />
@@ -191,7 +222,6 @@ function SkillCard({ skill, onUse, onView }: SkillCardProps) {
         </Button>
       </div>
 
-      {/* Owner-attribution for shared/global skills the current user doesn't own */}
       {isGlobal && skill.shared_by && skill.shared_by !== user?.id && (
         <p className="text-[11px] text-muted-foreground">Shared globally</p>
       )}

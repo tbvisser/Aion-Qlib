@@ -24,6 +24,8 @@ export interface UseStrategies {
   setVisibility: (id: string, visibility: 'private' | 'org') => Promise<void>
   /** The last write failure, cleared by the next successful write. */
   error: string | null
+  /** Find a loaded strategy by id without another fetch. */
+  getById: (id: string) => StoredStrategy | undefined
 }
 
 export function useStrategies(): UseStrategies {
@@ -75,5 +77,10 @@ export function useStrategies(): UseStrategies {
       }
     }, [reload])
 
-  return { saved, reload, save, remove, setVisibility, error }
+  const getById = useCallback(
+    (id: string) => saved.find((s) => s.id === id),
+    [saved],
+  )
+
+  return { saved, reload, save, remove, setVisibility, error, getById }
 }
