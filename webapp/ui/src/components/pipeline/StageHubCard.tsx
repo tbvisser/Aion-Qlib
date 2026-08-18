@@ -1,15 +1,10 @@
 /**
- * What the seven cards add up to, in the middle of the ring.
- *
- * A row had nowhere to put this -- a row's centre is just the fourth card -- and
- * that absence is why the readiness of a strategy lived in a strip above the
- * canvas. Here it is in the picture.
+ * What the seven cards add up to, at the top of the vertical stack.
  *
  * A dumb printer, like `StageNodeCard`: every number comes from `toHubNode`,
  * derived from the same badges the cards wear, so the hub cannot disagree with
- * the ring around it. Deliberately *not* a stage card -- `bg-surface-2` and
- * `rounded-2xl`, so it reads as the ground the cards sit on rather than an
- * eighth stage.
+ * the stack below it. Deliberately *not* a stage card -- `bg-surface-2` and
+ * `rounded-2xl`, so it reads as a summary rather than an eighth stage.
  */
 import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
@@ -41,29 +36,29 @@ export const StageHubCard = memo(function StageHubCard({
       style={{ width: data.width, height: data.height }}
       data-testid="pipeline-hub"
       className={cn(
-        'aion-hub-card relative flex flex-col items-center justify-center gap-2',
-        'rounded-2xl border bg-surface-2 px-4 py-3 text-center',
+        'aion-hub-card relative flex flex-col items-center justify-center gap-1',
+        'rounded-2xl border bg-surface-2 px-3 py-1.5 text-center',
         // The glow is the one place on this canvas that says "ready". It is the
         // `--ring` hue via `shadow-glow`, not a hand-tuned colour.
         blocking === 0 ? 'border-border shadow-glow' : 'border-clay/40',
       )}
     >
-      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/60">
+      <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground/60">
         Strategy
       </span>
 
       <div
         title={name}
-        className="line-clamp-2 text-[17px] font-semibold leading-tight tracking-tight"
+        className="line-clamp-1 text-sm font-semibold leading-tight tracking-tight"
       >
         {name}
       </div>
 
-      <div className="tnum font-mono text-[11px] text-muted-foreground">
+      <div className="tnum font-mono text-[10px] text-muted-foreground">
         {ready} of {total} ready
       </div>
 
-      {/* The ring in miniature, in the same order. Not decoration: it is the
+      {/* The stack in miniature, in the same order. Not decoration: it is the
           thing that stays legible when the canvas is panned or zoomed out. */}
       <div className="flex items-center gap-1.5">
         {dots.map((dot) => (
@@ -76,7 +71,7 @@ export const StageHubCard = memo(function StageHubCard({
       </div>
 
       {(blocking > 0 || advisory > 0) && (
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center justify-center gap-1">
           {blocking > 0 && <Badge variant="clay">{blocking} blocking</Badge>}
           {advisory > 0 && <Badge variant="muted">{advisory} advisory</Badge>}
         </div>

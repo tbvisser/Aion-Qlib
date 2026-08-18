@@ -24,7 +24,7 @@ from . import db, qlib_session
 from .auth import get_principal
 from .config import get_settings
 from .routers import (activity, agenda, catalog, chat, data, factors, health, ingest,
-                      keycards, macro, outlook_reports, registry, scheduled,
+                      keycards, macro, outlook_reports, registry, scalability, scheduled,
                       vibe, portfolios, projects, runs, workspace)
 from .scheduler import get_scheduler
 
@@ -76,6 +76,7 @@ app.include_router(registry.router, prefix="/api", tags=["registry"], dependenci
 app.include_router(workspace.router, prefix="/api", tags=["workspace"], dependencies=_authenticated)
 app.include_router(scheduled.router, prefix="/api", tags=["scheduled"], dependencies=_authenticated)
 app.include_router(outlook_reports.router, prefix="/api", tags=["outlook"], dependencies=_authenticated)
+app.include_router(scalability.router, prefix="/api", tags=["scalability"], dependencies=_authenticated)
 
 
 @app.on_event("startup")

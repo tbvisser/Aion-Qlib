@@ -82,7 +82,23 @@ def test_the_general_profile_keeps_everything_it_had():
     """The builder is an addition, not a downgrade of the existing Chat page."""
     names = {t["function"]["name"] for t in tool_schemas("general")}
     assert names == {"get_data_status", "search_instruments", "get_price_summary",
-                     "evaluate_factor", "run_backtest", "get_run_status", "list_runs"}
+                     "evaluate_factor", "run_backtest", "get_run_status", "list_runs",
+                     "start_scalability_analysis", "get_scalability_report",
+                     "book_venue_consultation"}
+
+
+def test_the_scalability_tools_are_general_only():
+    """Booking shares user data with a venue; the builder assistants, which
+    only propose, have no business holding that handler."""
+    scalability = {"start_scalability_analysis", "get_scalability_report",
+                   "book_venue_consultation"}
+    general = build_registry(ExplodingRunManager(), FAKE_PRINCIPAL, profile="general")
+    assert scalability <= set(general)
+    for profile in ("builder", "keycard-builder"):
+        registry = build_registry(ExplodingRunManager(), FAKE_PRINCIPAL, profile=profile)
+        schemas = {t["function"]["name"] for t in tool_schemas(profile)}
+        assert not (scalability & set(registry))
+        assert not (scalability & schemas)
 
 
 @pytest.mark.parametrize("profile", PROFILE_NAMES)

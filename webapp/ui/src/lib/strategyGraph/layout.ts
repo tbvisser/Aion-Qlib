@@ -1,5 +1,6 @@
 /**
- * Where the seven stage cards sit: a ring around a hub. Computed, never stored.
+ * Where the seven stage cards sit: a narrow vertical stack with the hub above it.
+ * Computed, never stored.
  *
  * `factorExpr/layout.ts` stores hand-placed positions because there the shape
  * is user-generated and unbounded, so "hand-placed wins" preserves a real
@@ -15,25 +16,13 @@
  *
  * So: same spec, same picture, in a screenshot, a template, a reload and a test.
  *
- * ## Why a ring
+ * ## Why a vertical stack
  *
- * Seven cards on a row was 1,988px wide. Nothing on any screen this app targets
- * shows that at zoom 1, so the canvas panned and the overview had to be a
- * separate strip of text above it. The same seven cards ringed around a hub is
- * 813x740 -- an aspect ratio of 1.10 against the row's 17.8 -- which does fit
- * the pane at zoom 1, so the picture is its own overview. And the middle of a
- * ring is somewhere a row never had: a place to say what the seven cards add
- * up to.
- *
- * ## Why not a circle
- *
- * The first ring spaced the seven cards evenly on one radius, and the picture
- * read as a geometric figure first and a pipeline second. So the ring is now
- * hand-tuned (`STAGE_POLAR`): every card still circles the hub and the order
- * still runs clockwise from the top, but each card sits at its own bearing and
- * distance. The invariants that made the circle work -- no overlaps, hub
- * clearance, centred on the hub, fits the pane -- survive in layout.test.ts;
- * the even spacing and mirror symmetry were the circle's and went with it.
+ * Seven cards on a row was 1,988px wide. The ring that followed was compact but
+ * read as a geometric figure first and a pipeline second. A vertical stack keeps
+ * the reading order explicit (top to bottom), makes each card narrower so the
+ * whole column fits in a slim pane, and still leaves room for the hub above the
+ * pipeline and for feature chips to branch off to the right.
  */
 import { STAGE_ORDER, type StageId } from './stages'
 
@@ -52,60 +41,42 @@ export type Side = 'top' | 'right' | 'bottom' | 'left'
 export interface StageSides { in: Side; out: Side }
 
 /**
- * 200x148 rather than the row's 236x112.
- *
- * On a ring the binding constraint is the pair either side of the seam, whose
- * centres are 0.7818R apart in x -- so every pixel of card *width* costs 1.28
- * pixels of radius and 2.5 of bounding box, while height is nearly free. Squarer
- * buys the ring for less. 148 is what the card needs: header, headline, up to
- * two detail rows (one of which wraps) and a badge.
- *
- * Uniform rather than per-stage, still: seven cards of different heights on one
- * ring reads as a mistake exactly as it did on a row, and the whole picture has
- * to stay deterministic.
+ * 72px tall rather than the ring's 148px. Width varies by stage so the stack is
+ * not a perfectly straight column, while staying narrow enough to fit in the
+ * pipeline pane without panning.
  */
-export const STAGE_W = 200
-export const STAGE_H = 148
+export const STAGE_H = 72
 
-/** Bigger than a card, because it is not one. */
-export const HUB_W = 216
-export const HUB_H = 156
-
-/**
- * Hand-tuned polar coordinates: a ring, not a circle.
- *
- * -97 (not -90) still lands `01 Store` at the top -- the eye goes to the top of
- * a ring and should land on a card marked `01` -- and the run goes clockwise
- * (y grows down, so a rising angle is clockwise on screen). Radii stay near
- * 300, the smallest that clears every pair with room for an arrowhead, and
- * wander 285..335 so no three cards suggest an arc of one circle.
- *
- * The numbers are hand-placed against the invariants layout.test.ts pins: no
- * two cards overlap on either axis, every card clears the hub, the centroid
- * stays within a whisker of the origin so the hub still reads as the centre,
- * one full clockwise turn with no doubling back, and the whole picture fits an
- * 890x807 pane at zoom 1. Nudge for looks, but keep those green.
- */
-export const STAGE_POLAR: Readonly<Record<StageId, { angle: number; radius: number }>> = {
-  store:     { angle: -97,  radius: 290 },
-  universe:  { angle: -38,  radius: 335 },
-  features:  { angle: 14,   radius: 300 },
-  periods:   { angle: 67,   radius: 330 },
-  learner:   { angle: 121,  radius: 285 },
-  portfolio: { angle: 172,  radius: 325 },
-  costs:     { angle: -146, radius: 305 },
+/** Per-stage widths: wider when the typical headline is longer. */
+export const STAGE_WIDTHS: Readonly<Record<StageId, number>> = {
+  store: 160,
+  universe: 180,
+  features: 168,
+  periods: 180,
+  learner: 160,
+  portfolio: 168,
+  costs: 180,
 }
 
-const rad = (deg: number) => (deg * Math.PI) / 180
+/** The largest stage width, used for clearance checks and the hub. */
+export const STAGE_W = 180
 
-/** Each card's bearing, in pipeline order. Exported so a test can pin the clockwise run. */
-export function stageAngles(
-  order: readonly StageId[] = STAGE_ORDER,
-): Record<StageId, number> {
-  const out = {} as Record<StageId, number>
-  for (const id of order) out[id] = STAGE_POLAR[id].angle
-  return out
+/** Vertical gap between consecutive stage cards. */
+export const STAGE_GAP = 16
+
+/** The hub sits above the stack and is sized to match the widest card. */
+export const HUB_W = STAGE_W
+export const HUB_H = 80
+
+/** Space between the bottom of the hub and the top of the stage stack. */
+export const HUB_GAP = 24
+
+/** Top of the stage stack, centred vertically around the origin. */
+function stackTop(order: readonly StageId[] = STAGE_ORDER): number {
+  return -(order.length * STAGE_H + (order.length - 1) * STAGE_GAP) / 2
 }
+
+const stagePitch = STAGE_H + STAGE_GAP
 
 /**
  * Card centres. Rounded to whole pixels: React Flow positions nodes with a CSS
@@ -114,12 +85,13 @@ export function stageAngles(
 export function stageCentres(
   order: readonly StageId[] = STAGE_ORDER,
 ): Record<StageId, XY> {
-  const angles = stageAngles(order)
+  const top = stackTop(order)
   const out = {} as Record<StageId, XY>
-  for (const id of order) {
+  for (let i = 0; i < order.length; i += 1) {
+    const id = order[i]
     out[id] = {
-      x: Math.round(STAGE_POLAR[id].radius * Math.cos(rad(angles[id]))),
-      y: Math.round(STAGE_POLAR[id].radius * Math.sin(rad(angles[id]))),
+      x: 0,
+      y: Math.round(top + i * stagePitch + STAGE_H / 2),
     }
   }
   return out
@@ -129,25 +101,26 @@ export function stageCentres(
 export function stagePositions(
   order: readonly StageId[] = STAGE_ORDER,
 ): Record<StageId, XY> {
-  const centres = stageCentres(order)
+  const top = stackTop(order)
   const out = {} as Record<StageId, XY>
-  for (const id of order) {
-    out[id] = { x: centres[id].x - STAGE_W / 2, y: centres[id].y - STAGE_H / 2 }
+  for (let i = 0; i < order.length; i += 1) {
+    const id = order[i]
+    out[id] = { x: -STAGE_WIDTHS[id] / 2, y: top + i * stagePitch }
   }
   return out
 }
 
-/** The hub is centred on the origin, which is also the centroid of the ring. */
+/** The hub is centred horizontally above the stage stack. */
 export function hubPosition(): XY {
-  return { x: -HUB_W / 2, y: -HUB_H / 2 }
+  return { x: -HUB_W / 2, y: stackTop() - HUB_H - HUB_GAP }
 }
 
-/* -- The features fan ------------------------------------------------------ */
+/* -- The features branch --------------------------------------------------- */
 
 /**
  * A feature chip: a name and an expression, not a stage.
  *
- * 156x40 against a card's 200x148. Smaller on both axes by enough that the two
+ * 156x40 against a card's 180x72. Smaller on both axes by enough that the two
  * families can never be confused at a glance, and wide enough for a 20-odd
  * character column name at 11px mono.
  */
@@ -161,45 +134,25 @@ export const FEATURE_FAN_MAX = 7
 export const FEATURE_GRID_MAX = 34
 
 /**
- * Chip centres sit on a circle of this radius around the features card's
- * centre, which is the same "hangs off its parent" relationship the ring has
- * with the hub, one level down.
+ * Horizontal offset from the features card's centre to the chip column.
+ *
+ * The chips sit to the right of the stage column. The right edge of the widest
+ * stage card is at STAGE_W/2 = 90; the left edge of a chip is at DX -
+ * FEATURE_CHIP_W/2 = 114, leaving a 24px gap so the branch never touches the
+ * stack.
  */
-const FEATURE_FAN_R = 200
+const FEATURE_FAN_DX = 192
 
 /**
  * Vertical pitch between neighbouring chips.
  *
- * The fan is spaced by equal *rise* rather than equal angle, which is the one
- * decision that makes overlap impossible by construction: at a constant 52 >
- * FEATURE_CHIP_H, neighbours are always 12px apart no matter how many there
- * are. An equal-angle fan fails exactly where it is most crowded -- at 16 deg
- * steps the outer pairs come within 31px vertically, and 40px-tall chips
- * collide.
+ * 52 > FEATURE_CHIP_H, so neighbours never touch.
  */
 const FEATURE_FAN_PITCH = 52
 
 /**
- * Where the feature chips sit: an arc bulging out to the right of the features
- * card, away from the hub.
- *
- * The features card is at bearing 14 degrees, which is as near to due east as
- * the ring gets, and everything outside it there is empty: the chain enters the
- * card's top from universe and leaves its bottom for periods, both staying left
- * of x = 300, while the chips start at x = 338. The arc is centred on the card's
- * own centreline so the fan stays balanced between universe above and periods
- * below however many chips there are.
- *
- * This is the *collapsed* shape, which is at most seven chips: the arc cannot
- * stretch past that. `dx` goes imaginary once |dy| reaches the radius, at nine,
- * and eight is already wrong on screen -- the outermost chip's left edge lands
- * inside the features card and only misses it on the other axis. Expanding is
- * `featureGridCentres`, a different shape for a different job.
- *
- * Worst case here the picture grows only rightwards, to 991x740, which still
- * fits the pane at the 0.85 zoom floor. `pipelineBoundsWith` is the
- * satellite-aware bounds; `pipelineBounds` deliberately still describes the ring
- * alone.
+ * Where the feature chips sit while collapsed: a single vertical column to the
+ * right of the features card, centred on it vertically.
  */
 export function featureFanCentres(count: number, order: readonly StageId[] = STAGE_ORDER): XY[] {
   const n = Math.min(Math.max(count, 0), FEATURE_FAN_MAX)
@@ -208,8 +161,7 @@ export function featureFanCentres(count: number, order: readonly StageId[] = STA
   const out: XY[] = []
   for (let i = 0; i < n; i += 1) {
     const dy = (i - (n - 1) / 2) * FEATURE_FAN_PITCH
-    const dx = Math.sqrt(FEATURE_FAN_R * FEATURE_FAN_R - dy * dy)
-    out.push({ x: Math.round(at.x + dx), y: Math.round(at.y + dy) })
+    out.push({ x: Math.round(at.x + FEATURE_FAN_DX), y: Math.round(at.y + dy) })
   }
   return out
 }
@@ -228,45 +180,27 @@ export function featureFanPositions(
 /**
  * The most chips a column holds before the grid wraps.
  *
- * Eleven is the largest count whose block still sits inside the ring's own
- * vertical band: at eleven the column spans -207..353 against the ring's
- * -362..378, and a twelfth would poke out of the bottom and cost the "grows
- * rightwards only" property that keeps an expanded strategy the same picture
- * with more to the right of it.
+ * Eleven is the largest count whose block still sits within a comfortable
+ * vertical band next to the stage stack.
  */
 export const FEATURE_GRID_ROWS = 11
 
 /**
- * Deliberately the fan's radius, which is what makes expanding read as the arc
- * *straightening* rather than as the chips jumping somewhere else: the first
- * column lands exactly where the arc's middle chip already was, and since the
- * row pitch and the centring rule are shared, every chip's y is unchanged for
- * any count the arc could have drawn. A test pins that.
+ * The expanded grid starts at the same horizontal offset as the collapsed
+ * column, so expanding a short list does not move chips -- it just adds more
+ * columns to the right.
  */
-const FEATURE_GRID_DX = FEATURE_FAN_R
+const FEATURE_GRID_DX = FEATURE_FAN_DX
 
-/** Chip width plus a 20px gutter. Wider than the 12px vertical one, which is
- *  what it takes for two gutters at right angles to look the same size. */
+/** Chip width plus a 20px gutter. */
 const FEATURE_GRID_COL_PITCH = 176
 
 /**
  * Where the feature chips sit once the fan is expanded: a column-wrapping grid
- * in the same empty space to the right of the ring.
+ * in the empty space to the right of the stack.
  *
  * Columns fill top to bottom and then left to right, and the rows are balanced
- * across the columns rather than packed -- twelve chips is two columns of six,
- * not eleven and a straggler.
- *
- * The clearance argument is stronger here than the arc's, and it holds at every
- * count rather than case by case: the leftmost chip edge is 413 and the
- * rightmost point of any stage card is the features card's own right edge at
- * 391, so the whole grid is right of the entire ring on one axis alone. Chips
- * clear each other by 12px down a column and 20px across.
- *
- * Full at 34 chips the picture is 1519x740 -- four columns -- which no longer
- * fits the pane whole. That is deliberate and handled at the viewport instead:
- * expanding frames the features card and its chips (`featureBlockBounds`), not
- * the ring, and that box fits at zoom 0.91 at every count.
+ * across the columns rather than packed.
  */
 export function featureGridCentres(
   count: number,
@@ -289,8 +223,7 @@ export function featureGridCentres(
   return out
 }
 
-/** The shape the chips take in each state. The only thing that knows they are
- *  alternatives; everything downstream just asks for positions. */
+/** The shape the chips take in each state. */
 export function featureChipCentres(
   count: number,
   expanded: boolean,
@@ -312,12 +245,6 @@ export function featureChipPositions(
 
 /**
  * The features card and its chips, which is what expanding asks you to look at.
- *
- * Framing this instead of the whole picture is what keeps an expanded fan
- * readable: the ring plus four columns of chips would have to be shown at zoom
- * 0.54, well under the 0.85 floor where the cards stop being legible, while
- * this box never needs less than 0.91 at any count. A test pins that, which is
- * the same reason `pipelineBoundsWith` exists.
  */
 export function featureBlockBounds(
   count: number,
@@ -325,9 +252,10 @@ export function featureBlockBounds(
   order: readonly StageId[] = STAGE_ORDER,
 ): Box {
   const at = stageCentres(order).features
-  let minX = at.x - STAGE_W / 2
+  const featuresW = STAGE_WIDTHS.features
+  let minX = at.x - featuresW / 2
   let minY = at.y - STAGE_H / 2
-  let maxX = at.x + STAGE_W / 2
+  let maxX = at.x + featuresW / 2
   let maxY = at.y + STAGE_H / 2
   for (const c of featureChipCentres(count, expanded, order)) {
     minX = Math.min(minX, c.x - FEATURE_CHIP_W / 2)
@@ -351,15 +279,10 @@ function sideTowards(dx: number, dy: number): Side {
 /**
  * Which side of a card the chain leaves and enters by.
  *
- * On a row this was always Left then Right. On a ring the predecessor and the
- * successor are at arbitrary bearings, so the side is whichever one the chord to
- * that neighbour actually crosses -- compared in *card widths* rather than
- * pixels, because a 200x148 card exits its short side sooner than a square one
- * would. That comparison is also what feeds the bezier its control direction,
- * which is why the chain curves along the ring with no custom edge component.
- *
- * The first stage has no predecessor and the last no successor; the unused
- * handle goes on the side opposite the used one, so the two can never stack.
+ * On a vertical stack the predecessor is above and the successor below, so the
+ * chain enters through the top and leaves through the bottom. The first stage
+ * has no predecessor and the last no successor; the unused handle goes on the
+ * side opposite the used one so the two can never stack.
  */
 export function stageSides(
   order: readonly StageId[] = STAGE_ORDER,
@@ -371,8 +294,6 @@ export function stageSides(
     const next = i < order.length - 1 ? at[order[i + 1]] : null
     const inSide = prev ? sideTowards(prev.x - at[id].x, prev.y - at[id].y) : null
     const outSide = next ? sideTowards(next.x - at[id].x, next.y - at[id].y) : null
-    // A one-stage pipeline has neither neighbour. Not reachable from
-    // STAGE_ORDER, but the function takes an order, so it has an answer.
     if (!inSide && !outSide) {
       out[id] = { in: 'left', out: 'right' }
       return
@@ -386,10 +307,7 @@ export function stageSides(
 }
 
 /**
- * Everything drawn, hub included. Replaces `pipelineWidth`: a ring has two
- * interesting dimensions, and its own origin is not its top-left.
- *
- * `{ x: -422, y: -362, width: 813, height: 740 }` for the seven stages.
+ * Everything drawn, hub included.
  */
 export function pipelineBounds(order: readonly StageId[] = STAGE_ORDER): Box {
   const hub = hubPosition()
@@ -397,40 +315,33 @@ export function pipelineBounds(order: readonly StageId[] = STAGE_ORDER): Box {
   let minY = hub.y
   let maxX = hub.x + HUB_W
   let maxY = hub.y + HUB_H
-  for (const p of Object.values(stagePositions(order)) as XY[]) {
+  const positions = stagePositions(order)
+  for (const id of order) {
+    const p = positions[id]
     minX = Math.min(minX, p.x)
     minY = Math.min(minY, p.y)
-    maxX = Math.max(maxX, p.x + STAGE_W)
+    maxX = Math.max(maxX, p.x + STAGE_WIDTHS[id])
     maxY = Math.max(maxY, p.y + STAGE_H)
   }
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 }
 
 /**
- * The same box with the features fan included. Equals `pipelineBounds()` when
- * there are no chips, which is every strategy that has not been given custom
- * columns.
- *
- * Separate from `pipelineBounds` rather than folded into it, because the ring's
- * near-square aspect is a property worth keeping assertable on its own: the
- * chips grow the picture rightwards only -- to 1.34 at a full fan and 2.05 at a
- * full grid -- and a single function could no longer say anything about either
- * shape. Nothing at runtime reads this to fit the view -- React Flow measures
- * the nodes it was given -- so it exists for the test that pins the worst case,
- * and for a caller that ever needs the number.
+ * The same box with the features branch included. Equals `pipelineBounds()` when
+ * there are no chips.
  */
 export function pipelineBoundsWith(
   satellites: number,
   expanded = false,
   order: readonly StageId[] = STAGE_ORDER,
 ): Box {
-  const ring = pipelineBounds(order)
+  const stack = pipelineBounds(order)
   const chips = featureChipPositions(satellites, expanded, order)
-  if (chips.length === 0) return ring
-  let minX = ring.x
-  let minY = ring.y
-  let maxX = ring.x + ring.width
-  let maxY = ring.y + ring.height
+  if (chips.length === 0) return stack
+  let minX = stack.x
+  let minY = stack.y
+  let maxX = stack.x + stack.width
+  let maxY = stack.y + stack.height
   for (const p of chips) {
     minX = Math.min(minX, p.x)
     minY = Math.min(minY, p.y)

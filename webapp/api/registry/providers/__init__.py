@@ -17,7 +17,7 @@ from __future__ import annotations
 from ..aggregate import Provider
 from . import (
     chat_profiles, chat_tools_provider, rag_registry, repo_skills,
-    vibe_playbooks, vibe_skills, vibe_swarms, vibe_tools,
+    scalability_agent, vibe_playbooks, vibe_skills, vibe_swarms, vibe_tools,
 )
 
 PROVIDERS: tuple[Provider, ...] = (
@@ -25,6 +25,8 @@ PROVIDERS: tuple[Provider, ...] = (
     chat_profiles.PROVIDER,
     chat_tools_provider.PROVIDER,
     repo_skills.PROVIDER,
+    # Background worker (one /health probe).
+    scalability_agent.PROVIDER,
     # Sidecar.
     vibe_swarms.PROVIDER,
     vibe_skills.PROVIDER,

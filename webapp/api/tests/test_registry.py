@@ -384,3 +384,46 @@ def test_a_non_json_body_from_the_sidecar_is_an_error_not_an_empty_collection(mo
 
     with pytest.raises(RuntimeError, match="rather than JSON"):
         _vibe.get_json(_Settings(), "swarm/presets/investment_committee")
+
+
+def test_scalability_agent_row_reports_health(monkeypatch):
+    """The agent's single roster row is its /health probe, degraded when down."""
+    import httpx
+
+    from webapp.api.registry.providers import scalability_agent
+
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"ok": True, "service": "scalability-agent", "db": {"ok": True}}
+
+    class _Client:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def get(self, url):
+            assert url.endswith("/health")
+            return _Response()
+
+    class _Settings:
+        scalability_agent_url = "http://agent:8771"
+
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: _Client())
+    rows = list(scalability_agent.fetch(_Settings()))
+    assert len(rows) == 1
+    row = rows[0]
+    row.validate_shape()
+    assert row.uid == "agent:aion:scalability-agent"
+    assert row.payload["health"]["ok"] is True
+
+    def _down(**kwargs):
+        raise httpx.ConnectError("connection refused")
+
+    monkeypatch.setattr(httpx, "Client", _down)
+    with pytest.raises(httpx.ConnectError):
+        list(scalability_agent.fetch(_Settings()))

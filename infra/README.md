@@ -2,26 +2,32 @@
 
 The Supabase stack the platform authenticates and stores user data against.
 
-It is **part of the same compose project** as everything else: the root
+It is **part of the same compose project** as the AION platform: the root
 `docker-compose.yml` pulls it in with `include:`, so `docker compose` from the
-repo root drives all 19 containers, and Docker Desktop shows one stack.
+repo root drives Supabase plus the `api` and `ui` services, and Docker Desktop
+shows one stack. Optional dev/utility services (RAG, Vibe, agent, Jupyter,
+MLflow, and the qlib dev shell) live in `docker-compose.dev.yml` and are only
+used when that file is passed explicitly.
 
 ```powershell
-docker compose up -d          # works, but see the note on start order
-docker compose ps
-docker compose logs -f api
+# Platform only
+docker compose up -d api ui
+
+# Platform + optional services
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 ```
 
 `stack.ps1` is a thin convenience over the same commands:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up      # start, in order
+powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up            # platform only
+powershell -ExecutionPolicy Bypass -File infra\stack.ps1 up -Dev      # + optional services
 powershell -ExecutionPolicy Bypass -File infra\stack.ps1 status
 powershell -ExecutionPolicy Bypass -File infra\stack.ps1 down
 powershell -ExecutionPolicy Bypass -File infra\stack.ps1 logs api
 ```
 
-The only thing it adds is a wait: the API resolves every caller's organisation
+The only thing it adds is the wait: the API resolves every caller's organisation
 out of Supabase's Postgres, so starting it first leaves it serving errors until
 someone restarts it — which looks like a bug in the app rather than a race.
 
@@ -32,6 +38,15 @@ someone restarts it — which looks like a bug in the app rather than a race.
 | Supabase Studio / Kong | http://127.0.0.1:8010 |
 | Postgres (host) | `127.0.0.1:5442` (supavisor pooler) |
 | Postgres (containers) | `supabase-db-aq:5432` |
+
+Optional services (when `docker-compose.dev.yml` is used):
+
+| | |
+|---|---|
+| RAG API | http://127.0.0.1:8001 |
+| Vibe API | http://127.0.0.1:8899 |
+| JupyterLab | http://127.0.0.1:8888/lab?token=qlib |
+| MLflow | http://127.0.0.1:5500 |
 
 ## The two things that make the merge safe
 
