@@ -33,6 +33,7 @@ class Port(BaseModel):
                   "trigger", "trade", "value"]
     direction: Literal["in", "out"]
     required: bool = True
+    multiple: bool = False
 
 
 class Node(BaseModel):

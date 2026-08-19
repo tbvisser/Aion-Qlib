@@ -89,35 +89,35 @@ const PORTS: Record<string, KeycardPort[]> = {
   run_at_time: [{ id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'out', required: true }],
   run_in_session: [{ id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'out', required: true }],
   trade_rule: [
-    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true },
+    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true, multiple: true },
     { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'out', required: true },
   ],
   check_spread: [
-    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true },
+    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true, multiple: true },
     { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'out', required: true },
   ],
   previous_day_bullish: [
-    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true },
+    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true, multiple: true },
     { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'out', required: true },
   ],
   candle_close_above_opening_range: [
-    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true },
+    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true, multiple: true },
     { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'out', required: true },
   ],
   price_above_previous_day_close: [
-    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true },
+    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true, multiple: true },
     { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'out', required: true },
   ],
   no_trade_for_day: [
-    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true },
+    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true, multiple: true },
     { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'out', required: true },
   ],
   news_filter: [
-    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true },
+    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true, multiple: true },
     { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'out', required: true },
   ],
   buy_now: [
-    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true },
+    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true, multiple: true },
     { id: 'signal', label: 'Signal', type: 'signal', direction: 'out', required: true },
   ],
   trade_counter: [

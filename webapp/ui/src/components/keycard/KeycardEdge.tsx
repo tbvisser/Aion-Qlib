@@ -33,16 +33,28 @@ export function KeycardEdge({
 
   const blocking = (data?.defects ?? []).filter((d) => d.severity === 'blocking')
   const hasDefect = blocking.length > 0
+  const isAddNext = id.startsWith('__edge-addNext-')
 
   return (
-    <BaseEdge
-      id={id}
-      path={edgePath}
-      className={cn('aion-keycard-edge', hasDefect && 'aion-keycard-edge-defect')}
-      style={{
-        stroke: hasDefect ? 'hsl(var(--destructive))' : undefined,
-        strokeWidth: hasDefect ? 2 : undefined,
-      }}
-    />
+    <>
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        className={cn('aion-keycard-edge', hasDefect && 'aion-keycard-edge-defect')}
+        style={{
+          stroke: hasDefect ? 'hsl(var(--destructive))' : undefined,
+          strokeWidth: hasDefect ? 2 : undefined,
+        }}
+      />
+      {isAddNext && (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={22}
+          style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+        />
+      )}
+    </>
   )
 }

@@ -2536,6 +2536,7 @@ export interface KeycardPort {
   type: KeycardPortType
   direction: KeycardPortDirection
   required: boolean
+  multiple?: boolean
 }
 
 export interface KeycardNodeTypeMeta {
