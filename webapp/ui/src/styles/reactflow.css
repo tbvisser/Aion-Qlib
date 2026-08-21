@@ -272,3 +272,17 @@
   inset: -6px;
   border-radius: 9999px;
 }
+
+/* Inert handle used by ephemeral add-next pseudo-nodes. It must exist so React
+   Flow can route the dashed guide edge to it, but it should never intercept
+   pointer events or show a connection cursor. */
+.react-flow__handle.aion-keycard-handle-inert {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}

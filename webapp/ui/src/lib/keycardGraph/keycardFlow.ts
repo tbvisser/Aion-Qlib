@@ -18,6 +18,14 @@ import type {
 
 export const KEYCARD_NODE_TYPE = 'keycardNode'
 export const KEYCARD_EDGE_TYPE = 'keycardEdge'
+export const KEYCARD_ADD_NEXT_TYPE = '__addNext'
+
+/** Width of a normal keycard node card. */
+export const KEYCARD_NODE_WIDTH = 236
+/** Horizontal gap between a node and its add-next pseudo-node. */
+export const KEYCARD_ADD_NEXT_GAP = 120
+/** Vertical spacing between stacked downstream nodes from the same output port. */
+export const KEYCARD_ADD_NEXT_VERTICAL_SPACING = 100
 
 export const PORT_COLORS: Record<KeycardPortType, string> = {
   data: '#3b82f6', // blue-500
@@ -33,11 +41,20 @@ export const PORT_COLORS: Record<KeycardPortType, string> = {
 export interface KeycardNodeData extends Record<string, unknown> {
   keycardNode: KeycardNodeSpec
   meta: KeycardNodeTypeMeta | undefined
+  metaByType: Map<string, KeycardNodeTypeMeta>
   defects: KeycardDefect[]
   selected: boolean
   onDoubleClick?: (nodeId: string) => void
   onCreateNode?: (sourceNodeId: string, sourcePortId: string, type: string) => void
   onReplaceStartNode?: (type: string) => void
+  onReplaceAddNext?: (sourceNodeId: string, sourcePortId: string, type: string) => void
+}
+
+export interface KeycardAddNextData extends Record<string, unknown> {
+  sourceNodeId: string
+  sourcePortId: string
+  metaByType: Map<string, KeycardNodeTypeMeta>
+  onReplaceAddNext?: (sourceNodeId: string, sourcePortId: string, type: string) => void
 }
 
 export interface KeycardEdgeData extends Record<string, unknown> {
@@ -45,14 +62,89 @@ export interface KeycardEdgeData extends Record<string, unknown> {
   defects: KeycardDefect[]
 }
 
-export type KeycardFlowNode = Node<KeycardNodeData, typeof KEYCARD_NODE_TYPE>
+export type KeycardFlowNode =
+  | Node<KeycardNodeData, typeof KEYCARD_NODE_TYPE>
+  | Node<KeycardAddNextData, typeof KEYCARD_ADD_NEXT_TYPE>
+
 export type KeycardFlowEdge = Edge<KeycardEdgeData>
+
+function outputPortHandleTop(meta: KeycardNodeTypeMeta | undefined, portId: string): number {
+  const outputPorts = meta?.ports.filter((p) => p.direction === 'out') ?? []
+  if (outputPorts.length === 0) return 46
+  const i = outputPorts.findIndex((p) => p.id === portId)
+  const idx = i < 0 ? 0 : i
+  const count = outputPorts.length
+  return count === 1 ? 46 : 18 + (idx * 56) / Math.max(count - 1, 1)
+}
+
+/**
+ * Suggest a position for the add-next pseudo-node (or a newly added node) that
+ * comes after `outgoingCount` existing edges from the same source port.
+ *
+ * Nodes branch vertically: the first downstream node sits level with the output
+ * handle, the next one below it, and so on.
+ */
+export function addNextPosition(
+  sourceNode: KeycardNodeSpec,
+  sourcePortId: string,
+  metaByType: Map<string, KeycardNodeTypeMeta>,
+  outgoingCount: number,
+): { x: number; y: number } {
+  const meta = metaByType.get(sourceNode.type)
+  const top = outputPortHandleTop(meta, sourcePortId)
+  return {
+    x: sourceNode.position.x + KEYCARD_NODE_WIDTH + KEYCARD_ADD_NEXT_GAP,
+    y: sourceNode.position.y + top - 22 + outgoingCount * KEYCARD_ADD_NEXT_VERTICAL_SPACING,
+  }
+}
+
+function addNextNodeId(sourceNodeId: string, sourcePortId: string): string {
+  return `__addNext-${sourceNodeId}-${sourcePortId}`
+}
+
+function addNextEdgeId(sourceNodeId: string, sourcePortId: string): string {
+  return `__edge-addNext-${sourceNodeId}-${sourcePortId}`
+}
+
+export function isAddNextNodeId(id: string): boolean {
+  return id.startsWith('__addNext-')
+}
+
+export function parseAddNextNodeId(
+  id: string,
+): { sourceNodeId: string; sourcePortId: string } | null {
+  if (!id.startsWith('__addNext-')) return null
+  const rest = id.slice('__addNext-'.length)
+  const firstDash = rest.indexOf('-')
+  if (firstDash < 0) return null
+  return {
+    sourceNodeId: rest.slice(0, firstDash),
+    sourcePortId: rest.slice(firstDash + 1),
+  }
+}
+
+export function parseAddNextEdgeId(
+  id: string,
+): { sourceNodeId: string; sourcePortId: string } | null {
+  if (!id.startsWith('__edge-addNext-')) return null
+  const rest = id.slice('__edge-addNext-'.length)
+  const firstDash = rest.indexOf('-')
+  if (firstDash < 0) return null
+  return {
+    sourceNodeId: rest.slice(0, firstDash),
+    sourcePortId: rest.slice(firstDash + 1),
+  }
+}
 
 /**
  * Turn every keycard node into a React Flow node.
  *
  * `metaByType` maps node type ids to palette metadata so the card can show the
  * right icon, label and port list. Missing metadata is handled gracefully.
+ *
+ * Also injects an ephemeral `__addNext` pseudo-node after every output port
+ * that has no outgoing edges. These pseudo-nodes are rendered as "+" buttons
+ * and are never persisted to the keycard spec.
  */
 export function toFlowNodes(
   keycard: Keycard | KeycardSpec,
@@ -62,9 +154,10 @@ export function toFlowNodes(
   onDoubleClick?: (nodeId: string) => void,
   onCreateNode?: (sourceNodeId: string, sourcePortId: string, type: string) => void,
   onReplaceStartNode?: (type: string) => void,
+  onReplaceAddNext?: (sourceNodeId: string, sourcePortId: string, type: string) => void,
 ): KeycardFlowNode[] {
   const routed = routeDefects(defects)
-  return keycard.nodes.map((node) => {
+  const nodes: KeycardFlowNode[] = keycard.nodes.map((node) => {
     const meta = metaByType.get(node.type)
     return {
       id: node.id,
@@ -73,23 +166,58 @@ export function toFlowNodes(
       data: {
         keycardNode: node,
         meta,
+        metaByType,
         defects: routed.get(node.id) ?? [],
         selected: node.id === selectedId && node.type !== 'start',
         onDoubleClick,
         onCreateNode,
         onReplaceStartNode,
+        onReplaceAddNext,
       },
       selected: node.id === selectedId && node.type !== 'start',
     }
   })
+
+  for (const node of keycard.nodes) {
+    const meta = metaByType.get(node.type)
+    if (!meta) continue
+    for (const port of meta.ports) {
+      if (port.direction !== 'out') continue
+      const outgoingCount = keycard.edges.filter(
+        (e) => e.source === node.id && e.source_port === port.id,
+      ).length
+      nodes.push({
+        id: addNextNodeId(node.id, port.id),
+        type: KEYCARD_ADD_NEXT_TYPE,
+        position: addNextPosition(node, port.id, metaByType, outgoingCount),
+        data: {
+          sourceNodeId: node.id,
+          sourcePortId: port.id,
+          metaByType,
+          onReplaceAddNext,
+        },
+        selectable: false,
+        draggable: false,
+      })
+    }
+  }
+
+  return nodes
 }
 
 /**
  * Turn every keycard edge into a React Flow edge with typed handles.
+ *
+ * Also emits a dashed virtual edge from every output port to its ephemeral
+ * `__addNext` pseudo-node, even when the port already has outgoing edges, so
+ * users can keep branching the workflow.
  */
-export function toFlowEdges(keycard: Keycard | KeycardSpec): KeycardFlowEdge[] {
+export function toFlowEdges(
+  keycard: Keycard | KeycardSpec,
+  metaByType?: Map<string, KeycardNodeTypeMeta>,
+): KeycardFlowEdge[] {
   const routed = routeDefects([])
-  return keycard.edges.map((edge) => ({
+  const edges: KeycardFlowEdge[] = keycard.edges.map((edge) => ({
     id: edge.id,
     source: edge.source,
     target: edge.target,
@@ -98,6 +226,26 @@ export function toFlowEdges(keycard: Keycard | KeycardSpec): KeycardFlowEdge[] {
     type: KEYCARD_EDGE_TYPE,
     data: { keycardEdge: edge, defects: routed.get(edge.id) ?? [] },
   }))
+
+  for (const node of keycard.nodes) {
+    const meta = metaByType?.get(node.type)
+    if (!meta) continue
+    for (const port of meta.ports) {
+      if (port.direction !== 'out') continue
+      edges.push({
+        id: addNextEdgeId(node.id, port.id),
+        source: node.id,
+        target: addNextNodeId(node.id, port.id),
+        sourceHandle: port.id,
+        targetHandle: 'in',
+        type: KEYCARD_EDGE_TYPE,
+        data: { keycardEdge: { id: addNextEdgeId(node.id, port.id) } as KeycardEdgeSpec, defects: [] },
+        style: { strokeDasharray: '4 4' },
+      })
+    }
+  }
+
+  return edges
 }
 
 /**
@@ -105,6 +253,8 @@ export function toFlowEdges(keycard: Keycard | KeycardSpec): KeycardFlowEdge[] {
  *
  * Positions come from `rfNodes`; config and topology come from the original
  * keycard. Nodes/edges removed from the canvas are dropped from the spec.
+ *
+ * Ephemeral `__addNext` pseudo-nodes and their virtual edges are ignored.
  */
 export function fromFlow(
   keycard: Keycard | KeycardSpec,
@@ -112,7 +262,7 @@ export function fromFlow(
   rfEdges: Edge[],
 ): KeycardSpec {
   const positions = new Map(rfNodes.map((n) => [n.id, n.position]))
-  const nodeIds = new Set(rfNodes.map((n) => n.id))
+  const nodeIds = new Set(rfNodes.map((n) => n.id).filter((id) => !isAddNextNodeId(id)))
 
   const nodes: KeycardNodeSpec[] = keycard.nodes
     .filter((n) => nodeIds.has(n.id))
@@ -124,7 +274,9 @@ export function fromFlow(
       }
     })
 
-  const edgeIds = new Set(rfEdges.map((e) => e.id))
+  const edgeIds = new Set(
+    rfEdges.map((e) => e.id).filter((id) => !id.startsWith('__edge-addNext-')),
+  )
   const edges: KeycardEdgeSpec[] = keycard.edges
     .filter((e) => edgeIds.has(e.id))
     .map((e) => ({ ...e }))

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..compiler import _merge_triggers
 from ..models import Defect, Keycard, NodeOutput, NodeTypeMeta, Port, Windows
 from ..registry import NodeType, register
 
@@ -23,6 +24,14 @@ def _and(trigger: str, condition: str) -> str:
     return condition
 
 
+def _trigger_value(incoming: dict[str, Any]) -> str:
+    """Return the merged trigger expression from a possibly-multi-edge input."""
+    value = incoming.get("trigger", "1")
+    if isinstance(value, list):
+        return _merge_triggers(value)
+    return value or "1"
+
+
 class TradeRuleNode(NodeType):
     """A user-written boolean expression evaluated per instrument."""
 
@@ -35,7 +44,7 @@ class TradeRuleNode(NodeType):
             description="A custom boolean expression such as $close > Ref($close,-1).",
             ports=[
                 Port(id="trigger", label="Trigger", type="trigger",
-                     direction="in", required=True),
+                     direction="in", required=True, multiple=True),
                 Port(id="trigger", label="Trigger", type="trigger",
                      direction="out", required=True),
             ],
@@ -53,7 +62,7 @@ class TradeRuleNode(NodeType):
         )
 
     def compile(self, config: dict, incoming: dict[str, Any], windows: Windows) -> NodeOutput:
-        trigger = incoming.get("trigger", "1") or "1"
+        trigger = _trigger_value(incoming)
         return NodeOutput(outputs={"trigger": _and(trigger, config.get("condition", "1"))})
 
     def validate(self, config: dict, keycard: Keycard) -> list[Defect]:
@@ -77,7 +86,7 @@ class CheckSpreadNode(NodeType):
             description="Filter out instruments with a wide spread or missing quote.",
             ports=[
                 Port(id="trigger", label="Trigger", type="trigger",
-                     direction="in", required=True),
+                     direction="in", required=True, multiple=True),
                 Port(id="trigger", label="Trigger", type="trigger",
                      direction="out", required=True),
             ],
@@ -96,7 +105,7 @@ class CheckSpreadNode(NodeType):
         )
 
     def compile(self, config: dict, incoming: dict[str, Any], windows: Windows) -> NodeOutput:
-        trigger = incoming.get("trigger", "1") or "1"
+        trigger = _trigger_value(incoming)
         # Daily stores do not carry bid/ask spreads, so the filter is accepted
         # for forwards compatibility but currently passes the trigger through.
         return NodeOutput(outputs={"trigger": _and(trigger, "1")})
@@ -125,7 +134,7 @@ class PreviousDayBullishNode(NodeType):
             description="Only trade when the previous bar was bullish.",
             ports=[
                 Port(id="trigger", label="Trigger", type="trigger",
-                     direction="in", required=True),
+                     direction="in", required=True, multiple=True),
                 Port(id="trigger", label="Trigger", type="trigger",
                      direction="out", required=True),
             ],
@@ -133,7 +142,7 @@ class PreviousDayBullishNode(NodeType):
         )
 
     def compile(self, config: dict, incoming: dict[str, Any], windows: Windows) -> NodeOutput:
-        trigger = incoming.get("trigger", "1") or "1"
+        trigger = _trigger_value(incoming)
         return NodeOutput(outputs={"trigger": _and(trigger, "Ref($close,-1) > Ref($open,-1)")})
 
     def validate(self, config: dict, keycard: Keycard) -> list[Defect]:
@@ -152,7 +161,7 @@ class CandleCloseAboveOpeningRangeNode(NodeType):
             description="Trade when price breaks above the opening range high.",
             ports=[
                 Port(id="trigger", label="Trigger", type="trigger",
-                     direction="in", required=True),
+                     direction="in", required=True, multiple=True),
                 Port(id="trigger", label="Trigger", type="trigger",
                      direction="out", required=True),
             ],
@@ -171,7 +180,7 @@ class CandleCloseAboveOpeningRangeNode(NodeType):
         )
 
     def compile(self, config: dict, incoming: dict[str, Any], windows: Windows) -> NodeOutput:
-        trigger = incoming.get("trigger", "1") or "1"
+        trigger = _trigger_value(incoming)
         bars = config.get("minutes", 5)
         refs = ", ".join(f"Ref($high,-{i})" for i in range(bars, 0, -1))
         condition = f"$close > Max({refs})"
@@ -198,7 +207,7 @@ class PriceAbovePreviousDayCloseNode(NodeType):
             description="Only trade when price is above the previous close.",
             ports=[
                 Port(id="trigger", label="Trigger", type="trigger",
-                     direction="in", required=True),
+                     direction="in", required=True, multiple=True),
                 Port(id="trigger", label="Trigger", type="trigger",
                      direction="out", required=True),
             ],
@@ -206,7 +215,7 @@ class PriceAbovePreviousDayCloseNode(NodeType):
         )
 
     def compile(self, config: dict, incoming: dict[str, Any], windows: Windows) -> NodeOutput:
-        trigger = incoming.get("trigger", "1") or "1"
+        trigger = _trigger_value(incoming)
         return NodeOutput(outputs={"trigger": _and(trigger, "$close > Ref($close,-1)")})
 
     def validate(self, config: dict, keycard: Keycard) -> list[Defect]:
@@ -225,7 +234,7 @@ class NoTradeForDayNode(NodeType):
             description="Do not trade instruments that match the suppression condition.",
             ports=[
                 Port(id="trigger", label="Trigger", type="trigger",
-                     direction="in", required=True),
+                     direction="in", required=True, multiple=True),
                 Port(id="trigger", label="Trigger", type="trigger",
                      direction="out", required=True),
             ],
@@ -243,7 +252,7 @@ class NoTradeForDayNode(NodeType):
         )
 
     def compile(self, config: dict, incoming: dict[str, Any], windows: Windows) -> NodeOutput:
-        trigger = incoming.get("trigger", "1") or "1"
+        trigger = _trigger_value(incoming)
         # Day-level trade suppression is stateful and not enforced by the daily
         # expression bridge; the trigger passes through.
         return NodeOutput(outputs={"trigger": _and(trigger, "1")})
@@ -272,7 +281,7 @@ class NewsFilterNode(NodeType):
             description="Filter by news sentiment (placeholder; currently passes trigger through).",
             ports=[
                 Port(id="trigger", label="Trigger", type="trigger",
-                     direction="in", required=True),
+                     direction="in", required=True, multiple=True),
                 Port(id="trigger", label="Trigger", type="trigger",
                      direction="out", required=True),
             ],
@@ -296,7 +305,7 @@ class NewsFilterNode(NodeType):
         )
 
     def compile(self, config: dict, incoming: dict[str, Any], windows: Windows) -> NodeOutput:
-        trigger = incoming.get("trigger", "1") or "1"
+        trigger = _trigger_value(incoming)
         return NodeOutput(outputs={"trigger": _and(trigger, "1")})
 
     def validate(self, config: dict, keycard: Keycard) -> list[Defect]:

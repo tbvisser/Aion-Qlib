@@ -183,3 +183,71 @@ def test_rule_based_workflow_compiles_without_model(tmp_path):
     assert "rule_expr" in strategy["kwargs"]
     assert "data_handler_config" not in config
     assert [r["class"] for r in config["task"].get("record", [])] == ["PortAnaRecord"]
+
+
+def test_multiple_rules_merge_into_buy_now(tmp_path):
+    """Several rule nodes can wire into the same trigger input."""
+    provider_uri = str(tmp_path / "qlib_data")
+    keycard = Keycard(
+        id="merge-test", name="Merged rules",
+        nodes=[
+            Node(id="sched-1", type="run_per_candle", position=Position(x=0, y=0), config={}),
+            Node(id="rule-1", type="previous_day_bullish", position=Position(x=0, y=100), config={}),
+            Node(id="rule-2", type="price_above_previous_day_close", position=Position(x=0, y=200), config={}),
+            Node(id="buy-1", type="buy_now", position=Position(x=0, y=300), config={}),
+            Node(id="port-1", type="portfolio", position=Position(x=0, y=400),
+                 config={"strategy": "TopkDropoutStrategy", "topk": 10, "n_drop": 0}),
+            Node(id="costs-1", type="costs", position=Position(x=0, y=500),
+                 config={"open_cost": 0.0005, "close_cost": 0.0015,
+                         "min_cost": 5.0, "account": 1_000_000}),
+            Node(id="rec-1", type="records", position=Position(x=0, y=600), config={}),
+        ],
+        edges=[
+            Edge(id="e1", source="sched-1", source_port="trigger",
+                 target="rule-1", target_port="trigger"),
+            Edge(id="e2", source="sched-1", source_port="trigger",
+                 target="rule-2", target_port="trigger"),
+            Edge(id="e3", source="rule-1", source_port="trigger",
+                 target="buy-1", target_port="trigger"),
+            Edge(id="e4", source="rule-2", source_port="trigger",
+                 target="buy-1", target_port="trigger"),
+            Edge(id="e5", source="buy-1", source_port="signal",
+                 target="port-1", target_port="signal"),
+            Edge(id="e6", source="port-1", source_port="trades",
+                 target="costs-1", target_port="trades"),
+            Edge(id="e7", source="costs-1", source_port="trades",
+                 target="rec-1", target_port="trades"),
+        ],
+        windows=Windows(),
+    )
+
+    defects = validate_keycard(keycard)
+    blocking = [d for d in defects if d.severity == "blocking"]
+    assert not blocking, blocking
+
+    config = compile_keycard(keycard, provider_uri, "us")
+    rule_expr = config["port_analysis_config"]["strategy"]["kwargs"]["rule_expr"]
+    assert "Ref($close,-1) > Ref($open,-1)" in rule_expr
+    assert "$close > Ref($close,-1)" in rule_expr
+
+
+def test_validator_rejects_second_edge_into_non_multiple_port():
+    """A non-multiple input port can only have one incoming edge."""
+    nodes = [
+        Node(id="store-1", type="data_store", position=Position(x=0, y=0), config={"store": "us"}),
+        Node(id="store-2", type="data_store", position=Position(x=0, y=100), config={"store": "crypto_365"}),
+        Node(id="universe-1", type="universe", position=Position(x=0, y=200), config={}),
+    ]
+    edges = [
+        Edge(id="e1", source="store-1", source_port="data",
+             target="universe-1", target_port="data"),
+        Edge(id="e2", source="store-2", source_port="data",
+             target="universe-1", target_port="data"),
+    ]
+    keycard = Keycard(
+        id="multi-edge-test", name="multi edge", nodes=nodes, edges=edges,
+        windows=Windows(),
+    )
+    defects = validate_keycard(keycard)
+    codes = {d.code for d in defects}
+    assert "too_many_incoming_edges" in codes
