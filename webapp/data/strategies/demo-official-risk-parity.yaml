@@ -1,0 +1,35 @@
+name: Official risk-parity sleeve
+model: lightgbm
+handler: Alpha158
+data_store: us
+universe: etf_top100
+benchmark: SPY
+train_start: '2010-01-04'
+train_end: '2019-12-31'
+valid_start: '2020-01-01'
+valid_end: '2021-12-31'
+test_start: '2022-01-01'
+test_end: '2026-08-03'
+topk: 12
+n_drop: 3
+open_cost: 0.0005
+close_cost: 0.0015
+min_cost: 5.0
+account: 100000000.0
+limit_threshold: null
+features:
+- name: INV_VOL_20
+  expression: 1/(Std($change,20)+1e-12)
+- name: MOM_12_1
+  expression: Ref($close,21)/(Ref($close,252)+1e-12) - 1
+feature_mode: extend
+origin: official
+description: Official risk-parity sleeve. LightGBM/Alpha158 over etf_top100, ranking
+  funds by inverse 20-day volatility and 12-month momentum, holding 12 and rotating
+  3. Feeds demo-pf-risk-parity (Risk-parity sleeve) and demo-pf-global-macro (Global
+  macro) as a multi-asset rotation engine.
+id: demo-official-risk-parity
+created_at: '2026-08-20T09:48:10.344209+00:00'
+updated_at: '2026-08-20T11:33:49.299627+00:00'
+user_id: ''
+visibility: private

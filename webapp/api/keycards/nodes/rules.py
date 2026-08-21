@@ -32,6 +32,59 @@ def _trigger_value(incoming: dict[str, Any]) -> str:
     return value or "1"
 
 
+class BranchNode(NodeType):
+    """A boolean branch with true/false outputs.
+
+    Used in Aion-style rule workflows to split the chain into a yes/no path.
+    The true output carries the trigger AND-ed with the branch condition; the
+    false output is forwarded visually to a no-trade node.
+    """
+
+    def meta(self) -> NodeTypeMeta:
+        return NodeTypeMeta(
+            id="branch",
+            category="rules",
+            label="Branch",
+            icon="git-branch",
+            description="Split the workflow based on a boolean condition.",
+            ports=[
+                Port(id="trigger", label="Trigger", type="trigger",
+                     direction="in", required=True, multiple=True),
+                Port(id="true", label="True", type="trigger",
+                     direction="out", required=True),
+                Port(id="false", label="False", type="trigger",
+                     direction="out", required=True),
+            ],
+            config_schema={
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "condition": {
+                        "type": "string",
+                        "description": "A per-instrument qlib boolean expression.",
+                    },
+                },
+                "required": ["condition"],
+            },
+        )
+
+    def compile(self, config: dict, incoming: dict[str, Any], windows: Windows) -> NodeOutput:
+        trigger = _trigger_value(incoming)
+        condition = config.get("condition", "1")
+        return NodeOutput(outputs={
+            "true": _and(trigger, condition),
+            "false": _and(trigger, "1"),
+        })
+
+    def validate(self, config: dict, keycard: Keycard) -> list[Defect]:
+        condition = config.get("condition")
+        if not condition or not isinstance(condition, str):
+            return [Defect("missing_condition",
+                           "A branch needs a non-empty condition.",
+                           "nodes[?].config.condition", "blocking")]
+        return []
+
+
 class TradeRuleNode(NodeType):
     """A user-written boolean expression evaluated per instrument."""
 
@@ -281,7 +334,7 @@ class NewsFilterNode(NodeType):
             description="Filter by news sentiment (placeholder; currently passes trigger through).",
             ports=[
                 Port(id="trigger", label="Trigger", type="trigger",
-                     direction="in", required=True, multiple=True),
+                     direction="in", required=False, multiple=True),
                 Port(id="trigger", label="Trigger", type="trigger",
                      direction="out", required=True),
             ],
@@ -325,6 +378,7 @@ class NewsFilterNode(NodeType):
                        "nodes[?].config.source", "advisory")]
 
 
+register(BranchNode())
 register(TradeRuleNode())
 register(CheckSpreadNode())
 register(PreviousDayBullishNode())

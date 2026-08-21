@@ -311,7 +311,7 @@ describe('pipelineBoundsWith, expanded', () => {
 
   it('is four columns wide when the grid is full', () => {
     expect(pipelineBoundsWith(FEATURE_GRID_MAX, true))
-      .toEqual({ x: -90, y: -404, width: 888, height: 704 })
+      .toEqual({ x: -90, y: -448, width: 888, height: 792 })
   })
 
   it('still grows the picture rightwards only, at any count', () => {

@@ -24,12 +24,24 @@
       "weight": 0.2
     }
   ],
-  "strategy_ids": [],
+  "strategy_ids": [
+    "demo-official-sector-tilt",
+    "demo-official-global-macro"
+  ],
   "inception": "2021-01-04",
   "rebalance": "monthly",
   "cost_bps": 10.0,
-  "notes": "one calendar, one asset class, a clearly dominant contributor \u2014 exercises the contribution table legibly",
+  "notes": "Trades from 2021 (~5 years). US sector-tilt book overweight tech, financials and energy against a core SPY position. Linked to the official sector-tilt and global-macro sleeves.",
+  "objective": "Overweight tech, financials and energy against a US equity core.",
+  "constraints": "Sector ETFs only; monthly rebalance; SPY benchmark.",
+  "tags": [
+    "sector",
+    "equity",
+    "rotation"
+  ],
   "id": "demo-pf-sector-tilt",
   "created_at": "2026-08-10T15:12:08.564975+00:00",
-  "updated_at": "2026-08-10T15:49:02.749222+00:00"
+  "updated_at": "2026-08-20T11:33:54.492918+00:00",
+  "user_id": "",
+  "visibility": "private"
 }

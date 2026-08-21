@@ -28,7 +28,11 @@ const inflight = new Map<string, Promise<RunReport | null>>()
 const CONCURRENCY = 4
 
 function fetchReport(id: string): Promise<RunReport | null> {
-  if (cache.has(id)) return Promise.resolve(cache.get(id) ?? null)
+  // Only cache successful reports. A failure can be transient (API was down,
+  // mlflow still uploading artifacts), so the next mount should retry rather
+  // than showing a permanent blank report.
+  const cached = cache.get(id)
+  if (cached !== undefined) return Promise.resolve(cached)
   let pending = inflight.get(id)
   if (!pending) {
     pending = api.runReport(id)
@@ -37,10 +41,9 @@ function fetchReport(id: string): Promise<RunReport | null> {
         return report
       })
       .catch(() => {
-        // Cached as a null result on purpose: a run whose artifacts are gone
-        // will not grow them back, and retrying on every render would hammer
-        // the endpoint for an answer that cannot change.
-        cache.set(id, null)
+        // Leave the cache empty so the next fetch retries. A run whose
+        // artifacts are genuinely gone will keep failing, but that is better
+        // than a stale "no report" state after a temporary outage.
         return null
       })
       .finally(() => { inflight.delete(id) })

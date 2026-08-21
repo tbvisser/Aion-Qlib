@@ -33,7 +33,7 @@ def test_ids_are_unique_and_prefixed():
 
 
 def test_ids_are_valid_store_ids():
-    """The demo id *is* the store id — that is the idempotency contract."""
+    """The demo id *is* the store id -- that is the idempotency contract."""
     for demo_id in [e.id for e in ROSTER] + [p.id for p in PORTFOLIOS]:
         assert re.fullmatch(r"[A-Za-z0-9_-]{1,64}", demo_id), demo_id
 
@@ -97,15 +97,19 @@ def test_roster_covers_every_model_handler_and_store():
     )
 
 
-def test_exactly_one_entry_exercises_custom_features():
-    """The only route through the custom-DataHandlerLP path.
+def test_demo_custom_factors_is_the_only_literal_spec_with_features():
+    """The only route through the custom-DataHandlerLP path with a literal spec.
 
-    No template carries `features`, so without this entry Factor Lab and the
-    builder's custom-column path have nothing real behind them.
+    Several official sleeves now extend Alpha158 with hand-built factors, but
+    the literal-spec path (template_id=None) is still exercised only by the
+    custom-factors demo.
     """
-    with_features = [e for e in ROSTER if seed_demo.build_spec(e, None).features]
-    assert [e.id for e in with_features] == ["demo-custom-factors"]
-    spec = seed_demo.build_spec(with_features[0], None)
+    literal_with_features = [
+        e for e in ROSTER
+        if e.template_id is None and seed_demo.build_spec(e, None).features
+    ]
+    assert [e.id for e in literal_with_features] == ["demo-custom-factors"]
+    spec = seed_demo.build_spec(literal_with_features[0], None)
     assert len(spec.features) == 3
     # $vwap is absent from this store and evaluates to NaN everywhere.
     for column in spec.features:
@@ -114,7 +118,7 @@ def test_exactly_one_entry_exercises_custom_features():
 
 def test_crypto_entry_keeps_its_own_benchmark():
     """crypto_365 has an empty benchmarks.txt, so SPY is not reachable there."""
-    spec = seed_demo.build_spec(next(e for e in ROSTER if e.id == "demo-crypto"), None)
+    spec = seed_demo.build_spec(next(e for e in ROSTER if e.id == "demo-official-digital"), None)
     assert spec.data_store == "crypto_365"
     assert spec.benchmark == "BTC-USD"
 
@@ -180,10 +184,10 @@ def test_portfolios_cover_the_paths_they_exist_for():
     # The only non-USD book, so the FX leg is exercised.
     assert by_id["demo-pf-eur-6040"].base_ccy == "EUR"
     assert {p.base_ccy for p in PORTFOLIOS} == {"USD", "EUR"}
-    # The only book whose point is strategy_ids.
+    # The model book exists to exercise strategy_ids; every book now links to an
+    # official strategy so the /book linkage panel is populated across sleeves.
     assert len(by_id["demo-pf-model-book"].strategy_ids) == 3
-    # A buy-and-hold book, so `rebalance` is not uniformly monthly.
-    assert {p.rebalance for p in PORTFOLIOS} == {"monthly", "none"}
+    assert {p.rebalance for p in PORTFOLIOS} == {"monthly", "quarterly", "none"}
 
 
 def test_linked_strategy_ids_exist_in_the_roster():
@@ -196,6 +200,27 @@ def test_linked_strategy_ids_exist_in_the_roster():
             )
 
 
+def test_portfolio_strategy_links_are_official():
+    """Official portfolios link to official strategies; backtests live in the research tab."""
+    origin_by_id = {
+        e.id: seed_demo.build_spec(e, None).origin for e in ROSTER
+    }
+    for portfolio in PORTFOLIOS:
+        for strategy_id in portfolio.strategy_ids:
+            assert origin_by_id[strategy_id] == "official", (
+                f"{portfolio.id} links '{strategy_id}' which is a research backtest; "
+                "portfolios should point at official sleeves"
+            )
+
+
+def test_every_portfolio_links_to_at_least_one_official_strategy():
+    official_ids = {e.id for e in ROSTER if seed_demo.build_spec(e, None).origin == "official"}
+    for portfolio in PORTFOLIOS:
+        assert any(sid in official_ids for sid in portfolio.strategy_ids), (
+            f"{portfolio.id} has no official strategy link"
+        )
+
+
 def test_asset_classes_are_declared_correctly():
     for portfolio in PORTFOLIOS:
         for symbol, asset_class, _ in portfolio.holdings:
@@ -203,6 +228,62 @@ def test_asset_classes_are_declared_correctly():
                 assert asset_class == "crypto", f"{portfolio.id}/{symbol}"
             else:
                 assert asset_class in {"equity", "etf", "index"}, f"{portfolio.id}/{symbol}"
+
+
+def test_portfolios_carry_enriched_metadata():
+    for portfolio in PORTFOLIOS:
+        spec = seed_demo.build_portfolio(portfolio)
+        assert spec.objective, f"{portfolio.id}: missing objective"
+        assert spec.constraints, f"{portfolio.id}: missing constraints"
+        assert spec.tags, f"{portfolio.id}: missing tags"
+
+
+# --------------------------------------------------------------------------
+# Metadata: origins, descriptions and trade years
+# --------------------------------------------------------------------------
+def test_every_strategy_has_an_origin_and_description():
+    for entry in ROSTER:
+        spec = seed_demo.build_spec(entry, None)
+        assert spec.origin in ("official", "backtest"), f"{entry.id}: bad origin {spec.origin!r}"
+        assert len(spec.description) > 20, f"{entry.id}: description is too short"
+
+
+def test_roster_has_both_official_and_backtest_strategies():
+    specs = [seed_demo.build_spec(e, None) for e in ROSTER]
+    origins = {s.origin for s in specs}
+    assert origins == {"official", "backtest"}, f"missing origins: {origins}"
+
+
+def test_official_strategies_align_with_portfolios():
+    """Every official strategy's description names at least one portfolio it feeds."""
+    portfolio_ids = {p.id for p in PORTFOLIOS}
+    for entry in ROSTER:
+        if seed_demo.build_spec(entry, None).origin != "official":
+            continue
+        mentioned = {pid for pid in portfolio_ids if pid in entry.description}
+        assert mentioned, (
+            f"{entry.id}: official strategy description should mention a portfolio id"
+        )
+
+
+def test_high_turnover_strategies_target_two_years_and_roughly_one_thousand_trades():
+    """The churn demos exist to put realistic trade volume on screen."""
+    churn = [e for e in ROSTER if e.id.startswith("demo-churn-")]
+    assert len(churn) >= 4, "expected at least four two-year churn windows"
+    for entry in churn:
+        spec = seed_demo.build_spec(entry, None)
+        assert spec.topk == 20, f"{entry.id}: topk should force daily churn"
+        assert spec.n_drop == 10, f"{entry.id}: n_drop should target high turnover"
+        start_year = int(spec.test_start[:4])
+        end_year = int(spec.test_end[:4])
+        assert end_year - start_year == 1, f"{entry.id}: should span two calendar years"
+
+
+def test_portfolio_notes_mention_trade_years():
+    for entry in PORTFOLIOS:
+        spec = seed_demo.build_portfolio(entry)
+        assert "Trades from" in spec.notes, f"{entry.id}: notes missing trade years"
+        assert "2021" in spec.notes, f"{entry.id}: notes missing inception year"
 
 
 # --------------------------------------------------------------------------
@@ -217,7 +298,7 @@ def test_dry_run_writes_nothing(tmp_path, monkeypatch, capsys):
 
     assert seed_demo.main(["--dry-run"]) == 0
     out = capsys.readouterr().out
-    assert "demo-baseline" in out and "Nothing written" in out
+    assert "demo-official-core-equity" in out and "Nothing written" in out
     assert not (tmp_path / "s").exists()
     assert not (tmp_path / "p").exists()
 
@@ -229,9 +310,9 @@ def test_runs_are_off_by_default():
 
 def test_only_filters_both_kinds():
     strategies, portfolios = seed_demo.selected(
-        seed_demo.parse_args(["--only", "demo-baseline", "demo-pf-6040"])
+        seed_demo.parse_args(["--only", "demo-official-core-equity", "demo-pf-6040"])
     )
-    assert [e.id for e in strategies] == ["demo-baseline"]
+    assert [e.id for e in strategies] == ["demo-official-core-equity"]
     assert [p.id for p in portfolios] == ["demo-pf-6040"]
 
 

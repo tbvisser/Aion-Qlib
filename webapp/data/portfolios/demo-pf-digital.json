@@ -19,12 +19,23 @@
       "weight": 0.2
     }
   ],
-  "strategy_ids": [],
+  "strategy_ids": [
+    "demo-official-digital"
+  ],
   "inception": "2021-01-04",
   "rebalance": "monthly",
   "cost_bps": 10.0,
-  "notes": "Trades every calendar day, including weekends.",
+  "notes": "Trades from 2021 (~5 years) on the 365-day crypto calendar. Equal-weighted mix of BTC, ETH and SOL, benchmarked to BTC-USD. Linked to the official digital-assets sleeve.",
+  "objective": "Capture beta in the three largest crypto assets via a systematic rotation overlay.",
+  "constraints": "Long-only crypto; 365-day calendar; BTC-USD benchmark; monthly rebalance.",
+  "tags": [
+    "crypto",
+    "digital",
+    "altcoins"
+  ],
   "id": "demo-pf-digital",
   "created_at": "2026-08-10T15:12:08.564600+00:00",
-  "updated_at": "2026-08-10T15:49:02.747666+00:00"
+  "updated_at": "2026-08-20T11:33:54.477689+00:00",
+  "user_id": "",
+  "visibility": "private"
 }

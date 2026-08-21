@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Area, AreaChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip,
   XAxis, YAxis,
@@ -30,7 +30,7 @@ const AXIS_TICK = {
  * links to `RunReportModal` rather than trying to be a small copy of it — so
  * the folded-away variant went with it.
  */
-export function RunReportView({ report }: { report: RunReport }) {
+export function RunReportView({ report, hidePerformance }: { report: RunReport; hidePerformance?: boolean }) {
   const excess = report.risk['excess_return_with_cost'] ?? {}
   // Only the three styled curves: `report.curves` also carries `net_of_cost`
   // and `drawdown`, which this chart does not draw and the legend does not name.
@@ -67,22 +67,24 @@ export function RunReportView({ report }: { report: RunReport }) {
         </div>
       )}
 
-      <Section n="01" title="Performance" caption="engine-computed, net of cost">
-        <div className="grid grid-cols-2 border-l border-t border-border/50 lg:grid-cols-4">
-          <Metric label="Ann. excess return" value={excess['annualized_return']} percent />
-          <Metric label="Information ratio" value={excess['information_ratio']} digits={3} />
-          <Metric label="Max drawdown" value={excess['max_drawdown']} percent negative />
-          <Metric label="Volatility" value={excess['std']} digits={4} />
-          <Metric label="IC" value={report.metrics['IC']} digits={4} />
-          <Metric label="Rank IC" value={report.metrics['Rank IC']} digits={4} />
-          <Metric label="ICIR" value={report.metrics['ICIR']} digits={4} />
-          <Metric
-            label="Period"
-            text={report.period ? `${report.period.start} → ${report.period.end}` : '—'}
-            sub={report.period ? `${report.period.days} days` : undefined}
-          />
-        </div>
-      </Section>
+      {!hidePerformance && (
+        <Section n="01" title="Performance" caption="engine-computed, net of cost">
+          <div className="grid grid-cols-2 border-l border-t border-border/50 lg:grid-cols-4">
+            <Metric label="Ann. excess return" value={excess['annualized_return']} percent />
+            <Metric label="Information ratio" value={excess['information_ratio']} digits={3} />
+            <Metric label="Max drawdown" value={excess['max_drawdown']} percent negative />
+            <Metric label="Volatility" value={excess['std']} digits={4} />
+            <Metric label="IC" value={report.metrics['IC']} digits={4} />
+            <Metric label="Rank IC" value={report.metrics['Rank IC']} digits={4} />
+            <Metric label="ICIR" value={report.metrics['ICIR']} digits={4} />
+            <Metric
+              label="Period"
+              text={report.period ? `${report.period.start} → ${report.period.end}` : '—'}
+              sub={report.period ? `${report.period.days} days` : undefined}
+            />
+          </div>
+        </Section>
+      )}
 
       {merged.length > 0 && (
         <Section

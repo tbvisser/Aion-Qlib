@@ -213,6 +213,22 @@ class StrategySpec(BaseModel):
         description="Whether custom factors are added to the handler's own "
                     "features or replace them entirely.",
     )
+    origin: Literal["official", "backtest"] = Field(
+        "backtest",
+        description="Whether this is a live/official fund strategy or a "
+                    "research backtest.",
+    )
+    description: str = Field(
+        "",
+        max_length=2000,
+        description="Plain-language summary of what the strategy does and why.",
+    )
+    context: str = Field(
+        "",
+        max_length=2000,
+        description="User's plain-language objective. Shown to the AI assistant "
+                    "so proposals are guided by what the user wants to achieve.",
+    )
 
     @field_validator("features")
     @classmethod

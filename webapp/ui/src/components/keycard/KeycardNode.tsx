@@ -1,9 +1,10 @@
 /**
  * One node on the Keycard canvas.
  *
- * Rich, icon-forward card: a category-tinted icon tile, eyebrow label, bold
- * headline, detail chips, and a bottom accent bar. Connection handles are
- * clearly visible on the left/right edges.
+ * n8n-style compact workflow node: a category-coloured icon strip on the left,
+ * a bold title and a muted subtitle on the right, and small centred handles on
+ * the left/right edges. The whole card is small enough to read as a horizontal
+ * pipeline rather than a vertical form.
  */
 import { memo, useMemo, useState } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
@@ -19,9 +20,11 @@ import {
   DollarSign,
   FileText,
   Filter,
+  GitBranch,
   Globe,
   Layers,
   ListFilter,
+  MessageSquare,
   Newspaper,
   Plus,
   Receipt,
@@ -30,10 +33,10 @@ import {
   Sigma,
   TrendingUp,
   X,
+  Zap,
   type LucideIcon,
 } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
   Popover,
@@ -51,7 +54,7 @@ import {
 import { cn } from '@/lib/utils'
 import type { KeycardNodeCategory, KeycardNodeTypeMeta, KeycardPortType } from '@/lib/api'
 
-import type { KeycardFlowNode, KeycardAddNextData } from '@/lib/keycardGraph/keycardFlow'
+import { inputPortHandleTop, outputPortHandleTop, PORT_COLORS, type KeycardFlowNode } from '@/lib/keycardGraph/keycardFlow'
 
 const ICONS: Record<string, LucideIcon> = {
   database: Database,
@@ -69,11 +72,14 @@ const ICONS: Record<string, LucideIcon> = {
   'calendar-clock': CalendarClock,
   'candlestick-chart': CandlestickChart,
   filter: Filter,
+  'git-branch': GitBranch,
   newspaper: Newspaper,
   plus: Plus,
   'rotate-ccw': RotateCcw,
   'trending-up': TrendingUp,
+  'message-square': MessageSquare,
   box: Box,
+  zap: Zap,
 }
 
 function getIcon(iconName: string | null | undefined): LucideIcon {
@@ -81,89 +87,103 @@ function getIcon(iconName: string | null | undefined): LucideIcon {
   return Box
 }
 
-
-function summarizeConfig(type: string, config: Record<string, unknown>): { headline: string; details: string[] } {
-  const details: string[] = []
+/** Compact n8n-style subtitle derived from the node's config. */
+function summarizeConfig(type: string, config: Record<string, unknown>): { title: string; subtitle: string } {
+  const info = nodeInfo(type)
+  const title = info?.label ?? type
+  let subtitle = ''
   switch (type) {
     case 'data_store':
-      details.push(String(config.store ?? 'us'))
+      subtitle = String(config.store ?? 'us')
       break
     case 'universe':
-      details.push(`${config.universe ?? 'top500'} · ${config.benchmark ?? 'SPY'}`)
+      subtitle = `${config.universe ?? 'top500'} · ${config.benchmark ?? 'SPY'}`
       break
     case 'handler': {
       const feats = Array.isArray(config.features) ? config.features.length : 0
-      const mode = String(config.feature_mode ?? 'extend')
-      details.push(`${config.handler ?? 'Alpha158'}`)
-      if (feats > 0) details.push(`${feats} custom ${feats === 1 ? 'factor' : 'factors'}`)
-      else details.push(mode)
+      subtitle = `${config.handler ?? 'Alpha158'}${feats > 0 ? ` · ${feats} factor${feats === 1 ? '' : 's'}` : ''}`
       break
     }
     case 'model':
-      details.push(String(config.model ?? 'lightgbm'))
+      subtitle = String(config.model ?? 'lightgbm')
       break
     case 'portfolio':
-      details.push(`Top ${config.topk ?? 50}`, `drop ${config.n_drop ?? 5}`)
+      subtitle = `Top ${config.topk ?? 50} · drop ${config.n_drop ?? 5}`
       break
     case 'costs':
-      details.push(`open ${config.open_cost ?? 0.0005}`, `close ${config.close_cost ?? 0.0015}`)
+      subtitle = `open ${config.open_cost ?? 0.0005} · close ${config.close_cost ?? 0.0015}`
       break
     case 'records':
-      details.push('Signal · SigAna · PortAna')
+      subtitle = 'Signal · SigAna · PortAna'
       break
     case 'run_per_candle':
+      subtitle = String(config.timeframe ?? '1d')
+      break
     case 'run_at_time':
+      subtitle = String(config.time ?? '09:30')
+      break
     case 'run_in_session':
-      if (config.time) details.push(String(config.time))
+      subtitle = String(config.session ?? 'regular')
       break
     case 'previous_day_bullish':
-      details.push(config.lookback ? `${config.lookback}d lookback` : '1d lookback')
+      subtitle = `${config.lookback ?? 1}d lookback`
       break
     case 'candle_close_above_opening_range':
-      details.push(`${config.minutes ?? 30}min ORB`)
+      subtitle = `${config.minutes ?? 30}min ORB`
       break
     case 'price_above_previous_day_close':
-      details.push(config.confirm ? 'confirmed' : 'raw')
+      subtitle = config.confirm ? 'confirmed' : 'raw'
       break
     case 'news_filter':
-      details.push(String(config.source ?? 'general'))
+      subtitle = `${config.source ?? 'general'}${config.sentiment ? ` · ${config.sentiment}` : ''}`
       break
     case 'buy_now':
-      details.push(`${config.side ?? 'long'} · ${config.size ?? '100%'}`)
+      subtitle = `${config.side ?? 'long'} · ${config.size ?? '100%'}`
+      break
+    case 'context': {
+      const text = String(config.text ?? '').trim()
+      subtitle = text || 'No objective set'
+      break
+    }
+    case 'trade_rule':
+    case 'branch':
+      subtitle = String(config.condition ?? 'close > open')
+      break
+    case 'check_spread':
+      subtitle = `${config.max_spread_bps ?? 10} bps`
+      break
+    case 'no_trade_for_day':
+      subtitle = String(config.reason ?? 'stop-loss hit')
       break
     case 'trade_counter':
     case 'reset_trade_counter':
-      details.push(`max ${config.max_trades ?? 3}`)
+      subtitle = `max ${config.max_trades ?? 3}`
       break
-    default:
-      Object.entries(config)
+    case 'variable':
+      subtitle = `${config.name ?? 'var1'} = ${config.value ?? '0'}`
+      break
+    case 'chart_drawing':
+      subtitle = `${config.type ?? 'level'} · ${config.price ?? 0}`
+      break
+    default: {
+      const first = Object.entries(config)
         .filter(([, v]) => v !== undefined && v !== null && v !== '')
-        .slice(0, 2)
-        .forEach(([k, v]) => details.push(`${k}: ${String(v)}`))
+        .slice(0, 1)[0]
+      subtitle = first ? `${first[0]}: ${String(first[1])}` : (info?.description ?? '')
+    }
   }
-  const info = nodeInfo(type)
-  return { headline: info?.label ?? type, details }
+  return { title, subtitle }
 }
 
 const GREY_COLOR = '#9ca3af'
 
-export const KeycardNode = memo(function KeycardNode({ data, selected }: NodeProps<KeycardFlowNode>) {
-  // Ephemeral add-next pseudo-node.
-  if ('sourceNodeId' in data) {
-    const addNextData = data as KeycardAddNextData
-    return (
-      <AddNextNodeView
-        sourceNodeId={addNextData.sourceNodeId}
-        sourcePortId={addNextData.sourcePortId}
-        metaByType={addNextData.metaByType}
-        onReplace={addNextData.onReplaceAddNext}
-      />
-    )
-  }
+/** n8n node dimensions. Keep in sync with keycardFlow.ts. */
+const NODE_WIDTH = 160
+const NODE_HEIGHT = 56
 
+export const KeycardNode = memo(function KeycardNode({ data, selected }: NodeProps<KeycardFlowNode>) {
   const { keycardNode, meta, defects } = data
   const info = nodeInfo(keycardNode.type)
-  const eyebrow = info?.eyebrow ?? keycardNode.type
   const category = (meta?.category ?? info?.category ?? 'Data') as NodeCategory
   const categoryInfo = NODE_CATEGORY_INFO[category] ?? { color: GREY_COLOR, label: category }
   const Icon = getIcon(meta?.icon ?? info?.icon)
@@ -175,12 +195,10 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
   const nodeColor = complete ? categoryInfo.color : GREY_COLOR
 
   const blocking = useMemo(() => defects.filter((d) => d.severity === 'blocking'), [defects])
-  const advisory = useMemo(() => defects.filter((d) => d.severity === 'advisory'), [defects])
 
   const inputPorts = meta?.ports.filter((p) => p.direction === 'in') ?? []
   const outputPorts = meta?.ports.filter((p) => p.direction === 'out') ?? []
-  const { headline, details } = summarizeConfig(keycardNode.type, keycardNode.config)
-  const description = meta?.description ?? info?.description ?? ''
+  const { title, subtitle } = summarizeConfig(keycardNode.type, keycardNode.config)
 
   const [openMenuPortId, setOpenMenuPortId] = useState<string | null>(null)
 
@@ -190,77 +208,135 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
 
   return (
     <div
-      style={{ width: 236 }}
+      style={{ width: NODE_WIDTH, height: NODE_HEIGHT }}
       className={cn(
-        'aion-keycard-node group relative flex cursor-pointer overflow-hidden rounded-xl',
-        'border bg-card shadow-card transition-shadow hover:shadow-card-hover',
-        blocking.length > 0 ? 'border-clay/50' : 'border-border/50',
-        (selected || data.selected) && 'ring-2 ring-primary',
+        'aion-keycard-node group relative flex cursor-pointer overflow-hidden rounded-lg',
+        'border bg-card shadow-sm transition-shadow hover:shadow-md',
+        blocking.length > 0 ? 'border-clay/60' : 'border-border/60',
+        (selected || data.selected) && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
       )}
       onDoubleClick={() => data.onDoubleClick?.(keycardNode.id)}
       data-testid={`keycard-node-${keycardNode.id}`}
     >
-      {/* Category accent along the bottom edge. */}
+      {/* Coloured icon strip — n8n places the brand icon on a solid left tile. */}
       <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px]"
+        className="flex w-11 shrink-0 items-center justify-center"
         style={{ backgroundColor: nodeColor }}
-      />
+      >
+        <Icon className="h-4 w-4 text-white" />
+      </span>
+
+      {/* Title + subtitle */}
+      <div className="flex min-w-0 flex-1 flex-col justify-center px-2.5 py-1">
+        <div
+          title={title}
+          className="min-w-0 truncate text-xs font-semibold leading-tight text-foreground"
+        >
+          {title}
+        </div>
+        {subtitle && (
+          <div
+            title={subtitle}
+            className="min-w-0 truncate text-[10px] leading-snug text-muted-foreground"
+          >
+            {subtitle}
+          </div>
+        )}
+      </div>
+
+      {/* Status dot */}
+      {blocking.length > 0 && (
+        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-destructive" />
+      )}
+      {!complete && blocking.length === 0 && (
+        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+      )}
 
       {/* Input handles */}
-      {inputPorts.map((port, i) => {
-        const count = inputPorts.length
-        const top = count === 1 ? 46 : 18 + (i * 56) / Math.max(count - 1, 1)
+      {inputPorts.map((port) => {
+        const top = inputPortHandleTop(meta, port.id)
+        const portColor = PORT_COLORS[port.type] ?? nodeColor
+        const active = data.connectingPortType != null && data.seekingHandle === 'target'
+        const isCompatible = active && port.type === data.connectingPortType
+        const isIncompatible = active && !isCompatible
+        const isInactiveDirection = data.connectingPortType != null && data.seekingHandle !== 'target'
         return (
           <Handle
             key={`in-${port.id}`}
             type="target"
             position={Position.Left}
             id={port.id}
-            className="aion-keycard-handle"
+            className={cn(
+              'aion-keycard-handle',
+              isCompatible && 'aion-keycard-handle-compatible',
+              isIncompatible && 'aion-keycard-handle-incompatible',
+              isInactiveDirection && 'aion-keycard-handle-inactive-direction',
+            )}
+            title={port.label}
             style={{
               top,
-              left: -7,
-              background: nodeColor,
-              borderColor: nodeColor,
+              left: -4,
+              borderColor: portColor,
             }}
-          />
+          >
+            <span
+              className="aion-keycard-handle-hitarea"
+              style={{ inset: '-10px 0px -10px -14px' }}
+              aria-hidden="true"
+            />
+          </Handle>
         )
       })}
 
-      {/* Output handles */}
-      {outputPorts.map((port, i) => {
-        const count = outputPorts.length
-        const top = count === 1 ? 46 : 18 + (i * 56) / Math.max(count - 1, 1)
+      {/* Output handles + inline add-next button */}
+      {outputPorts.map((port) => {
+        const top = outputPortHandleTop(meta, port.id)
+        const portColor = PORT_COLORS[port.type] ?? nodeColor
+        const active = data.connectingPortType != null && data.seekingHandle === 'source'
+        const isCompatible = active && port.type === data.connectingPortType
+        const isIncompatible = active && !isCompatible
+        const isInactiveDirection = data.connectingPortType != null && data.seekingHandle !== 'source'
+        const isConnecting = data.connectingPortType != null
         return (
           <div key={`out-${port.id}`}>
             <Handle
               type="source"
               position={Position.Right}
               id={port.id}
-              className="aion-keycard-handle"
+              className={cn(
+                'aion-keycard-handle',
+                isCompatible && 'aion-keycard-handle-compatible',
+                isIncompatible && 'aion-keycard-handle-incompatible',
+                isInactiveDirection && 'aion-keycard-handle-inactive-direction',
+              )}
+              title={port.label}
               style={{
                 top,
-                right: -7,
-                background: nodeColor,
-                borderColor: nodeColor,
+                right: -4,
+                borderColor: portColor,
               }}
-            />
-            {data.onCreateNode && (
+            >
+              <span
+                className="aion-keycard-handle-hitarea"
+                style={{ inset: '-10px -14px -10px 0px' }}
+                aria-hidden="true"
+              />
+            </Handle>
+            {data.onCreateNode && !isConnecting && (
               <Popover open={openMenuPortId === port.id} onOpenChange={(open) => setOpenMenuPortId(open ? port.id : null)}>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
                     onClick={(e) => e.stopPropagation()}
                     className={cn(
-                      'absolute z-10 flex h-4 w-4 items-center justify-center rounded-full',
-                      'border border-border/50 bg-card text-muted-foreground shadow-sm',
-                      'transition-colors hover:border-primary hover:text-primary',
+                      'absolute z-10 flex h-5 w-5 items-center justify-center rounded-full',
+                      'border border-border/60 bg-card text-muted-foreground shadow-sm',
+                      'transition-colors hover:border-primary hover:text-primary hover:bg-surface-2',
                     )}
-                    style={{ top: top - 6, right: -26 }}
+                    style={{ top: top - 10, right: -22 }}
                     title="Add block"
                   >
-                    <Plus className="h-2.5 w-2.5" />
+                    <Plus className="h-3 w-3" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent
@@ -285,100 +361,6 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
           </div>
         )
       })}
-
-      {/* Icon tile */}
-      <span
-        className="ml-2.5 mt-2.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md"
-        style={{ backgroundColor: `${nodeColor}15`, color: nodeColor }}
-      >
-        <Icon className="h-4 w-4" />
-      </span>
-
-      {/* Content */}
-      <div className="flex min-w-0 flex-1 flex-col justify-center px-2.5 py-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span
-            className="tnum shrink-0 font-mono text-[9px] uppercase tracking-wider"
-            style={{ color: nodeColor }}
-          >
-            {keycardNode.type}
-          </span>
-          <span className="truncate font-mono text-[9px] uppercase tracking-wider text-muted-foreground/70">
-            · {eyebrow}
-          </span>
-        </div>
-
-        <div title={headline} className="mt-0.5 min-w-0 truncate text-sm font-semibold leading-tight tracking-tight">
-          {headline}
-        </div>
-
-        {description && (
-          <p
-            title={description}
-            className="mt-0.5 line-clamp-2 min-w-0 text-[10px] leading-snug text-muted-foreground/80"
-          >
-            {description}
-          </p>
-        )}
-
-        {details.length > 0 && (
-          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1 overflow-hidden">
-            {details.slice(0, 2).map((line, idx) => (
-              <span
-                key={idx}
-                title={line}
-                className="tnum max-w-full shrink-0 truncate rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground/80"
-              >
-                {line}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {keycardNode.type === 'handler' && Array.isArray(keycardNode.config.features) && keycardNode.config.features.length > 0 && (
-          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1 overflow-hidden">
-            {(keycardNode.config.features as { name?: string }[]).slice(0, 3).map((f, idx) => (
-              <span
-                key={idx}
-                title={f.name}
-                className="tnum max-w-full shrink-0 truncate rounded bg-type-process/10 px-1.5 py-0.5 font-mono text-[9px] text-type-process"
-              >
-                {f.name ?? `F${idx + 1}`}
-              </span>
-            ))}
-            {(keycardNode.config.features as { name?: string }[]).length > 3 && (
-              <span className="tnum rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
-                +{(keycardNode.config.features as { name?: string }[]).length - 3}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Status badge */}
-      {blocking.length > 0 && (
-        <Badge variant="clay" className="mr-2.5 mt-2.5 shrink-0 truncate text-[9px]">
-          {blocking.length}
-        </Badge>
-      )}
-      {!blocking.length && advisory.length > 0 && (
-        <Badge variant="muted" className="mr-2.5 mt-2.5 shrink-0 truncate text-[9px]">
-          {advisory.length}
-        </Badge>
-      )}
-      {!blocking.length && !complete && (
-        <Badge variant="muted" className="mr-2.5 mt-2.5 shrink-0 truncate text-[9px]">
-          Incomplete
-        </Badge>
-      )}
-
-      {/* Category label in the corner */}
-      <span
-        className="pointer-events-none absolute bottom-2 right-2.5 font-mono text-[9px] uppercase tracking-wider opacity-40"
-        style={{ color: nodeColor }}
-      >
-        {categoryInfo.label}
-      </span>
     </div>
   )
 })
@@ -526,26 +508,28 @@ function StartNodeView({
   const allowedTypes = useMemo(() => getRootNodeTypes().map((info) => info.id), [])
 
   return (
-    <div style={{ width: 236 }} data-testid="keycard-start-node">
+    <div style={{ width: NODE_WIDTH, height: NODE_HEIGHT }} data-testid="keycard-start-node">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              'group flex w-full cursor-pointer flex-col items-center justify-center gap-2',
-              'rounded-xl border border-dashed border-border/60 bg-card p-5 shadow-card',
+              'group flex h-full w-full cursor-pointer items-center gap-0 overflow-hidden rounded-lg',
+              'border border-dashed border-border/60 bg-card shadow-sm',
               'transition-colors hover:border-primary/50 hover:bg-surface-2',
             )}
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Plus className="h-5 w-5" />
+            <span className="flex h-full w-11 shrink-0 items-center justify-center bg-primary/10 text-primary">
+              <Zap className="h-4 w-4" />
             </span>
-            <span className="text-sm font-medium">Add your first block</span>
-            <span className="text-[11px] text-muted-foreground">Click to start building</span>
+            <div className="flex min-w-0 flex-1 flex-col items-start px-2.5 py-1 text-left">
+              <span className="truncate text-xs font-semibold">Add trigger</span>
+              <span className="truncate text-[10px] text-muted-foreground">Click to start</span>
+            </div>
           </button>
         </PopoverTrigger>
-        <PopoverContent align="center" side="right" sideOffset={12} className="w-60 p-2">
+        <PopoverContent align="start" side="right" sideOffset={12} className="w-60 p-2">
           <AddNodeMenu
             title="Start here"
             metaByType={metaByType}
@@ -561,56 +545,4 @@ function StartNodeView({
   )
 }
 
-function AddNextNodeView({
-  sourceNodeId,
-  sourcePortId,
-  metaByType,
-  onReplace,
-}: {
-  sourceNodeId: string
-  sourcePortId: string
-  metaByType: Map<string, KeycardNodeTypeMeta>
-  onReplace?: (sourceNodeId: string, sourcePortId: string, type: string) => void
-}) {
-  const [open, setOpen] = useState(false)
 
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div
-          data-testid={`keycard-add-next-${sourceNodeId}-${sourcePortId}`}
-          className="relative flex h-11 w-11 cursor-pointer items-center justify-center rounded-full"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Handle
-            type="target"
-            position={Position.Left}
-            id="in"
-            className="aion-keycard-handle-inert"
-          />
-          <span
-            className={cn(
-              'flex h-7 w-7 items-center justify-center rounded-full',
-              'border border-border/60 bg-card text-muted-foreground shadow-sm',
-              'transition-colors hover:border-primary hover:text-primary hover:bg-surface-2',
-            )}
-            title="Add next block"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </span>
-        </div>
-      </PopoverTrigger>
-      <PopoverContent align="center" side="right" sideOffset={10} className="w-60 p-2">
-        <AddNodeMenu
-          title="Add next block"
-          metaByType={metaByType}
-          sourcePortType={sourcePortId as KeycardPortType}
-          onSelect={(type) => {
-            onReplace?.(sourceNodeId, sourcePortId, type)
-            setOpen(false)
-          }}
-        />
-      </PopoverContent>
-    </Popover>
-  )
-}

@@ -10,15 +10,24 @@
     }
   ],
   "strategy_ids": [
-    "demo-baseline",
-    "demo-custom-factors",
-    "demo-cost-stressed"
+    "demo-official-core-equity",
+    "demo-official-risk-parity",
+    "demo-official-defensive"
   ],
   "inception": "2021-01-04",
   "rebalance": "none",
   "cost_bps": 10.0,
-  "notes": "the only portfolio whose point is strategy_ids \u2014 the /book page's 'these strategies feed this book' panel",
+  "notes": "Trades from 2021 (~5 years). A 100% SPY book used to demonstrate official strategy linkage: the core baseline, a volatility-aware risk-parity sleeve and a defensive sleeve feed this portfolio.",
+  "objective": "Demonstrate how multiple official sleeves feed a single portfolio.",
+  "constraints": "100% SPY strategic allocation; no rebalance; linkage panel shows the latest run of each sleeve.",
+  "tags": [
+    "model",
+    "linkage",
+    "official"
+  ],
   "id": "demo-pf-model-book",
   "created_at": "2026-08-10T15:12:08.565147+00:00",
-  "updated_at": "2026-08-10T15:49:02.749666+00:00"
+  "updated_at": "2026-08-20T11:33:54.500548+00:00",
+  "user_id": "",
+  "visibility": "private"
 }

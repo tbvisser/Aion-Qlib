@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { RefreshCw } from 'lucide-react'
 import { Panel } from '@/components/ui/panel'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { CountryIndicatorPanel } from '@/components/macro/CountryIndicatorPanel'
@@ -16,11 +17,14 @@ import {
   useMacroRegime, useMacroRegimeHistory, useMacroRegistry, useMacroSeriesData,
   useMacroSnapshot,
 } from '@/hooks/useMacro'
+import { useMacroAlerts } from '@/hooks/useMacroAlerts'
 import { usePortfolios } from '@/hooks/usePortfolios'
 import { api, type PlaybookLens, type StoredStrategy } from '@/lib/api'
 import { buildBoard, type Horizon } from '@/lib/macroBoard'
 import { MAX_SERIES, daysBetween, formatIsoDate, todayIso } from '@/lib/macroFormat'
 import { cn } from '@/lib/utils'
+import { GlobalAlertGlobe } from '@/components/macro/GlobalAlertGlobe'
+import { GlobalAlertSummary } from '@/components/macro/GlobalAlertSummary'
 
 const SECTIONS = [
   { id: 'verdict', label: 'Verdict' },
@@ -35,6 +39,7 @@ const SECTIONS = [
 const RANGE_YEARS: Record<string, number> = { '1y': 1, '3y': 3, '5y': 5, '10y': 10, max: 0 }
 const COMPARE_YEARS: Record<string, number> = { none: 0, '1y': 1, '3y': 3 }
 const DEFAULT_SERIES = ['US10Y', 'VIX', 'DXY']
+const DESK_REFRESH_MS = 2 * 60 * 60 * 1000 // refresh macro desk data every 2 hours
 
 /**
  * What regime we are in, and what it has meant for markets.
@@ -63,12 +68,15 @@ export function MacroDeskPage() {
   const [indicatorCountry, setIndicatorCountry] = useState('USA')
   const [active, setActive] = useState<string>('verdict')
   const [strategies, setStrategies] = useState<StoredStrategy[]>([])
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
 
   const { registry } = useMacroRegistry()
-  const { snapshot, loading: snapshotLoading } = useMacroSnapshot()
-  const { regime, loading: regimeLoading } = useMacroRegime()
-  const { history, loading: historyLoading } = useMacroRegimeHistory(24)
-  const { portfolios } = usePortfolios()
+  const { snapshot, loading: snapshotLoading, refresh: refreshSnapshot } = useMacroSnapshot()
+  const { regime, loading: regimeLoading, refresh: refreshRegime } = useMacroRegime()
+  const { history, loading: historyLoading, refresh: refreshHistory } = useMacroRegimeHistory(24)
+  const { portfolios, refresh: refreshPortfolios } = usePortfolios()
+  const { alerts, loading: alertsLoading, refresh: refreshAlerts } = useMacroAlerts()
 
   // ── URL state ───────────────────────────────────────────────────────────
   const selected = useMemo(() => {
@@ -81,7 +89,7 @@ export function MacroDeskPage() {
   }, [params, registry])
 
   const playbookLens = (params.get('playbook') ?? 'quadrant') as PlaybookLens
-  const { playbook, loading: playbookLoading } = useMacroPlaybook(playbookLens)
+  const { playbook, loading: playbookLoading, refresh: refreshPlaybook } = useMacroPlaybook(playbookLens)
 
   const patch = useCallback((mutate: (next: URLSearchParams) => void) => {
     const next = new URLSearchParams(params)
@@ -139,10 +147,10 @@ export function MacroDeskPage() {
     return `${now.getFullYear() - years}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
   }, [compare])
 
-  const { series, loading: seriesLoading } = useMacroSeriesData(selected, start)
-  const { curve, loading: curveLoading } = useMacroCurve(compareDate)
-  const { calendar, loading: calendarLoading } = useMacroCalendar(eventCountry)
-  const { indicators, loading: indicatorsLoading } = useCountryIndicators(indicatorCountry)
+  const { series, loading: seriesLoading, refresh: refreshSeries } = useMacroSeriesData(selected, start)
+  const { curve, loading: curveLoading, refresh: refreshCurve } = useMacroCurve(compareDate)
+  const { calendar, loading: calendarLoading, refresh: refreshCalendar } = useMacroCalendar(eventCountry)
+  const { indicators, loading: indicatorsLoading, refresh: refreshIndicators } = useCountryIndicators(indicatorCountry)
 
   const board = useMemo(
     () => buildBoard(registry, snapshot, horizon), [registry, snapshot, horizon],
@@ -155,6 +163,81 @@ export function MacroDeskPage() {
       .catch(() => { if (!cancelled) setStrategies([]) })
     return () => { cancelled = true }
   }, [])
+
+  // ── Auto-refresh ─────────────────────────────────────────────────────────
+  // The macro desk can sit open for long periods; re-fetch the desk from the
+  // API every two hours so new EODHD prints are visible. The actual EODHD pull
+  // happens server-side on the same interval (see macro_auto_refresh.py), so
+  // this poll just surfaces whatever the cache now holds.
+  const refreshAll = useCallback(() => {
+    void refreshSnapshot()
+    void refreshRegime()
+    void refreshHistory()
+    void refreshPlaybook()
+    void refreshCurve()
+    void refreshCalendar()
+    void refreshIndicators()
+    void refreshSeries()
+    void refreshAlerts()
+    void refreshPortfolios()
+    void api.listStrategies()
+      .then((r) => { setStrategies(r.strategies) })
+      .catch(() => { setStrategies([]) })
+  }, [
+    refreshSnapshot, refreshRegime, refreshHistory, refreshPlaybook,
+    refreshCurve, refreshCalendar, refreshIndicators, refreshSeries,
+    refreshAlerts, refreshPortfolios,
+  ])
+
+  useEffect(() => {
+    const id = setInterval(refreshAll, DESK_REFRESH_MS)
+    return () => clearInterval(id)
+  }, [refreshAll])
+
+  const pollMacroRefreshJob = async (jobId: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const poll = async () => {
+        try {
+          const job = await api.macroRefreshJob(jobId)
+          if (job.status === 'done') {
+            resolve()
+          } else if (job.status === 'error') {
+            reject(new Error(job.error ?? 'Macro refresh failed'))
+          } else {
+            setTimeout(poll, 2000)
+          }
+        } catch (err) {
+          reject(err)
+        }
+      }
+      void poll()
+    })
+  }
+
+  // Trigger a backend macro refresh and re-fetch the desk once it finishes.
+  // This is admin-gated on the server; if the caller lacks permission we surface
+  // a helpful message instead of a raw error. Routine freshness is handled by
+  // the server's own 2-hour EODHD refresh.
+  const runBackendRefresh = useCallback(async () => {
+    setRefreshing(true)
+    setRefreshError(null)
+    try {
+      const { job_id: jobId } = await api.startMacroRefresh({ what: 'all' })
+      await pollMacroRefreshJob(jobId)
+      refreshAll()
+    } catch (err) {
+      const isAuth = err instanceof Error && /403|admin|permission/i.test(err.message)
+      setRefreshError(
+        isAuth
+          ? 'Admin access required for on-demand refresh — data refreshes automatically every 2 hours.'
+          : (err instanceof Error ? err.message : 'Refresh failed'),
+      )
+    } finally {
+      setRefreshing(false)
+    }
+  }, [refreshAll])
+
+  const staleDays = regime?.as_of ? daysBetween(regime.as_of, todayIso()) : 0
 
   // ── Scroll spy ──────────────────────────────────────────────────────────
   // The scroll container is the pane, not the document, so the observer has to
@@ -192,136 +275,163 @@ export function MacroDeskPage() {
       document.getElementById('linkage')?.scrollIntoView({ block: 'start' }))
   }, [linkId, regime])
 
-  const staleDays = regime?.as_of ? daysBetween(regime.as_of, todayIso()) : 0
-
   return (
     <div ref={paneRef} className="min-h-0 flex-1 overflow-y-auto">
       <PageHeader
         title="Macro Desk"
         description="What regime we are in, and what it has meant for markets."
-        actions={regime?.as_of ? (
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] text-muted-foreground">
-              as of {formatIsoDate(regime.as_of)}
-            </span>
-            {staleDays > 3 && (
-              <span className="rounded bg-clay/10 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-clay">
-                {staleDays}d behind
+        actions={(
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {regime?.as_of && (
+              <>
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  as of {formatIsoDate(regime.as_of)}
+                </span>
+                {staleDays > 3 && (
+                  <span className="rounded bg-clay/10 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-clay">
+                    {staleDays}d behind
+                  </span>
+                )}
+              </>
+            )}
+            <button
+              type="button"
+              onClick={runBackendRefresh}
+              disabled={refreshing}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-background px-2 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground disabled:opacity-60"
+            >
+              <RefreshCw className={cn('h-3 w-3', refreshing && 'animate-spin')} />
+              {refreshing ? 'Refreshing…' : 'Refresh data'}
+            </button>
+            {refreshError && (
+              <span className="max-w-[16rem] truncate text-[10px] text-destructive">
+                {refreshError}
               </span>
             )}
           </div>
-        ) : null}
+        )}
       />
 
       <div className="p-6 pt-0">
-        <div className="sticky top-0 z-20 -mx-6 mb-4 border-b border-border/50 bg-background/80 px-6 py-2 backdrop-blur">
-          <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-border/50 p-0.5">
-            {SECTIONS.map((section) => (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => {
-                  setActive(section.id)
-                  document.getElementById(section.id)
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                }}
-                className={cn(
-                  'shrink-0 rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors',
-                  active === section.id
-                    ? 'bg-foreground/[0.07] text-foreground'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {section.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-8">
-          <section id="verdict" className="scroll-mt-14">
-            <RegimeVerdict regime={regime} loading={regimeLoading} />
-          </section>
-
-          <section id="history" className="scroll-mt-14">
-            <RegimeRibbon
-              history={history}
-              lens={ribbonLens}
-              onLensChange={setRibbonLens}
-              loading={historyLoading}
-            />
-          </section>
-
-          <section id="playbook" className="scroll-mt-14">
-            <RegimePlaybook
-              playbook={playbook}
-              lens={playbookLens}
-              onLensChange={(lens) => patch((next) => next.set('playbook', lens))}
-              loading={playbookLoading}
-            />
-          </section>
-
-          <section id="board" className="scroll-mt-14">
-            <CrossAssetBoard
-              groups={board}
-              horizon={horizon}
-              onHorizonChange={setHorizon}
-              selected={selected}
-              onToggle={toggleSeries}
-              onClear={() => setSelected([])}
-              loading={snapshotLoading}
-            />
-          </section>
-
-          <section id="series" className="scroll-mt-14">
-            <SeriesExplorer
-              registry={registry}
-              series={series}
-              selected={selected}
-              onToggle={toggleSeries}
-              onClear={() => setSelected([])}
-              range={range}
-              onRangeChange={setRange}
-              mode={mode}
-              onModeChange={setMode}
-              compare={compare}
-              onCompareChange={setCompare}
-              curve={curve}
-              loadingSeries={seriesLoading}
-              loadingCurve={curveLoading}
-            />
-          </section>
-
-          <section id="calendar" className="scroll-mt-14">
-            <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
-              <Panel title="Economic calendar" hint="What could change the read">
-                <EconomicCalendar
-                  calendar={calendar}
-                  country={eventCountry}
-                  onCountryChange={setEventCountry}
-                  loading={calendarLoading}
-                />
-              </Panel>
-              <Panel title="Country indicators" hint="Annual, World Bank">
-                <CountryIndicatorPanel
-                  data={indicators}
-                  country={indicatorCountry}
-                  onCountryChange={setIndicatorCountry}
-                  loading={indicatorsLoading}
-                />
-              </Panel>
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+          <main className="min-w-0 flex-1">
+            <div className="sticky top-0 z-20 -mx-6 mb-4 border-b border-border/50 bg-background/80 px-6 py-2 backdrop-blur">
+              <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-border/50 p-0.5">
+                {SECTIONS.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => {
+                      setActive(section.id)
+                      document.getElementById(section.id)
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }}
+                    className={cn(
+                      'shrink-0 rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors',
+                      active === section.id
+                        ? 'bg-foreground/[0.07] text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {section.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </section>
 
-          <section id="linkage" className="scroll-mt-14 pb-10">
-            <LinkagePanel
-              strategies={strategies}
-              portfolios={portfolios}
-              kind={linkKind}
-              subjectId={linkId}
-              onSubjectChange={setSubject}
-            />
-          </section>
+            <div className="space-y-8">
+              <section id="verdict" className="scroll-mt-14">
+                <RegimeVerdict regime={regime} loading={regimeLoading} />
+              </section>
+
+              <section id="history" className="scroll-mt-14">
+                <RegimeRibbon
+                  history={history}
+                  lens={ribbonLens}
+                  onLensChange={setRibbonLens}
+                  loading={historyLoading}
+                />
+              </section>
+
+              <section id="playbook" className="scroll-mt-14">
+                <RegimePlaybook
+                  playbook={playbook}
+                  lens={playbookLens}
+                  onLensChange={(lens) => patch((next) => next.set('playbook', lens))}
+                  loading={playbookLoading}
+                />
+              </section>
+
+              <section id="board" className="scroll-mt-14">
+                <CrossAssetBoard
+                  groups={board}
+                  horizon={horizon}
+                  onHorizonChange={setHorizon}
+                  selected={selected}
+                  onToggle={toggleSeries}
+                  onClear={() => setSelected([])}
+                  loading={snapshotLoading}
+                />
+              </section>
+
+              <section id="series" className="scroll-mt-14">
+                <SeriesExplorer
+                  registry={registry}
+                  series={series}
+                  selected={selected}
+                  onToggle={toggleSeries}
+                  onClear={() => setSelected([])}
+                  range={range}
+                  onRangeChange={setRange}
+                  mode={mode}
+                  onModeChange={setMode}
+                  compare={compare}
+                  onCompareChange={setCompare}
+                  curve={curve}
+                  loadingSeries={seriesLoading}
+                  loadingCurve={curveLoading}
+                />
+              </section>
+
+              <section id="calendar" className="scroll-mt-14">
+                <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
+                  <Panel title="Economic calendar" hint="What could change the read">
+                    <EconomicCalendar
+                      calendar={calendar}
+                      country={eventCountry}
+                      onCountryChange={setEventCountry}
+                      loading={calendarLoading}
+                    />
+                  </Panel>
+                  <Panel title="Country indicators" hint="Annual, World Bank">
+                    <CountryIndicatorPanel
+                      data={indicators}
+                      country={indicatorCountry}
+                      onCountryChange={setIndicatorCountry}
+                      loading={indicatorsLoading}
+                    />
+                  </Panel>
+                </div>
+              </section>
+
+              <section id="linkage" className="scroll-mt-14 pb-10">
+                <LinkagePanel
+                  strategies={strategies}
+                  portfolios={portfolios}
+                  kind={linkKind}
+                  subjectId={linkId}
+                  onSubjectChange={setSubject}
+                />
+              </section>
+            </div>
+          </main>
+
+          <aside className="hidden w-80 shrink-0 xl:block">
+            <div className="sticky top-6 space-y-4">
+              <GlobalAlertGlobe alerts={alerts} loading={alertsLoading} />
+              <GlobalAlertSummary alerts={alerts} loading={alertsLoading} />
+            </div>
+          </aside>
         </div>
       </div>
     </div>

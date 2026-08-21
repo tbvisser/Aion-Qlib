@@ -5,7 +5,7 @@ import asyncio
 import json
 
 import yaml
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
 from sse_starlette.sse import EventSourceResponse
 
@@ -573,3 +573,27 @@ def run_predictions(run_id: str, limit: int = 50,
     if sample is None:
         raise HTTPException(status_code=404, detail="No predictions recorded")
     return sample
+
+
+@router.get("/runs/{run_id}/positions")
+def run_positions(
+    run_id: str,
+    instrument: str | None = Query(None, description="Filter trades to a single instrument"),
+    principal: Principal = Depends(get_principal),
+) -> dict:
+    run = _runs.get(principal, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="No such run")
+    if run.meta.get("status") != "succeeded":
+        raise HTTPException(status_code=409, detail=f"Run is {run.meta.get('status')}")
+    qlib_session.require_qlib()
+    experiment_name = results.resolve_experiment(run_id, run.meta.get("experiment_name"))
+    history = results.position_history(experiment_name)
+    if history is None:
+        raise HTTPException(status_code=404, detail="No position history recorded")
+    if instrument:
+        needle = instrument.upper()
+        history["trades"] = [
+            t for t in history["trades"] if t.get("instrument", "").upper() == needle
+        ]
+    return history

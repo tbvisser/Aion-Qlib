@@ -49,6 +49,7 @@ export const STAGE_H = 72
 
 /** Per-stage widths: wider when the typical headline is longer. */
 export const STAGE_WIDTHS: Readonly<Record<StageId, number>> = {
+  context: 180,
   store: 160,
   universe: 180,
   features: 168,

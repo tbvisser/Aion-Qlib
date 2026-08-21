@@ -201,7 +201,7 @@ def validate_keycard(keycard: KeycardSpec) -> list[Defect]:
     reaching_records = _nodes_reaching_records(keycard)
     # Data/global nodes are always allowed because they set context for the
     # compiled workflow even when they are not wired directly to records.
-    exempt_types = {"data_store", "universe", "chart_drawing", "variable"}
+    exempt_types = {"data_store", "universe", "chart_drawing", "variable", "context"}
     for node in keycard.nodes:
         if node.id in reaching_records or node.type in exempt_types:
             continue

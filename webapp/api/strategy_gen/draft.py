@@ -100,6 +100,9 @@ class StrategyDraft(BaseModel):
     #: said, and `_vocabulary_defects` reports an unknown value as a defect
     #: instead of raising on the first bad one.
     feature_mode: str | None = None
+    origin: str | None = None
+    description: str | None = None
+    context: str | None = None
 
     #: Assumptions the *author* of the draft declares. `lower_draft` appends the
     #: ones the server itself makes; both end up in `LoweredDraft.assumed`.
@@ -132,6 +135,9 @@ _WHY = {
     "features": "no custom factors, so the handler's own feature set is used as it is",
     "feature_mode": "not stated, so custom factors are added to the handler's own "
                     "features rather than replacing them",
+    "origin": "not stated, so this is treated as a research backtest",
+    "description": "no strategy description was given",
+    "context": "no objective was given for the AI to follow",
 }
 
 
@@ -280,6 +286,15 @@ def draft_json_schema(data_store: str | None = None) -> dict:
             "string", "Whether custom factors are added to the handler's own "
                       "features or replace them entirely.",
             vocab["feature_mode"]),
+        "origin": _nullable(
+            "string", "Whether this is an official fund strategy or a research "
+                      "backtest.",
+            ["official", "backtest"]),
+        "description": _nullable(
+            "string", "Plain-language summary of what the strategy does and why."),
+        "context": _nullable(
+            "string", "User's plain-language objective. The assistant should use "
+                      "this as its primary guide when proposing changes."),
         "assumed": {
             "type": "array",
             "description": "One entry per parameter you chose that the "

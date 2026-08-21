@@ -14,12 +14,24 @@
       "weight": 0.4
     }
   ],
-  "strategy_ids": [],
+  "strategy_ids": [
+    "demo-official-balanced-6040",
+    "demo-official-defensive"
+  ],
   "inception": "2021-01-04",
   "rebalance": "monthly",
   "cost_bps": 10.0,
-  "notes": "Same holdings as the USD 60/40, reported in euros \u2014 the difference is the currency, nothing else.",
+  "notes": "Trades from 2021 (~5 years). Same 60/40 allocation as the USD book, reported in euros to exercise the FX conversion leg. Linked to the official 60/40 sleeve and defensive sleeve.",
+  "objective": "Same 60/40 allocation as the USD book, reported in euros.",
+  "constraints": "EUR reporting; 60/40 target; monthly rebalance; 10bp cost.",
+  "tags": [
+    "balanced",
+    "fx",
+    "eur"
+  ],
   "id": "demo-pf-eur-6040",
   "created_at": "2026-08-10T15:12:08.565303+00:00",
-  "updated_at": "2026-08-10T15:49:02.750046+00:00"
+  "updated_at": "2026-08-20T11:33:54.507830+00:00",
+  "user_id": "",
+  "visibility": "private"
 }

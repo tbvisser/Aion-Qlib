@@ -3,7 +3,7 @@ import {
   Folder, Network, Library,
   Briefcase, Users, Wallet,
   CandlestickChart, Landmark,
-  SlidersHorizontal, Brain, Boxes, Copy, Bot,
+  SlidersHorizontal, Brain, Boxes, Copy, Bot, GitBranch,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -45,7 +45,7 @@ export type SectionKey =
   | 'documents' | 'explorer' | 'corpus'
   | 'book' | 'accounts' | 'investors'
   | 'markets' | 'macro'
-  | 'tl-builder' | 'tl-mlstudio' | 'tl-database' | 'tl-shadow' | 'tl-roster'
+  | 'tl-builder' | 'tl-mlstudio' | 'tl-database' | 'tl-markov' | 'tl-shadow' | 'tl-roster'
 
 export interface NavItem {
   key: SectionKey
@@ -139,6 +139,7 @@ export const mainNavSections: NavSection[] = [
       // and land on the sub-tab that took the work over; see ROUTE_OWNERS and
       // `tabForLegacyRoute`.
       { key: 'tl-database', label: 'Database', icon: Boxes, route: '/lab/database', built: true },
+      { key: 'tl-markov', label: 'Markov Chains', icon: GitBranch, route: '/lab/markov', built: true },
       // Vibe Agent folded in here rather than into the Database: it is an agent
       // console, not a collection. `/vibe-agent` still resolves and highlights
       // this row, and the roster surfaces it — the sidecar's API forbids

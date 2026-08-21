@@ -67,17 +67,17 @@ export function useMacroSnapshot() {
 }
 
 export function useMacroCurve(compare?: string) {
-  const { data, error, loading } = useResource<MacroCurveResponse>(
+  const { data, error, loading, refresh } = useResource<MacroCurveResponse>(
     () => api.macroCurve({ compare }), [compare],
   )
-  return { curve: data, error, loading }
+  return { curve: data, error, loading, refresh }
 }
 
 export function useMacroCalendar(country: string) {
-  const { data, error, loading } = useResource<MacroCalendar>(
+  const { data, error, loading, refresh } = useResource<MacroCalendar>(
     () => api.macroCalendar({ country }), [country],
   )
-  return { calendar: data, error, loading }
+  return { calendar: data, error, loading, refresh }
 }
 
 const AGENDA_POLL_MS = 15 * 60_000
@@ -166,10 +166,10 @@ export function useMonthCalendar(
 }
 
 export function useCountryIndicators(country: string) {
-  const { data, error, loading } = useResource<CountryIndicators>(
+  const { data, error, loading, refresh } = useResource<CountryIndicators>(
     () => api.macroIndicators(country), [country],
   )
-  return { indicators: data, error, loading }
+  return { indicators: data, error, loading, refresh }
 }
 
 export function useMacroLinkage(subject: { kind: MacroSubjectKind; id: string } | null) {
@@ -191,9 +191,12 @@ export function useMacroSeriesData(keys: string[], start?: string) {
   const [series, setSeries] = useState<MacroSeriesData[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [tick, setTick] = useState(0)
   const cache = useRef(new Map<string, MacroSeriesData>())
   const reqId = useRef(0)
   const signature = keys.join(',')
+
+  const refresh = useCallback(() => setTick((t) => t + 1), [])
 
   useEffect(() => {
     const wanted = signature ? signature.split(',') : []
@@ -210,7 +213,7 @@ export function useMacroSeriesData(keys: string[], start?: string) {
       try {
         const loaded = await Promise.all(
           wanted.map(async (key) => {
-            const cacheKey = `${key}|${start ?? ''}`
+            const cacheKey = `${key}|${start ?? ''}|${tick}`
             const hit = cache.current.get(cacheKey)
             if (hit) return hit
             const fetched = await api.macroSeriesData(key, { start })
@@ -230,9 +233,9 @@ export function useMacroSeriesData(keys: string[], start?: string) {
     })()
 
     return () => { cancelled = true }
-  }, [signature, start])
+  }, [signature, start, tick])
 
-  return { series, error, loading }
+  return { series, error, loading, refresh }
 }
 
 export function useMacroRegime() {
@@ -243,15 +246,15 @@ export function useMacroRegime() {
 }
 
 export function useMacroRegimeHistory(months = 24) {
-  const { data, error, loading } = useResource<MacroRegimeHistory>(
+  const { data, error, loading, refresh } = useResource<MacroRegimeHistory>(
     () => api.macroRegimeHistory(months), [months],
   )
-  return { history: data, error, loading }
+  return { history: data, error, loading, refresh }
 }
 
 export function useMacroPlaybook(lens: PlaybookLens) {
-  const { data, error, loading } = useResource<MacroPlaybookResponse>(
+  const { data, error, loading, refresh } = useResource<MacroPlaybookResponse>(
     () => api.macroPlaybook(lens), [lens],
   )
-  return { playbook: data, error, loading }
+  return { playbook: data, error, loading, refresh }
 }

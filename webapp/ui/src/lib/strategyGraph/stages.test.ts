@@ -26,9 +26,11 @@ describe('field ownership', () => {
    * fails silently -- the canvas still renders, the spec still runs, and the
    * setting is simply unreachable. This is the thing that notices.
    */
-  it('accounts for every spec field except the name', () => {
+  it('accounts for every builder-relevant spec field except the name', () => {
     const owned = new Set(STAGE_ORDER.flatMap((id) => STAGES[id].owns as readonly string[]))
-    const expected = new Set(Object.keys(DEFAULT_STRATEGY).filter((k) => k !== 'name'))
+    const expected = new Set(Object.keys(DEFAULT_STRATEGY).filter(
+      (k) => k !== 'name' && k !== 'origin' && k !== 'description',
+    ))
     expect([...owned].sort()).toEqual([...expected].sort())
   })
 

@@ -196,7 +196,18 @@ function costsGlance(spec: StrategySpec): StageGlance {
   }
 }
 
+function contextGlance(spec: StrategySpec): StageGlance {
+  const text = spec.context.trim()
+  return {
+    headline: 'Objective',
+    detail: text
+      ? [{ key: 'context', value: text.length > 40 ? `${text.slice(0, 40)}…` : text }]
+      : [{ key: 'context', value: 'No objective set' }],
+  }
+}
+
 const GLANCE: Record<StageId, (spec: StrategySpec, ctx: GlanceContext) => StageGlance> = {
+  context: (spec) => contextGlance(spec),
   store: storeGlance,
   universe: universeGlance,
   features: featuresGlance,

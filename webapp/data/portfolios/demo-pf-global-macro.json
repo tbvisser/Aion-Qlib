@@ -29,12 +29,24 @@
       "weight": 0.15
     }
   ],
-  "strategy_ids": [],
+  "strategy_ids": [
+    "demo-official-risk-parity",
+    "demo-official-global-macro"
+  ],
   "inception": "2021-01-04",
   "rebalance": "monthly",
   "cost_bps": 10.0,
-  "notes": "US, developed and emerging equity plus duration and gold \u2014 the natural subject for the regime attribution",
+  "notes": "Trades from 2021 (~5 years). Multi-asset macro book blending US, developed and emerging equity with duration and gold. Linked to the official risk-parity and global-macro sleeves.",
+  "objective": "Harvest multi-asset momentum while keeping drawdowns contained through a volatility overlay.",
+  "constraints": "Multi-asset; monthly rebalance; SPY benchmark; 10bp cost.",
+  "tags": [
+    "macro",
+    "multi-asset",
+    "global"
+  ],
   "id": "demo-pf-global-macro",
   "created_at": "2026-08-10T15:12:08.564777+00:00",
-  "updated_at": "2026-08-10T15:49:02.748580+00:00"
+  "updated_at": "2026-08-20T11:33:54.484947+00:00",
+  "user_id": "",
+  "visibility": "private"
 }

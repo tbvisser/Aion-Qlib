@@ -1,0 +1,33 @@
+id: official-balanced-6040
+title: Official 60/40 sleeve
+family: factors
+tags: [official, "6040", balanced, etf]
+
+rationale: >
+  The active equity-and-bond sleeve behind the Classic 60/40 portfolios. It
+  rotates within the ETF top 100 using a quality-and-trend signal, so the
+  strategy's holdings are thematically aligned with the benchmark allocation
+  while still producing an active overlay.
+
+good_for:
+  - The official sleeve feeding a 60/40 mandate
+  - Showing how an official strategy differs from a research backtest
+
+bad_for:
+  - A fixed-weight 60/40 replication; this is an active rotation engine
+  - Single-stock selection
+
+draft:
+  name: Official 60/40 sleeve
+  model: lightgbm
+  handler: Alpha158
+  universe: etf_top100
+  benchmark: SPY
+  topk: 15
+  n_drop: 3
+  feature_mode: extend
+  features:
+    - name: TREND_60
+      expression: "Ref($close,21)/(Ref($close,126)+1e-12) - 1"
+    - name: YIELD_PROXY
+      expression: "Ref($close,63)/($close+1e-12) - 1"

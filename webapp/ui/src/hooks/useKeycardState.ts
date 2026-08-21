@@ -1,6 +1,7 @@
 import { useCallback, useReducer } from 'react'
 
 import type { KeycardNode, KeycardSpec } from '@/lib/api'
+import { layoutTree } from '@/lib/keycardGraph/keycardFlow'
 
 type Action =
   | { type: 'replace'; spec: KeycardSpec }
@@ -31,10 +32,10 @@ function reducer(state: State, action: Action): State {
     case 'selectNode':
       return { ...state, selectedNodeId: action.id }
     case 'autoLayout': {
-      const pitch = 120
-      const nodes = state.spec.nodes.map((n, i) => ({
+      const positions = layoutTree(state.spec)
+      const nodes = state.spec.nodes.map((n) => ({
         ...n,
-        position: { x: 0, y: i * pitch },
+        position: positions.get(n.id) ?? n.position,
       }))
       return { ...state, spec: { ...state.spec, nodes } }
     }

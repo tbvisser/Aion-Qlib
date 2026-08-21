@@ -1,0 +1,47 @@
+{
+  "name": "Momentum tilt",
+  "base_ccy": "USD",
+  "benchmark": "SPY",
+  "holdings": [
+    {
+      "symbol": "SPY",
+      "asset_class": "etf",
+      "weight": 0.3
+    },
+    {
+      "symbol": "QQQ",
+      "asset_class": "etf",
+      "weight": 0.3
+    },
+    {
+      "symbol": "XLK",
+      "asset_class": "etf",
+      "weight": 0.2
+    },
+    {
+      "symbol": "XLF",
+      "asset_class": "etf",
+      "weight": 0.2
+    }
+  ],
+  "strategy_ids": [
+    "demo-official-momentum-tilt",
+    "demo-official-sector-tilt"
+  ],
+  "inception": "2021-01-04",
+  "rebalance": "quarterly",
+  "cost_bps": 10.0,
+  "notes": "Trades from 2021 (~5 years). Factor-tilt book blending core US equity (SPY), growth/tech (QQQ), technology (XLK) and financials (XLF), rebalanced quarterly to let momentum run. Linked to the official momentum-tilt and sector-tilt sleeves.",
+  "objective": "Capture momentum in growth/tech and financials against a core US equity position.",
+  "constraints": "Factor-tilt ETFs; quarterly rebalance; SPY benchmark.",
+  "tags": [
+    "factor",
+    "momentum",
+    "growth"
+  ],
+  "id": "demo-pf-momentum-tilt",
+  "created_at": "2026-08-20T09:48:19.453467+00:00",
+  "updated_at": "2026-08-20T11:33:54.515803+00:00",
+  "user_id": "",
+  "visibility": "private"
+}

@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import type { KeycardSpec } from '@/lib/api'
 import {
-  KEYCARD_ADD_NEXT_TYPE,
   KEYCARD_EDGE_TYPE,
   KEYCARD_NODE_TYPE,
+  addNextPosition,
   fromFlow,
+  layoutTree,
   routeDefects,
   toFlowEdges,
   toFlowNodes,
@@ -68,55 +69,24 @@ describe('toFlowNodes', () => {
   it('produces one React Flow node per keycard node', () => {
     const keycard = makeKeycardSpec()
     const nodes = toFlowNodes(keycard, makeMetaByType())
-    const realNodes = nodes.filter((n) => n.type === KEYCARD_NODE_TYPE)
-    expect(realNodes).toHaveLength(keycard.nodes.length)
-    realNodes.forEach((n, i) => {
+    expect(nodes).toHaveLength(keycard.nodes.length)
+    nodes.forEach((n, i) => {
       expect(n.id).toBe(keycard.nodes[i].id)
       expect(n.position).toEqual(keycard.nodes[i].position)
       expect(n.data.keycardNode).toEqual(keycard.nodes[i])
     })
   })
 
-  it('injects an add-next pseudo-node after every output port', () => {
-    const keycard = makeKeycardSpec()
-    const nodes = toFlowNodes(keycard, makeMetaByType())
-    const addNextNodes = nodes.filter((n) => n.type === KEYCARD_ADD_NEXT_TYPE)
-    // data_store output is wired to universe, but we still show an add-next so
-    // the user can branch. universe's output is free.
-    expect(addNextNodes).toHaveLength(2)
-    expect(addNextNodes.map((n) => n.id).sort()).toEqual([
-      '__addNext-store-1-data',
-      '__addNext-universe-1-data',
-    ])
-    addNextNodes.forEach((n) => {
-      expect(n.selectable).toBe(false)
-      expect(n.draggable).toBe(false)
-    })
-  })
-
-  it('stacks add-next pseudo-nodes vertically when a port already has outgoing edges', () => {
+  it('places newly added downstream nodes to the right with vertical branching', () => {
     const keycard = makeKeycardSpec()
     const meta = makeMetaByType()
-    // Add a second outgoing edge from the data_store so it branches.
-    keycard.edges.push({
-      id: 'e2',
-      source: 'store-1',
-      source_port: 'data',
-      target: 'universe-1',
-      target_port: 'data',
-    })
-    const nodes = toFlowNodes(keycard, meta)
-    const storeAddNext = nodes.find((n) => n.id === '__addNext-store-1-data')
-    const universeAddNext = nodes.find((n) => n.id === '__addNext-universe-1-data')
-    expect(storeAddNext).toBeDefined()
-    expect(universeAddNext).toBeDefined()
-    // store-1 is at (0,0) with one output handle near y=46. The add-next for the
-    // second branch should sit one vertical spacing below the first.
-    expect(storeAddNext!.position.x).toBe(236 + 120)
-    expect(storeAddNext!.position.y).toBeGreaterThan(46)
-    // universe-1 is at (0,100) and has no outgoing edges, so its add-next is at
-    // slot 0 (level with its output handle).
-    expect(universeAddNext!.position.y).toBeLessThan(storeAddNext!.position.y)
+    const sourceNode = keycard.nodes[0]
+    const pos0 = addNextPosition(sourceNode, 'data', meta, 0)
+    const pos1 = addNextPosition(sourceNode, 'data', meta, 1)
+    expect(pos0.x).toBe(160 + 180)
+    expect(pos0.y).toBe(0)
+    expect(pos1.x).toBe(pos0.x)
+    expect(pos1.y).toBeGreaterThan(pos0.y)
   })
 
   it('marks the selected node', () => {
@@ -129,9 +99,26 @@ describe('toFlowNodes', () => {
   it('attaches metadata by node type', () => {
     const keycard = makeKeycardSpec()
     const nodes = toFlowNodes(keycard, makeMetaByType())
-    const realNodes = nodes.filter((n) => n.type === KEYCARD_NODE_TYPE)
-    expect(realNodes[0].data.meta?.label).toBe('Data Store')
-    expect(realNodes[1].data.meta?.label).toBe('Universe')
+    expect(nodes[0].data.meta?.label).toBe('Data Store')
+    expect(nodes[1].data.meta?.label).toBe('Universe')
+  })
+
+  it('propagates connection highlight state for handle highlighting', () => {
+    const keycard = makeKeycardSpec()
+    const nodes = toFlowNodes(keycard, makeMetaByType(), [], null, undefined, undefined, undefined, undefined, 'data', 'target')
+    nodes.forEach((n) => {
+      expect(n.data.connectingPortType).toBe('data')
+      expect(n.data.seekingHandle).toBe('target')
+    })
+  })
+
+  it('defaults connection highlight state to null', () => {
+    const keycard = makeKeycardSpec()
+    const nodes = toFlowNodes(keycard, makeMetaByType())
+    nodes.forEach((n) => {
+      expect(n.data.connectingPortType).toBeNull()
+      expect(n.data.seekingHandle).toBeNull()
+    })
   })
 })
 
@@ -140,9 +127,8 @@ describe('toFlowEdges', () => {
     const keycard = makeKeycardSpec()
     const meta = makeMetaByType()
     const edges = toFlowEdges(keycard, meta)
-    const realEdges = edges.filter((e) => !e.id.startsWith('__edge-addNext-'))
-    expect(realEdges).toHaveLength(keycard.edges.length)
-    realEdges.forEach((e, i) => {
+    expect(edges).toHaveLength(keycard.edges.length)
+    edges.forEach((e, i) => {
       expect(e.id).toBe(keycard.edges[i].id)
       expect(e.type).toBe(KEYCARD_EDGE_TYPE)
       expect(e.sourceHandle).toBe(keycard.edges[i].source_port)
@@ -150,14 +136,18 @@ describe('toFlowEdges', () => {
     })
   })
 
-  it('emits dashed virtual edges to add-next pseudo-nodes', () => {
+  it('adds a coloured stroke and arrow marker matching the source port type', () => {
     const keycard = makeKeycardSpec()
     const meta = makeMetaByType()
     const edges = toFlowEdges(keycard, meta)
-    const virtualEdges = edges.filter((e) => e.id.startsWith('__edge-addNext-'))
-    // One dashed edge per output port, even when the port is already wired.
-    expect(virtualEdges).toHaveLength(2)
-    virtualEdges.forEach((e) => expect(e.style).toEqual({ strokeDasharray: '4 4' }))
+    expect(edges).toHaveLength(1)
+    expect(edges[0].style).toEqual({ stroke: '#3b82f6' })
+    expect(edges[0].markerEnd).toMatchObject({
+      type: 'arrowclosed',
+      color: '#3b82f6',
+      width: 12,
+      height: 12,
+    })
   })
 })
 
@@ -200,6 +190,28 @@ describe('fromFlow', () => {
     expect(next.name).toBe(keycard.name)
     expect(next.windows).toEqual(keycard.windows)
     expect(next.tags).toEqual(keycard.tags)
+  })
+})
+
+describe('layoutTree', () => {
+  it('places roots at depth 0 and children one level to the right', () => {
+    const keycard: KeycardSpec = {
+      ...makeKeycardSpec(),
+      nodes: [
+        { id: 'a', type: 'run_per_candle', position: { x: 0, y: 0 }, config: {}, notes: '' },
+        { id: 'b', type: 'previous_day_bullish', position: { x: 0, y: 0 }, config: {}, notes: '' },
+        { id: 'c', type: 'buy_now', position: { x: 0, y: 0 }, config: {}, notes: '' },
+      ],
+      edges: [
+        { id: 'e1', source: 'a', source_port: 'trigger', target: 'b', target_port: 'trigger' },
+        { id: 'e2', source: 'a', source_port: 'trigger', target: 'c', target_port: 'trigger' },
+      ],
+    }
+    const positions = layoutTree(keycard)
+    expect(positions.get('a')!.x).toBe(0)
+    expect(positions.get('b')!.x).toBe(220)
+    expect(positions.get('c')!.x).toBe(220)
+    expect(positions.get('b')!.y).not.toBe(positions.get('c')!.y)
   })
 })
 

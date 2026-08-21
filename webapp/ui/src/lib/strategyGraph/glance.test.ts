@@ -193,3 +193,24 @@ describe('costs', () => {
     expect(find(stageGlance('costs', spec()).detail, 'limit')).toBeUndefined()
   })
 })
+
+describe('context', () => {
+  it('labels the stage as the objective', () => {
+    expect(stageGlance('context', spec()).headline).toBe('Objective')
+  })
+
+  it('shows a preview of the objective when set', () => {
+    const g = stageGlance('context', spec({ context: 'Lower volatility than the benchmark' }))
+    expect(find(g.detail, 'context')?.value).toBe('Lower volatility than the benchmark')
+  })
+
+  it('truncates long objectives', () => {
+    const long = 'a'.repeat(60)
+    const g = stageGlance('context', spec({ context: long }))
+    expect(find(g.detail, 'context')?.value).toBe(`${long.slice(0, 40)}…`)
+  })
+
+  it('says so when no objective is set', () => {
+    expect(find(stageGlance('context', spec()).detail, 'context')?.value).toBe('No objective set')
+  })
+})

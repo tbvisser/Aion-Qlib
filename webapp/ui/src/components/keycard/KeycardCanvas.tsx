@@ -8,23 +8,22 @@ import {
   type Connection,
   type EdgeChange,
   type NodeChange,
+  type NodeDimensionChange,
   type NodePositionChange,
   type NodeRemoveChange,
   type NodeSelectionChange,
   type NodeTypes,
   type EdgeTypes,
+  type OnConnectStartParams,
 } from '@xyflow/react'
 
 import { KeycardEdge as KeycardEdgeComponent } from './KeycardEdge'
-import { KeycardNode as KeycardNodeComponent, AddNodeMenu } from './KeycardNode'
-import type { KeycardDefect, KeycardNode, KeycardNodeTypeMeta, KeycardSpec, KeycardPortType } from '@/lib/api'
+import { KeycardNode as KeycardNodeComponent } from './KeycardNode'
+import type { KeycardDefect, KeycardEdge as KeycardEdgeSpec, KeycardNode, KeycardNodeTypeMeta, KeycardSpec, KeycardPortType } from '@/lib/api'
 import {
   addNextPosition,
-  isAddNextNodeId,
-  KEYCARD_ADD_NEXT_TYPE,
   KEYCARD_EDGE_TYPE,
   KEYCARD_NODE_TYPE,
-  parseAddNextEdgeId,
   toFlowEdges,
   toFlowNodes,
   wouldCreateCycle,
@@ -38,7 +37,6 @@ import '@/styles/reactflow.css'
 
 const nodeTypes: NodeTypes = {
   [KEYCARD_NODE_TYPE]: KeycardNodeComponent,
-  [KEYCARD_ADD_NEXT_TYPE]: KeycardNodeComponent,
 }
 const edgeTypes: EdgeTypes = { [KEYCARD_EDGE_TYPE]: KeycardEdgeComponent }
 
@@ -62,12 +60,8 @@ export function KeycardCanvas({
   onNodeDoubleClick,
 }: Props) {
   const { screenToFlowPosition } = useReactFlow()
-  const [edgeMenu, setEdgeMenu] = useState<{
-    sourceNodeId: string
-    sourcePortId: string
-    x: number
-    y: number
-  } | null>(null)
+  const [connecting, setConnecting] = useState<{ portType: KeycardPortType; seeking: 'source' | 'target' } | null>(null)
+  const [nodeDimensions, setNodeDimensions] = useState<Map<string, { width: number; height: number }>>(new Map())
 
   const handleReplaceStartNode = useCallback((type: string) => {
     const meta = metaByType.get(type)
@@ -147,17 +141,30 @@ export function KeycardCanvas({
   }, [addBlock, onSelectNode])
 
   const nodes = useMemo(
-    () => toFlowNodes(
-      spec,
-      metaByType,
-      defects,
-      selectedNodeId,
-      onNodeDoubleClick,
-      handleCreateNode,
-      handleReplaceStartNode,
-      handleReplaceAddNext,
-    ),
-    [spec, metaByType, defects, selectedNodeId, onNodeDoubleClick, handleCreateNode, handleReplaceStartNode, handleReplaceAddNext],
+    () => {
+      const flowNodes = toFlowNodes(
+        spec,
+        metaByType,
+        defects,
+        selectedNodeId,
+        onNodeDoubleClick,
+        handleCreateNode,
+        handleReplaceStartNode,
+        handleReplaceAddNext,
+        connecting?.portType ?? null,
+        connecting?.seeking ?? null,
+      )
+      // Preserve the measured dimensions React Flow reports back. Without this,
+      // every state update creates brand-new node objects and React Flow has to
+      // re-adopt and re-measure them, which can blank the canvas during fast or
+      // far drags (viewport culling / auto-pan lose the size information).
+      return flowNodes.map((n) => {
+        const dim = nodeDimensions.get(n.id)
+        if (!dim) return n
+        return { ...n, measured: { width: dim.width, height: dim.height } }
+      })
+    },
+    [spec, metaByType, defects, selectedNodeId, onNodeDoubleClick, handleCreateNode, handleReplaceStartNode, handleReplaceAddNext, connecting, nodeDimensions],
   )
   const edges = useMemo<KeycardFlowEdge[]>(() => {
     const routed = new Map<string, KeycardDefect[]>()
@@ -179,10 +186,14 @@ export function KeycardCanvas({
     const removedIds = new Set(
       changes
         .filter((c): c is NodeRemoveChange => c.type === 'remove')
-        .filter((c) => !isAddNextNodeId(c.id))
         .map((c) => c.id),
     )
     if (removedIds.size > 0) {
+      setNodeDimensions((prev) => {
+        const next = new Map(prev)
+        for (const id of removedIds) next.delete(id)
+        return next
+      })
       onChange({
         ...spec,
         nodes: spec.nodes.filter((n) => !removedIds.has(n.id)),
@@ -193,13 +204,29 @@ export function KeycardCanvas({
       return
     }
 
+    const dimensionChanges = changes.filter(
+      (c): c is NodeDimensionChange & { dimensions: { width: number; height: number } } =>
+        c.type === 'dimensions' &&
+        !!c.dimensions &&
+        typeof c.dimensions.width === 'number' &&
+        typeof c.dimensions.height === 'number',
+    )
+    if (dimensionChanges.length > 0) {
+      setNodeDimensions((prev) => {
+        const next = new Map(prev)
+        for (const c of dimensionChanges) {
+          next.set(c.id, { width: c.dimensions.width, height: c.dimensions.height })
+        }
+        return next
+      })
+    }
+
     const positionChanges = changes.filter(
       (c): c is NodePositionChange & { position: { x: number; y: number } } =>
         c.type === 'position' &&
         !!c.position &&
         typeof c.position.x === 'number' &&
-        typeof c.position.y === 'number' &&
-        !isAddNextNodeId(c.id),
+        typeof c.position.y === 'number',
     )
     if (positionChanges.length > 0) {
       onChange({
@@ -213,7 +240,7 @@ export function KeycardCanvas({
     }
 
     const selectChanges = changes.filter(
-      (c): c is NodeSelectionChange => c.type === 'select' && !isAddNextNodeId(c.id),
+      (c): c is NodeSelectionChange => c.type === 'select',
     )
     if (selectChanges.length === 1) {
       const c = selectChanges[0]
@@ -227,8 +254,7 @@ export function KeycardCanvas({
     const removedIds = new Set(
       changes
         .filter((c) => c.type === 'remove')
-        .map((c) => ((c as unknown) as { item: { id: string } }).item.id)
-        .filter((id) => !id.startsWith('__edge-addNext-')),
+        .map((c) => ((c as unknown) as { item: { id: string } }).item.id),
     )
     if (removedIds.size === 0) return
     onChange({
@@ -237,44 +263,115 @@ export function KeycardCanvas({
     })
   }, [spec, onChange])
 
-  const onConnect = useCallback((connection: Connection) => {
-    if (!connection.source || !connection.target || !connection.sourceHandle || !connection.targetHandle) return
-    if (isAddNextNodeId(connection.source) || isAddNextNodeId(connection.target)) return
+  const validateConnection = useCallback((
+    connection: { source?: string | null; target?: string | null; sourceHandle?: string | null; targetHandle?: string | null },
+    ignoreEdgeId?: string,
+  ): boolean => {
+    const { source, target, sourceHandle, targetHandle } = connection
+    if (!source || !target || !sourceHandle || !targetHandle) return false
 
-    const sourceMeta = metaByType.get(spec.nodes.find((n) => n.id === connection.source)?.type ?? '')
-    const targetMeta = metaByType.get(spec.nodes.find((n) => n.id === connection.target)?.type ?? '')
-    const sourcePort = sourceMeta?.ports.find((p) => p.id === connection.sourceHandle)
-    const targetPort = targetMeta?.ports.find((p) => p.id === connection.targetHandle)
-    if (!sourcePort || !targetPort) return
-    if (sourcePort.type !== targetPort.type) return
-    if (sourcePort.direction !== 'out' || targetPort.direction !== 'in') return
+    const sourceMeta = metaByType.get(spec.nodes.find((n) => n.id === source)?.type ?? '')
+    const targetMeta = metaByType.get(spec.nodes.find((n) => n.id === target)?.type ?? '')
+    const sourcePort = sourceMeta?.ports.find((p) => p.id === sourceHandle)
+    const targetPort = targetMeta?.ports.find((p) => p.id === targetHandle)
+    if (!sourcePort || !targetPort) return false
+    if (sourcePort.type !== targetPort.type) return false
+    if (sourcePort.direction !== 'out' || targetPort.direction !== 'in') return false
 
     const existing = spec.edges.find(
-      (e) => e.target === connection.target && e.target_port === connection.targetHandle,
+      (e) => e.target === target && e.target_port === targetHandle && e.id !== ignoreEdgeId,
     )
-    if (existing && !targetPort.multiple) return
+    if (existing && !targetPort.multiple) return false
+
+    const candidate = {
+      id: `e-${source}-${sourceHandle}-${target}-${targetHandle}`,
+      source,
+      source_port: sourceHandle,
+      target,
+      target_port: targetHandle,
+    }
+    return !wouldCreateCycle(spec, candidate)
+  }, [spec, metaByType])
+
+  const onConnect = useCallback((connection: Connection) => {
+    if (!validateConnection(connection)) return
 
     const id = `e-${connection.source}-${connection.sourceHandle}-${connection.target}-${connection.targetHandle}`
-    const candidate = {
-      id,
-      source: connection.source,
-      source_port: connection.sourceHandle,
-      target: connection.target,
-      target_port: connection.targetHandle,
-    }
-    if (wouldCreateCycle(spec, candidate)) return
-
     onChange({
       ...spec,
-      edges: [...spec.edges, candidate],
+      edges: [
+        ...spec.edges,
+        {
+          id,
+          source: connection.source,
+          source_port: connection.sourceHandle,
+          target: connection.target,
+          target_port: connection.targetHandle,
+        } as KeycardEdgeSpec,
+      ],
     })
-  }, [spec, metaByType, onChange])
+  }, [spec, validateConnection, onChange])
 
-  const onEdgeClick = useCallback((event: React.MouseEvent, edge: KeycardFlowEdge) => {
-    const parsed = parseAddNextEdgeId(edge.id)
-    if (!parsed) return
-    event.stopPropagation()
-    setEdgeMenu({ ...parsed, x: event.clientX, y: event.clientY })
+  const isValidConnection = useCallback((connection: Connection | KeycardFlowEdge) => validateConnection(connection), [validateConnection])
+
+  const onConnectStart = useCallback((_: MouseEvent | TouchEvent, params: OnConnectStartParams) => {
+    if (!params.nodeId || !params.handleId) return
+    const sourceNode = spec.nodes.find((n) => n.id === params.nodeId)
+    const sourceMeta = metaByType.get(sourceNode?.type ?? '')
+    const sourcePort = sourceMeta?.ports.find((p) => p.id === params.handleId)
+    if (sourcePort?.type) {
+      setConnecting({ portType: sourcePort.type, seeking: 'target' })
+    }
+  }, [spec, metaByType])
+
+  const onConnectEnd = useCallback(() => {
+    setConnecting(null)
+  }, [])
+
+  const onReconnect = useCallback((oldEdge: KeycardFlowEdge, newConnection: Connection) => {
+    if (!validateConnection(newConnection, oldEdge.id)) return
+    const keycardEdge = oldEdge.data?.keycardEdge
+    if (!keycardEdge) return
+    const id = `e-${newConnection.source}-${newConnection.sourceHandle}-${newConnection.target}-${newConnection.targetHandle}`
+    onChange({
+      ...spec,
+      edges: spec.edges.map((e) =>
+        e.id === keycardEdge.id
+          ? {
+              ...e,
+              id,
+              source: newConnection.source!,
+              source_port: newConnection.sourceHandle!,
+              target: newConnection.target!,
+              target_port: newConnection.targetHandle!,
+            }
+          : e,
+      ),
+    })
+  }, [spec, validateConnection, onChange])
+
+  const onReconnectStart = useCallback((_: unknown, edge: KeycardFlowEdge, handleType: 'source' | 'target') => {
+    const keycardEdge = edge.data?.keycardEdge
+    if (!keycardEdge) return
+    if (handleType === 'target') {
+      const sourceNode = spec.nodes.find((n) => n.id === keycardEdge.source)
+      const sourceMeta = metaByType.get(sourceNode?.type ?? '')
+      const sourcePort = sourceMeta?.ports.find((p) => p.id === keycardEdge.source_port)
+      if (sourcePort?.type) {
+        setConnecting({ portType: sourcePort.type, seeking: 'target' })
+      }
+    } else {
+      const targetNode = spec.nodes.find((n) => n.id === keycardEdge.target)
+      const targetMeta = metaByType.get(targetNode?.type ?? '')
+      const targetPort = targetMeta?.ports.find((p) => p.id === keycardEdge.target_port)
+      if (targetPort?.type) {
+        setConnecting({ portType: targetPort.type, seeking: 'source' })
+      }
+    }
+  }, [spec, metaByType])
+
+  const onReconnectEnd = useCallback(() => {
+    setConnecting(null)
   }, [])
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -308,7 +405,7 @@ export function KeycardCanvas({
         {
           id,
           type: payload.type,
-          position: { x: position.x - 118, y: position.y - 50 },
+          position: { x: position.x - 80, y: position.y - 28 },
           config: defaults,
           notes: '',
         },
@@ -326,14 +423,16 @@ export function KeycardCanvas({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onEdgeClick={onEdgeClick}
+        onConnectStart={onConnectStart}
+        onConnectEnd={onConnectEnd}
+        isValidConnection={isValidConnection}
+        edgesReconnectable
+        onReconnect={onReconnect}
+        onReconnectStart={onReconnectStart}
+        onReconnectEnd={onReconnectEnd}
         onPaneClick={() => onSelectNode(null)}
-        onNodeClick={(_, node) => {
-          if (!isAddNextNodeId(node.id)) onSelectNode(node.id)
-        }}
-        onNodeDoubleClick={(_, node) => {
-          if (!isAddNextNodeId(node.id)) onNodeDoubleClick?.(node.id)
-        }}
+        onNodeClick={(_, node) => onSelectNode(node.id)}
+        onNodeDoubleClick={(_, node) => onNodeDoubleClick?.(node.id)}
         onDragOver={onDragOver}
         onDrop={onDrop}
         fitView
@@ -341,34 +440,12 @@ export function KeycardCanvas({
         minZoom={0.25}
         maxZoom={1.5}
         deleteKeyCode={['Backspace', 'Delete']}
+        reconnectRadius={16}
         proOptions={{ hideAttribution: false }}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="hsl(var(--border) / 0.6)" />
         <Controls showInteractive={false} position="top-left" />
       </ReactFlow>
-      {edgeMenu && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setEdgeMenu(null)}
-            aria-hidden="true"
-          />
-          <div
-            className="fixed z-50 w-60 rounded-md border bg-popover p-2 shadow-md"
-            style={{ left: edgeMenu.x + 8, top: edgeMenu.y + 8 }}
-          >
-            <AddNodeMenu
-              title="Add next block"
-              metaByType={metaByType}
-              sourcePortType={edgeMenu.sourcePortId as KeycardPortType}
-              onSelect={(type) => {
-                handleReplaceAddNext(edgeMenu.sourceNodeId, edgeMenu.sourcePortId, type)
-                setEdgeMenu(null)
-              }}
-            />
-          </div>
-        </>
-      )}
     </div>
   )
 }

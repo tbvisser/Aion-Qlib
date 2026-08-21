@@ -22,12 +22,12 @@ describe('nav shape', () => {
     ])
   })
 
-  it('carries all nineteen destinations', () => {
-    // Three fewer than the platform's twenty-two. Alpha Zoo and Indicators
+  it('carries all twenty destinations', () => {
+    // Three fewer than the platform's twenty-three. Alpha Zoo and Indicators
     // folded into the Databank -- which became the Database, a rename rather
     // than a removal, so it still holds a row -- and Vibe Agent folded into
     // Agents & Skills.
-    expect(items).toHaveLength(19)
+    expect(items).toHaveLength(20)
   })
 
   /**
@@ -87,14 +87,15 @@ describe('nav shape', () => {
    * regression here looks like a restoration -- someone "putting Indicators
    * back" would pass every other assertion in this file.
    */
-  it('shapes the Strategy Lab as four rows around the Database', () => {
+  it('shapes the Strategy Lab as five rows around the Database and Markov Chains', () => {
     const section = (heading: string) =>
       allNavSections.find((s) => s.heading === heading)!.items.map((i) => i.key)
 
     expect(section('Strategy Lab')).toEqual([
-      'tl-builder', 'tl-mlstudio', 'tl-database', 'tl-roster',
+      'tl-builder', 'tl-mlstudio', 'tl-database', 'tl-markov', 'tl-roster',
     ])
     expect(navItemFor('tl-database')?.route).toBe('/lab/database')
+    expect(navItemFor('tl-markov')?.route).toBe('/lab/markov')
   })
 
   it('sits Shadow Accounts in the Book, under Broker Accounts', () => {
