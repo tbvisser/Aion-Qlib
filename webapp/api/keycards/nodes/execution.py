@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..compiler import _merge_triggers
 from ..models import Defect, Keycard, NodeOutput, NodeTypeMeta, Port, Windows
 from ..registry import NodeType, register
 
@@ -24,7 +25,7 @@ class BuyNowNode(NodeType):
             description="Fire the rule chain and turn the result into a trade signal.",
             ports=[
                 Port(id="trigger", label="Trigger", type="trigger",
-                     direction="in", required=True),
+                     direction="in", required=True, multiple=True),
                 Port(id="signal", label="Signal", type="signal",
                      direction="out", required=True),
             ],
@@ -32,7 +33,11 @@ class BuyNowNode(NodeType):
         )
 
     def compile(self, config: dict, incoming: dict[str, Any], windows: Windows) -> NodeOutput:
-        expression = incoming.get("trigger", "1") or "1"
+        trigger = incoming.get("trigger", "1")
+        if isinstance(trigger, list):
+            expression = _merge_triggers(trigger)
+        else:
+            expression = trigger or "1"
         return NodeOutput(outputs={"signal": expression})
 
     def validate(self, config: dict, keycard: Keycard) -> list[Defect]:

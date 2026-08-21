@@ -26,27 +26,32 @@ import {
   Plus,
   Receipt,
   RotateCcw,
+  Search,
   Sigma,
   TrendingUp,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
 import {
-  getValidChildren,
+  getCompatibleInputPort,
+  getRootNodeTypes,
   isNodeConfigComplete,
   NODE_CATEGORY_INFO,
   nodeInfo,
   type NodeCategory,
 } from '@/lib/keycardGraph/nodeRegistry'
 import { cn } from '@/lib/utils'
+import type { KeycardNodeCategory, KeycardNodeTypeMeta, KeycardPortType } from '@/lib/api'
 
-import type { KeycardFlowNode } from '@/lib/keycardGraph/keycardFlow'
+import type { KeycardFlowNode, KeycardAddNextData } from '@/lib/keycardGraph/keycardFlow'
 
 const ICONS: Record<string, LucideIcon> = {
   database: Database,
@@ -143,6 +148,19 @@ function summarizeConfig(type: string, config: Record<string, unknown>): { headl
 const GREY_COLOR = '#9ca3af'
 
 export const KeycardNode = memo(function KeycardNode({ data, selected }: NodeProps<KeycardFlowNode>) {
+  // Ephemeral add-next pseudo-node.
+  if ('sourceNodeId' in data) {
+    const addNextData = data as KeycardAddNextData
+    return (
+      <AddNextNodeView
+        sourceNodeId={addNextData.sourceNodeId}
+        sourcePortId={addNextData.sourcePortId}
+        metaByType={addNextData.metaByType}
+        onReplace={addNextData.onReplaceAddNext}
+      />
+    )
+  }
+
   const { keycardNode, meta, defects } = data
   const info = nodeInfo(keycardNode.type)
   const eyebrow = info?.eyebrow ?? keycardNode.type
@@ -165,6 +183,10 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
   const description = meta?.description ?? info?.description ?? ''
 
   const [openMenuPortId, setOpenMenuPortId] = useState<string | null>(null)
+
+  if (keycardNode.type === 'start') {
+    return <StartNodeView metaByType={data.metaByType} onReplace={data.onReplaceStartNode} />
+  }
 
   return (
     <div
@@ -210,7 +232,6 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
       {outputPorts.map((port, i) => {
         const count = outputPorts.length
         const top = count === 1 ? 46 : 18 + (i * 56) / Math.max(count - 1, 1)
-        const children = getValidChildren(port.type)
         return (
           <div key={`out-${port.id}`}>
             <Handle
@@ -225,7 +246,7 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
                 borderColor: nodeColor,
               }}
             />
-            {children.length > 0 && data.onCreateNode && (
+            {data.onCreateNode && (
               <Popover open={openMenuPortId === port.id} onOpenChange={(open) => setOpenMenuPortId(open ? port.id : null)}>
                 <PopoverTrigger asChild>
                   <button
@@ -234,10 +255,10 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
                     className={cn(
                       'absolute z-10 flex h-4 w-4 items-center justify-center rounded-full',
                       'border border-border/50 bg-card text-muted-foreground shadow-sm',
-                      'opacity-0 transition-opacity group-hover:opacity-100 hover:border-primary hover:text-primary',
+                      'transition-colors hover:border-primary hover:text-primary',
                     )}
                     style={{ top: top - 6, right: -26 }}
-                    title="Add connected block"
+                    title="Add block"
                   >
                     <Plus className="h-2.5 w-2.5" />
                   </button>
@@ -249,42 +270,15 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
                   className="w-60 p-2"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    Add next block
-                  </div>
-                  <ul className="max-h-60 space-y-0.5 overflow-y-auto">
-                    {children.map((child) => {
-                      const childInfo = nodeInfo(child.id)
-                      const childCategory = (childInfo?.category ?? 'Data') as NodeCategory
-                      const childCatInfo = NODE_CATEGORY_INFO[childCategory] ?? { color: '#9ca3af' }
-                      const ChildIcon = getIcon(child.icon ?? childInfo?.icon)
-                      return (
-                        <li key={child.id}>
-                          <button
-                            type="button"
-                            className="flex w-full items-start gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-accent"
-                            onClick={() => {
-                              data.onCreateNode?.(keycardNode.id, port.id, child.id)
-                              setOpenMenuPortId(null)
-                            }}
-                          >
-                            <span
-                              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded"
-                              style={{ background: `${childCatInfo.color}15`, color: childCatInfo.color }}
-                            >
-                              <ChildIcon className="h-3 w-3" />
-                            </span>
-                            <div className="min-w-0">
-                              <div className="truncate text-[11px] font-medium">{child.label}</div>
-                              <div className="line-clamp-2 text-[10px] text-muted-foreground/80">
-                                {child.description}
-                              </div>
-                            </div>
-                          </button>
-                        </li>
-                      )
-                    })}
-                  </ul>
+                  <AddNodeMenu
+                    title="Add block"
+                    metaByType={data.metaByType}
+                    sourcePortType={port.type}
+                    onSelect={(type) => {
+                      data.onCreateNode?.(keycardNode.id, port.id, type)
+                      setOpenMenuPortId(null)
+                    }}
+                  />
                 </PopoverContent>
               </Popover>
             )}
@@ -388,3 +382,235 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
     </div>
   )
 })
+
+export function AddNodeMenu({
+  metaByType,
+  sourcePortType,
+  allowedTypes,
+  onSelect,
+  title,
+}: {
+  metaByType: Map<string, KeycardNodeTypeMeta>
+  sourcePortType?: KeycardPortType
+  allowedTypes?: string[]
+  onSelect: (type: string) => void
+  title: string
+}) {
+  const [search, setSearch] = useState('')
+  const allowed = useMemo(() => (allowedTypes ? new Set(allowedTypes) : null), [allowedTypes])
+
+  const categories = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const byCat = new Map<string, KeycardNodeCategory>()
+    for (const meta of metaByType.values()) {
+      const catId = (meta.category ?? 'Other') as NodeCategory
+      const cat = byCat.get(catId) ?? {
+        id: catId,
+        label: NODE_CATEGORY_INFO[catId]?.label ?? catId,
+        items: [],
+      }
+      cat.items.push(meta)
+      byCat.set(catId, cat)
+    }
+    return Array.from(byCat.values())
+      .map((cat) => ({
+        ...cat,
+        items: cat.items.filter(
+          (item) =>
+            (!allowed || allowed.has(item.id)) &&
+            (item.label.toLowerCase().includes(q) ||
+              (item.description ?? '').toLowerCase().includes(q) ||
+              item.id.toLowerCase().includes(q)),
+        ),
+      }))
+      .filter((cat) => cat.items.length > 0)
+  }, [search, allowed, metaByType])
+
+  return (
+    <div className="flex max-h-[70vh] w-60 flex-col">
+      <div className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        {title}
+      </div>
+      <div className="relative mb-2">
+        <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search blocks"
+          className="h-7 pl-7 pr-7 text-xs"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
+        {categories.map((category) => {
+          const catInfo = NODE_CATEGORY_INFO[category.id as NodeCategory] ?? {
+            id: category.id,
+            label: category.label,
+            icon: 'box',
+            color: '#9ca3af',
+          }
+          const CatIcon = getIcon(catInfo.icon)
+          return (
+            <div key={category.id}>
+              <div
+                className="mb-1 flex items-center gap-1.5 px-1 text-[10px] font-medium uppercase tracking-wider"
+                style={{ color: catInfo.color }}
+              >
+                <CatIcon className="h-3 w-3" />
+                {catInfo.label}
+              </div>
+              <ul className="space-y-0.5">
+                {category.items.map((child) => {
+                  const compatible = sourcePortType
+                    ? getCompatibleInputPort(child.id, sourcePortType) !== undefined
+                    : true
+                  const ChildIcon = getIcon(child.icon ?? nodeInfo(child.id)?.icon)
+                  return (
+                    <li key={child.id}>
+                      <button
+                        type="button"
+                        className={cn(
+                          'flex w-full items-start gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-accent',
+                          !compatible && 'opacity-60',
+                        )}
+                        onClick={() => onSelect(child.id)}
+                      >
+                        <span
+                          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded"
+                          style={{ background: `${catInfo.color}15`, color: catInfo.color }}
+                        >
+                          <ChildIcon className="h-3 w-3" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate text-[11px] font-medium">{child.label}</span>
+                            {compatible && (
+                              <span className="rounded bg-primary/10 px-1 py-0 text-[9px] text-primary">
+                                fits
+                              </span>
+                            )}
+                          </div>
+                          <div className="line-clamp-2 text-[10px] text-muted-foreground/80">
+                            {child.description}
+                          </div>
+                        </div>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function StartNodeView({
+  metaByType,
+  onReplace,
+}: {
+  metaByType: Map<string, KeycardNodeTypeMeta>
+  onReplace?: (type: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const allowedTypes = useMemo(() => getRootNodeTypes().map((info) => info.id), [])
+
+  return (
+    <div style={{ width: 236 }} data-testid="keycard-start-node">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              'group flex w-full cursor-pointer flex-col items-center justify-center gap-2',
+              'rounded-xl border border-dashed border-border/60 bg-card p-5 shadow-card',
+              'transition-colors hover:border-primary/50 hover:bg-surface-2',
+            )}
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Plus className="h-5 w-5" />
+            </span>
+            <span className="text-sm font-medium">Add your first block</span>
+            <span className="text-[11px] text-muted-foreground">Click to start building</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="center" side="right" sideOffset={12} className="w-60 p-2">
+          <AddNodeMenu
+            title="Start here"
+            metaByType={metaByType}
+            allowedTypes={allowedTypes}
+            onSelect={(type) => {
+              onReplace?.(type)
+              setOpen(false)
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+}
+
+function AddNextNodeView({
+  sourceNodeId,
+  sourcePortId,
+  metaByType,
+  onReplace,
+}: {
+  sourceNodeId: string
+  sourcePortId: string
+  metaByType: Map<string, KeycardNodeTypeMeta>
+  onReplace?: (sourceNodeId: string, sourcePortId: string, type: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div
+          data-testid={`keycard-add-next-${sourceNodeId}-${sourcePortId}`}
+          className="relative flex h-11 w-11 cursor-pointer items-center justify-center rounded-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Handle
+            type="target"
+            position={Position.Left}
+            id="in"
+            className="aion-keycard-handle-inert"
+          />
+          <span
+            className={cn(
+              'flex h-7 w-7 items-center justify-center rounded-full',
+              'border border-border/60 bg-card text-muted-foreground shadow-sm',
+              'transition-colors hover:border-primary hover:text-primary hover:bg-surface-2',
+            )}
+            title="Add next block"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </span>
+        </div>
+      </PopoverTrigger>
+      <PopoverContent align="center" side="right" sideOffset={10} className="w-60 p-2">
+        <AddNodeMenu
+          title="Add next block"
+          metaByType={metaByType}
+          sourcePortType={sourcePortId as KeycardPortType}
+          onSelect={(type) => {
+            onReplace?.(sourceNodeId, sourcePortId, type)
+            setOpen(false)
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  )
+}

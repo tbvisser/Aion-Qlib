@@ -35,7 +35,7 @@ export function useChatStream({ profile = 'general', context, onToolResult }: Op
 
   const stop = useCallback(() => abort.current?.abort(), [])
 
-  const send = useCallback(async (text: string) => {
+  const send = useCallback(async (text: string, opts?: { model?: string }) => {
     const question = text.trim()
     if (!question) return
 
@@ -61,6 +61,7 @@ export function useChatStream({ profile = 'general', context, onToolResult }: Op
         signal: controller.signal,
         body: JSON.stringify({
           profile,
+          model: opts?.model,
           context: context?.(),
           // Expanded rather than projected. `history.map(m => ({role, content}))`
           // threw away every tool call the assistant made, so the model never

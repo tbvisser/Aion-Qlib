@@ -17,6 +17,19 @@ from .registry import NODE_TYPES, get_node_type
 
 
 # ---------------------------------------------------------------------------
+# Incoming value helpers
+# ---------------------------------------------------------------------------
+def _merge_triggers(values: list[str]) -> str:
+    """AND-combine a list of trigger expressions, omitting neutral '1'."""
+    parts = [v for v in values if v and v != "1"]
+    if not parts:
+        return "1"
+    if len(parts) == 1:
+        return parts[0]
+    return " * ".join(f"({p})" for p in parts)
+
+
+# ---------------------------------------------------------------------------
 # Topological sort
 # ---------------------------------------------------------------------------
 def _topological_order(keycard: KeycardSpec) -> list[str]:
@@ -258,11 +271,17 @@ def compile_keycard(keycard: KeycardSpec, provider_uri: str, region: str) -> dic
         if nt is None:
             raise ValueError(f"Unknown node type: {node.type!r}")
 
+        port_meta = {p.id: p for p in nt.meta().ports}
         incoming: dict[str, Any] = {}
         for edge in keycard.edges:
             if edge.target == node_id:
                 src_out = outputs.get(edge.source, {})
-                incoming[edge.target_port] = src_out.get(edge.source_port)
+                value = src_out.get(edge.source_port)
+                port = port_meta.get(edge.target_port)
+                if port is not None and port.multiple:
+                    incoming.setdefault(edge.target_port, []).append(value)
+                else:
+                    incoming[edge.target_port] = value
 
         result = nt.compile(node.config, incoming, windows)
         outputs[node_id] = result.outputs

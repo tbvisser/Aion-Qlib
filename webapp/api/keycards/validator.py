@@ -146,21 +146,31 @@ def validate_keycard(keycard: KeycardSpec) -> list[Defect]:
                     f"to {tgt_port.type!r} port {edge.target_port!r}.",
                     _edge_path(edge.id), "blocking"))
 
-    # Required input ports connected.
-    incoming_by_target: dict[str, set[str]] = {}
+    # Required input ports connected. Ports marked `multiple` may receive several
+    # edges; non-multiple ports may receive at most one.
+    incoming_by_target: dict[str, dict[str, list[str]]] = {}
     for edge in keycard.edges:
-        incoming_by_target.setdefault(edge.target, set()).add(edge.target_port)
+        incoming_by_target.setdefault(edge.target, {}).setdefault(
+            edge.target_port, []).append(edge.id)
 
     for node in keycard.nodes:
         nt = get_node_type(node.type)
         if nt is None:
             continue
-        connected = incoming_by_target.get(node.id, set())
+        connected = incoming_by_target.get(node.id, {})
         for port in nt.meta().ports:
-            if port.direction == "in" and port.required and port.id not in connected:
+            if port.direction != "in":
+                continue
+            edges_for_port = connected.get(port.id, [])
+            if port.required and not edges_for_port:
                 defects.append(Defect(
                     "missing_required_port",
                     f"Required input port {port.id!r} on node {node.id!r} is not connected.",
+                    f"{_node_path(node)}.ports[{port.id}]", "blocking"))
+            if not port.multiple and len(edges_for_port) > 1:
+                defects.append(Defect(
+                    "too_many_incoming_edges",
+                    f"Port {port.id!r} on node {node.id!r} accepts only one connection.",
                     f"{_node_path(node)}.ports[{port.id}]", "blocking"))
 
     # Required / recommended node categories.

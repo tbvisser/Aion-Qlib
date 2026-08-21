@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { defaultKeycardSpec } from '@/lib/api'
+import type { KeycardSpec } from '@/lib/api'
 import {
+  KEYCARD_ADD_NEXT_TYPE,
   KEYCARD_EDGE_TYPE,
   KEYCARD_NODE_TYPE,
   fromFlow,
@@ -9,6 +10,33 @@ import {
   toFlowEdges,
   toFlowNodes,
 } from './keycardFlow'
+
+function makeKeycardSpec(): KeycardSpec {
+  const storeId = 'store-1'
+  const universeId = 'universe-1'
+  return {
+    name: 'Test keycard',
+    description: '',
+    tags: [],
+    is_template: false,
+    template_family: null,
+    windows: {
+      train_start: '2010-01-04',
+      train_end: '2019-12-31',
+      valid_start: '2020-01-01',
+      valid_end: '2021-12-31',
+      test_start: '2022-01-01',
+      test_end: '2026-08-07',
+    },
+    nodes: [
+      { id: storeId, type: 'data_store', position: { x: 0, y: 0 }, config: { store: 'us' }, notes: '' },
+      { id: universeId, type: 'universe', position: { x: 0, y: 100 }, config: {}, notes: '' },
+    ],
+    edges: [
+      { id: 'e1', source: storeId, source_port: 'data', target: universeId, target_port: 'data' },
+    ],
+  }
+}
 
 function makeMetaByType() {
   return new Map([
@@ -38,56 +66,104 @@ function makeMetaByType() {
 
 describe('toFlowNodes', () => {
   it('produces one React Flow node per keycard node', () => {
-    const keycard = defaultKeycardSpec()
+    const keycard = makeKeycardSpec()
     const nodes = toFlowNodes(keycard, makeMetaByType())
-    expect(nodes).toHaveLength(keycard.nodes.length)
-    nodes.forEach((n, i) => {
+    const realNodes = nodes.filter((n) => n.type === KEYCARD_NODE_TYPE)
+    expect(realNodes).toHaveLength(keycard.nodes.length)
+    realNodes.forEach((n, i) => {
       expect(n.id).toBe(keycard.nodes[i].id)
-      expect(n.type).toBe(KEYCARD_NODE_TYPE)
       expect(n.position).toEqual(keycard.nodes[i].position)
       expect(n.data.keycardNode).toEqual(keycard.nodes[i])
     })
   })
 
+  it('injects an add-next pseudo-node after every output port', () => {
+    const keycard = makeKeycardSpec()
+    const nodes = toFlowNodes(keycard, makeMetaByType())
+    const addNextNodes = nodes.filter((n) => n.type === KEYCARD_ADD_NEXT_TYPE)
+    // data_store output is wired to universe, but we still show an add-next so
+    // the user can branch. universe's output is free.
+    expect(addNextNodes).toHaveLength(2)
+    expect(addNextNodes.map((n) => n.id).sort()).toEqual([
+      '__addNext-store-1-data',
+      '__addNext-universe-1-data',
+    ])
+    addNextNodes.forEach((n) => {
+      expect(n.selectable).toBe(false)
+      expect(n.draggable).toBe(false)
+    })
+  })
+
+  it('stacks add-next pseudo-nodes vertically when a port already has outgoing edges', () => {
+    const keycard = makeKeycardSpec()
+    const meta = makeMetaByType()
+    // Add a second outgoing edge from the data_store so it branches.
+    keycard.edges.push({
+      id: 'e2',
+      source: 'store-1',
+      source_port: 'data',
+      target: 'universe-1',
+      target_port: 'data',
+    })
+    const nodes = toFlowNodes(keycard, meta)
+    const storeAddNext = nodes.find((n) => n.id === '__addNext-store-1-data')
+    const universeAddNext = nodes.find((n) => n.id === '__addNext-universe-1-data')
+    expect(storeAddNext).toBeDefined()
+    expect(universeAddNext).toBeDefined()
+    // store-1 is at (0,0) with one output handle near y=46. The add-next for the
+    // second branch should sit one vertical spacing below the first.
+    expect(storeAddNext!.position.x).toBe(236 + 120)
+    expect(storeAddNext!.position.y).toBeGreaterThan(46)
+    // universe-1 is at (0,100) and has no outgoing edges, so its add-next is at
+    // slot 0 (level with its output handle).
+    expect(universeAddNext!.position.y).toBeLessThan(storeAddNext!.position.y)
+  })
+
   it('marks the selected node', () => {
-    const keycard = defaultKeycardSpec()
+    const keycard = makeKeycardSpec()
     const nodes = toFlowNodes(keycard, makeMetaByType(), [], keycard.nodes[0].id)
     expect(nodes[0].selected).toBe(true)
     expect(nodes[1].selected).toBe(false)
   })
 
   it('attaches metadata by node type', () => {
-    const keycard = {
-      ...defaultKeycardSpec(),
-      nodes: [
-        { id: 'store-1', type: 'data_store', position: { x: 0, y: 0 }, config: { store: 'us' }, notes: '' },
-        { id: 'universe-1', type: 'universe', position: { x: 0, y: 100 }, config: {}, notes: '' },
-      ],
-      edges: [],
-    }
+    const keycard = makeKeycardSpec()
     const nodes = toFlowNodes(keycard, makeMetaByType())
-    expect(nodes[0].data.meta?.label).toBe('Data Store')
-    expect(nodes[1].data.meta?.label).toBe('Universe')
+    const realNodes = nodes.filter((n) => n.type === KEYCARD_NODE_TYPE)
+    expect(realNodes[0].data.meta?.label).toBe('Data Store')
+    expect(realNodes[1].data.meta?.label).toBe('Universe')
   })
 })
 
 describe('toFlowEdges', () => {
   it('produces one React Flow edge per keycard edge with typed handles', () => {
-    const keycard = defaultKeycardSpec()
-    const edges = toFlowEdges(keycard)
-    expect(edges).toHaveLength(keycard.edges.length)
-    edges.forEach((e, i) => {
+    const keycard = makeKeycardSpec()
+    const meta = makeMetaByType()
+    const edges = toFlowEdges(keycard, meta)
+    const realEdges = edges.filter((e) => !e.id.startsWith('__edge-addNext-'))
+    expect(realEdges).toHaveLength(keycard.edges.length)
+    realEdges.forEach((e, i) => {
       expect(e.id).toBe(keycard.edges[i].id)
       expect(e.type).toBe(KEYCARD_EDGE_TYPE)
       expect(e.sourceHandle).toBe(keycard.edges[i].source_port)
       expect(e.targetHandle).toBe(keycard.edges[i].target_port)
     })
   })
+
+  it('emits dashed virtual edges to add-next pseudo-nodes', () => {
+    const keycard = makeKeycardSpec()
+    const meta = makeMetaByType()
+    const edges = toFlowEdges(keycard, meta)
+    const virtualEdges = edges.filter((e) => e.id.startsWith('__edge-addNext-'))
+    // One dashed edge per output port, even when the port is already wired.
+    expect(virtualEdges).toHaveLength(2)
+    virtualEdges.forEach((e) => expect(e.style).toEqual({ strokeDasharray: '4 4' }))
+  })
 })
 
 describe('fromFlow', () => {
   it('preserves positions from React Flow nodes', () => {
-    const keycard = defaultKeycardSpec()
+    const keycard = makeKeycardSpec()
     const rfNodes = keycard.nodes.map((n) => ({
       id: n.id,
       type: KEYCARD_NODE_TYPE,
@@ -104,7 +180,7 @@ describe('fromFlow', () => {
   })
 
   it('drops nodes and edges removed from the canvas', () => {
-    const keycard = defaultKeycardSpec()
+    const keycard = makeKeycardSpec()
     const rfNodes = keycard.nodes.slice(1).map((n) => ({
       id: n.id,
       type: KEYCARD_NODE_TYPE,
@@ -119,7 +195,7 @@ describe('fromFlow', () => {
   })
 
   it('copies scalar metadata unchanged', () => {
-    const keycard = defaultKeycardSpec()
+    const keycard = makeKeycardSpec()
     const next = fromFlow(keycard, toFlowNodes(keycard, makeMetaByType()), toFlowEdges(keycard))
     expect(next.name).toBe(keycard.name)
     expect(next.windows).toEqual(keycard.windows)

@@ -11,10 +11,10 @@
  * screen rather than what was there three turns ago.
  */
 import { useState } from 'react'
-import { ArrowUp, Check, PanelRightClose, Square, X } from 'lucide-react'
+import { Check, PanelRightClose, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { KeycardComposer } from './KeycardComposer'
 import type { KeycardChat } from '@/hooks/useKeycardChat'
 import type { KeycardSpec } from '@/lib/api'
 import { isProposal, type Proposal } from '@/lib/chat'
@@ -40,16 +40,10 @@ export function KeycardAssistantDock({ chat, configured, spec, onApply, onClose 
   const [input, setInput] = useState('')
   const { messages, streaming, send, stop, applied, dismissed, markApplied, markDismissed } = chat
 
-  const submit = () => {
-    if (!input.trim() || streaming) return
-    void send(input)
-    setInput('')
-  }
-
   return (
     <div
       data-testid="keycard-assistant-dock"
-      className="flex min-h-0 w-full shrink-0 flex-col"
+      className="flex h-full min-h-0 w-full shrink-0 flex-col"
     >
       <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-3 py-2">
         <div className="flex items-baseline gap-2">
@@ -73,20 +67,23 @@ export function KeycardAssistantDock({ chat, configured, spec, onApply, onClose 
         )}
 
         {messages.length === 0 && configured !== false && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <p className="text-[11px] leading-relaxed text-muted-foreground">
               Describe the keycard you want, or ask for a change to the one on screen.
               Every answer is a proposal — nothing is applied or run until you say so.
             </p>
-            {EXAMPLES.map((s) => (
-              <button
-                key={s}
-                onClick={() => void send(s)}
-                className="block w-full rounded-md border border-border/50 px-2.5 py-1.5 text-left text-[11px] transition-colors hover:bg-foreground/[0.04]"
-              >
-                {s}
-              </button>
-            ))}
+            <div className="flex flex-wrap gap-1.5">
+              {EXAMPLES.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => void send(s)}
+                  className="rounded-md border border-border/50 bg-card px-2 py-1 text-[11px] transition-colors hover:bg-foreground/[0.04]"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -145,37 +142,20 @@ export function KeycardAssistantDock({ chat, configured, spec, onApply, onClose 
         ))}
       </div>
 
-      <div className="shrink-0 border-t border-border/50 bg-card/30 p-4">
-        <div className="flex items-end gap-2 rounded-xl border border-border/50 bg-card p-2 focus-glow">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                submit()
-              }
-            }}
-            placeholder={configured === false ? 'SANA not configured' : 'Describe a keycard…'}
-            disabled={configured === false || streaming}
-            rows={1}
-            className="min-h-[40px] resize-none border-0 bg-transparent text-sm focus-visible:ring-0"
-          />
-          {streaming ? (
-            <Button size="icon" variant="outline" onClick={stop} title="Stop">
-              <Square className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button
-              size="icon"
-              onClick={submit}
-              disabled={!input.trim() || configured === false}
-              title="Send"
-            >
-              <ArrowUp className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+      <div className="shrink-0 border-t border-border/50 bg-card/30 px-4 pt-4 pb-2">
+        <KeycardComposer
+          value={input}
+          onChange={setInput}
+          onSubmit={() => {
+            if (!input.trim() || streaming) return
+            void send(input)
+            setInput('')
+          }}
+          placeholder={configured === false ? 'SANA not configured' : 'Ask about the data, test a factor, or run a backtest'}
+          disabled={configured === false || streaming}
+          streaming={streaming}
+          onStop={stop}
+        />
       </div>
     </div>
   )

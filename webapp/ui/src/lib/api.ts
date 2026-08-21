@@ -2538,6 +2538,7 @@ export interface KeycardPort {
   type: KeycardPortType
   direction: KeycardPortDirection
   required: boolean
+  multiple?: boolean
 }
 
 export interface KeycardNodeTypeMeta {
@@ -2636,41 +2637,16 @@ export const DEFAULT_KEYCARD_WINDOWS: KeycardWindows = {
 }
 
 export function defaultKeycardSpec(name = 'New keycard'): KeycardSpec {
-  const scheduleId = 'schedule-1'
-  const rule1Id = 'rule-1'
-  const rule2Id = 'rule-2'
-  const buyId = 'buy-1'
-  const portfolioId = 'portfolio-1'
-  const costsId = 'costs-1'
-  const recordsId = 'records-1'
-
-  const column = 0
-  const pitch = 110
-  const nodeAt = (index: number) => ({ x: column, y: index * pitch })
-
   return {
     name,
-    description: 'Aion opening-range breakout rule workflow.',
-    tags: ['aion', 'breakout'],
+    description: '',
+    tags: [],
     is_template: false,
-    template_family: 'aion',
+    template_family: null,
     windows: { ...DEFAULT_KEYCARD_WINDOWS },
     nodes: [
-      { id: scheduleId, type: 'run_per_candle', position: nodeAt(0), config: { timeframe: '1d' }, notes: '' },
-      { id: rule1Id, type: 'previous_day_bullish', position: nodeAt(1), config: { lookback: 1 }, notes: '' },
-      { id: rule2Id, type: 'candle_close_above_opening_range', position: nodeAt(2), config: { minutes: 30 }, notes: '' },
-      { id: buyId, type: 'buy_now', position: nodeAt(3), config: { side: 'long', size: '100%' }, notes: '' },
-      { id: portfolioId, type: 'portfolio', position: nodeAt(4), config: { strategy: 'TopkDropoutStrategy', topk: 50, n_drop: 5 }, notes: '' },
-      { id: costsId, type: 'costs', position: nodeAt(5), config: { open_cost: 0.0005, close_cost: 0.0015, min_cost: 5, account: 100_000_000 }, notes: '' },
-      { id: recordsId, type: 'records', position: nodeAt(6), config: {}, notes: '' },
+      { id: 'start', type: 'start', position: { x: 0, y: 0 }, config: {}, notes: '' },
     ],
-    edges: [
-      { id: 'e1', source: scheduleId, source_port: 'trigger', target: rule1Id, target_port: 'trigger' },
-      { id: 'e2', source: rule1Id, source_port: 'trigger', target: rule2Id, target_port: 'trigger' },
-      { id: 'e3', source: rule2Id, source_port: 'trigger', target: buyId, target_port: 'trigger' },
-      { id: 'e4', source: buyId, source_port: 'signal', target: portfolioId, target_port: 'signal' },
-      { id: 'e5', source: portfolioId, source_port: 'trades', target: costsId, target_port: 'trades' },
-      { id: 'e6', source: costsId, source_port: 'trades', target: recordsId, target_port: 'trades' },
-    ],
+    edges: [],
   }
 }
