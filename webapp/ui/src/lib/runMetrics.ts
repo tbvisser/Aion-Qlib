@@ -65,7 +65,7 @@ export const PLAUSIBLE_PERCENT = 1000
 export function formatRunPercent(value: number, digits = 1, sign = true): string {
   const percent = value * 100
   if (Math.abs(percent) > PLAUSIBLE_PERCENT) {
-    return `${percent > 0 ? '>' : '<-'}${PLAUSIBLE_PERCENT.toLocaleString()}%`
+    return `${percent > 0 ? '>' : '<-'}${PLAUSIBLE_PERCENT.toLocaleString('en-US')}%`
   }
   return `${sign && percent > 0 ? '+' : ''}${percent.toFixed(digits)}%`
 }

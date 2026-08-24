@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Search } from 'lucide-react'
+import {
+  Search, CandlestickChart, BarChart3, LineChart, AreaChart, Activity,
+} from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { PriceChart } from '@/components/PriceChart'
+import { PriceChart, type ChartType } from '@/components/PriceChart'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Segmented } from '@/components/ui/segmented'
+import type { SegmentedOption } from '@/components/ui/segmented'
 import { api, type AssetClassKey, type Bar, type Instrument } from '@/lib/api'
 import { useHealth } from '@/hooks/useHealth'
 import { cn } from '@/lib/utils'
 import { DataSourcesPanel } from '@/components/markets/DataSourcesPanel'
+import { ChartOverlaysPanel } from '@/components/markets/ChartOverlaysPanel'
+import { useChartOverlays } from '@/hooks/useChartOverlays'
 
 const RANGES = [
   { label: '3M', days: 90 },
@@ -15,6 +21,14 @@ const RANGES = [
   { label: '5Y', days: 365 * 5 },
   { label: 'Max', days: 0 },
 ] as const
+
+const CHART_TYPES: readonly SegmentedOption<ChartType>[] = [
+  { value: 'candles', label: '', icon: CandlestickChart, title: 'Candles' },
+  { value: 'bars', label: '', icon: BarChart3, title: 'OHLC Bars' },
+  { value: 'line', label: '', icon: LineChart, title: 'Line' },
+  { value: 'area', label: '', icon: AreaChart, title: 'Area' },
+  { value: 'heikin-ashi', label: '', icon: Activity, title: 'Heikin-Ashi' },
+]
 
 const CLASS_LABELS: Record<AssetClassKey, string> = {
   equity: 'Equities',
@@ -46,8 +60,14 @@ export function MarketsPage() {
   const [bars, setBars] = useState<Bar[]>([])
   const [rangeDays, setRangeDays] = useState<number>(365)
   const [adjusted, setAdjusted] = useState(false)
+  const [chartType, setChartType] = useState<ChartType>('candles')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const rangeStart = useMemo(
+    () => startFor(rangeDays, health?.qlib.start_date),
+    [rangeDays, health?.qlib.start_date],
+  )
 
   useEffect(() => {
     api.assetClasses()
@@ -87,7 +107,7 @@ export function MarketsPage() {
     setError(null)
     try {
       const r = await api.bars(selected.symbol, {
-        start: startFor(rangeDays, health?.qlib.start_date),
+        start: rangeStart,
         adjusted: selected.store === 'qlib' ? adjusted : undefined,
       })
       setBars(r.bars)
@@ -97,38 +117,34 @@ export function MarketsPage() {
     } finally {
       setLoading(false)
     }
-  }, [selected, rangeDays, adjusted, health?.qlib.start_date])
+  }, [selected, rangeStart, adjusted])
 
   useEffect(() => { void loadBars() }, [loadBars])
 
+  const {
+    library,
+    libraryLoading,
+    groupedRuns,
+    runsLoading,
+    selectedIndicators,
+    selectedRuns,
+    indicatorData,
+    signals,
+    dataLoading: overlaysLoading,
+    error: overlaysError,
+    toggleIndicator,
+    toggleRun,
+  } = useChartOverlays(selected?.symbol ?? '', rangeStart, selected?.store ?? 'market')
+
   const stats = useMemo(() => summarise(bars), [bars])
   const backtestable = selected?.store === 'qlib'
+  const overlayDisabled = selected?.store !== 'qlib'
 
   return (
     <>
       <PageHeader
         title="Markets"
         description="Browse equities, ETFs, crypto, FX and indices — search by ticker or name."
-        actions={
-          backtestable && (
-            <div className="flex items-center gap-1 rounded-lg border border-border/50 p-0.5">
-              {(['Raw', 'Adjusted'] as const).map((label, i) => (
-                <button
-                  key={label}
-                  onClick={() => setAdjusted(i === 1)}
-                  className={cn(
-                    'rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors',
-                    adjusted === (i === 1)
-                      ? 'bg-foreground/[0.07] text-foreground'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )
-        }
       />
 
       <div className="flex min-h-0 flex-1">
@@ -189,69 +205,129 @@ export function MarketsPage() {
         </div>
 
         {/* Chart */}
-        <div className="min-w-0 flex-1 overflow-y-auto p-6">
-          <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-6">
+          {/* Header */}
+          <div className="mb-2 flex items-start justify-between gap-4">
             <div className="min-w-0">
               <h2 className="font-mono text-xl font-semibold tracking-tight">
                 {selected?.symbol ?? '—'}
               </h2>
               <p className="truncate text-sm text-foreground/80">{selected?.name}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {!selected
-                  ? ''
-                  : selected.store === 'market'
-                    ? `${CLASS_LABELS[selected.asset_class]} — as traded. Charting only: not available to factors or backtests.`
-                    : adjusted
-                      ? 'Back-adjusted and rebased — the series a model trains on.'
-                      : 'Raw traded price ($close / $factor).'}
-              </p>
             </div>
-            <div className="flex shrink-0 items-center gap-1 rounded-lg border border-border/50 p-0.5">
-              {RANGES.map((r) => (
-                <button
-                  key={r.label}
-                  onClick={() => setRangeDays(r.days)}
-                  className={cn(
-                    'rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors',
-                    rangeDays === r.days
-                      ? 'bg-foreground/[0.07] text-foreground'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {r.label}
-                </button>
-              ))}
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+              {backtestable && (
+                <div className="flex items-center gap-1 rounded-lg border border-border/50 p-0.5">
+                  {(['Raw', 'Adjusted'] as const).map((label, i) => (
+                    <button
+                      key={label}
+                      onClick={() => setAdjusted(i === 1)}
+                      className={cn(
+                        'rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors',
+                        adjusted === (i === 1)
+                          ? 'bg-foreground/[0.07] text-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-1 rounded-lg border border-border/50 p-0.5">
+                {RANGES.map((r) => (
+                  <button
+                    key={r.label}
+                    onClick={() => setRangeDays(r.days)}
+                    className={cn(
+                      'rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors',
+                      rangeDays === r.days
+                        ? 'bg-foreground/[0.07] text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+
+              <Segmented<ChartType>
+                size="sm"
+                value={chartType}
+                options={CHART_TYPES}
+                onChange={setChartType}
+              />
             </div>
           </div>
 
-          {error && (
-            <Card className="mb-4 border-destructive/40">
-              <CardContent className="p-4 text-sm text-destructive">{error}</CardContent>
+          {/* Subtitle / quick stats */}
+          <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <p className="text-[11px] text-muted-foreground">
+              {!selected
+                ? 'Select an instrument'
+                : selected.store === 'market'
+                  ? `${CLASS_LABELS[selected.asset_class]} — chart only`
+                  : adjusted
+                    ? 'Back-adjusted · model price'
+                    : 'Raw traded price'}
+            </p>
+            {stats && (
+              <div className="ml-auto flex flex-wrap items-center gap-3 font-mono text-[11px]">
+                <span className="text-muted-foreground/60">Last</span>
+                <span className="tnum">{stats.last}</span>
+                <span className={cn('tnum', stats.returnTone === 'up' && 'text-primary', stats.returnTone === 'down' && 'text-clay')}>
+                  {stats.periodReturn}
+                </span>
+                <span className="text-muted-foreground/60">σ</span>
+                <span className="tnum">{stats.vol}</span>
+              </div>
+            )}
+          </div>
+
+          {(error || overlaysError) && (
+            <Card className="mb-3 shrink-0 border-destructive/40">
+              <CardContent className="p-3 text-sm text-destructive">
+                {error ?? overlaysError}
+              </CardContent>
             </Card>
           )}
 
-          {stats && (
-            <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Stat label="Last" value={stats.last} />
-              <Stat label="Period return" value={stats.periodReturn} tone={stats.returnTone} />
-              <Stat label="Ann. vol" value={stats.vol} />
-              <Stat label="Bars" value={stats.count} />
-            </div>
-          )}
-
-          <Card>
-            <CardContent className={cn('p-2', loading && 'animate-subtle-pulse')}>
+          {/* Chart fills remaining height */}
+          <Card className="flex min-h-[300px] flex-1 flex-col">
+            <CardContent className={cn('flex min-h-0 flex-1 p-1', (loading || overlaysLoading) && 'animate-subtle-pulse')}>
               {bars.length ? (
-                <PriceChart bars={bars} />
+                <PriceChart
+                  bars={bars}
+                  chartType={chartType}
+                  indicators={indicatorData}
+                  signals={signals}
+                />
               ) : (
-                <div className="py-24 text-center text-sm text-muted-foreground">
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                   {loading ? 'Loading…' : 'No bars for this range.'}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <div className="mt-4">
+          {/* Bottom studies drawer */}
+          <div className="mt-3 shrink-0 space-y-3">
+            {overlayDisabled && selected && (
+              <p className="text-[11px] text-muted-foreground">
+                Indicators and model signals are only available for qlib-backed instruments.
+              </p>
+            )}
+            <ChartOverlaysPanel
+              library={library}
+              libraryLoading={libraryLoading}
+              groupedRuns={groupedRuns}
+              runsLoading={runsLoading}
+              selectedIndicators={selectedIndicators}
+              selectedRuns={selectedRuns}
+              onToggleIndicator={toggleIndicator}
+              onToggleRun={toggleRun}
+              disabled={overlayDisabled}
+            />
             <DataSourcesPanel />
           </div>
         </div>
@@ -278,25 +354,6 @@ function ClassTab({
         <span className="ml-1 font-mono text-[10px] text-muted-foreground/60">{count}</span>
       )}
     </button>
-  )
-}
-
-function Stat({ label, value, tone }: { label: string; value: string; tone?: 'up' | 'down' }) {
-  return (
-    <div>
-      <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
-        {label}
-      </div>
-      <div
-        className={cn(
-          'tnum font-mono text-lg',
-          tone === 'up' && 'text-primary',
-          tone === 'down' && 'text-clay',
-        )}
-      >
-        {value}
-      </div>
-    </div>
   )
 }
 

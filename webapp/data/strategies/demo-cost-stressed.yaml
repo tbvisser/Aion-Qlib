@@ -9,7 +9,7 @@ train_end: '2019-12-31'
 valid_start: '2020-01-01'
 valid_end: '2021-12-31'
 test_start: '2022-01-01'
-test_end: '2026-07-31'
+test_end: '2026-08-03'
 topk: 50
 n_drop: 5
 open_cost: 0.0015
@@ -19,6 +19,12 @@ account: 100000000.0
 limit_threshold: null
 features: null
 feature_mode: extend
+origin: backtest
+description: 'Backtested cost-stress test: same signal path as the baseline but with
+  deliberately high open/close costs, so the net-of-cost curve visibly diverges from
+  gross.'
 id: demo-cost-stressed
 created_at: '2026-08-10T15:12:08.539876+00:00'
-updated_at: '2026-08-10T15:49:02.676202+00:00'
+updated_at: '2026-08-20T11:33:52.528485+00:00'
+user_id: ''
+visibility: private

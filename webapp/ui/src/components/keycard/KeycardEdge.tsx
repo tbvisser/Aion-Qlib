@@ -11,6 +11,9 @@ export function KeycardEdge({
   targetY,
   sourcePosition,
   targetPosition,
+  style,
+  markerEnd,
+  markerStart,
   data,
 }: {
   id: string
@@ -20,6 +23,9 @@ export function KeycardEdge({
   targetY: number
   sourcePosition: Position
   targetPosition: Position
+  style?: React.CSSProperties
+  markerEnd?: string
+  markerStart?: string
   data?: KeycardEdgeData
 }) {
   const [edgePath] = getBezierPath({
@@ -29,32 +35,25 @@ export function KeycardEdge({
     targetX,
     targetY,
     targetPosition,
+    curvature: 0.25,
   })
 
   const blocking = (data?.defects ?? []).filter((d) => d.severity === 'blocking')
   const hasDefect = blocking.length > 0
-  const isAddNext = id.startsWith('__edge-addNext-')
 
   return (
-    <>
-      <BaseEdge
-        id={id}
-        path={edgePath}
-        className={cn('aion-keycard-edge', hasDefect && 'aion-keycard-edge-defect')}
-        style={{
-          stroke: hasDefect ? 'hsl(var(--destructive))' : undefined,
-          strokeWidth: hasDefect ? 2 : undefined,
-        }}
-      />
-      {isAddNext && (
-        <path
-          d={edgePath}
-          fill="none"
-          stroke="transparent"
-          strokeWidth={22}
-          style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
-        />
-      )}
-    </>
+    <BaseEdge
+      id={id}
+      path={edgePath}
+      className={cn('aion-keycard-edge', hasDefect && 'aion-keycard-edge-defect')}
+      style={{
+        ...style,
+        stroke: hasDefect ? 'hsl(var(--destructive))' : style?.stroke,
+        strokeWidth: hasDefect ? 2 : style?.strokeWidth ?? 2,
+      }}
+      markerEnd={markerEnd}
+      markerStart={markerStart}
+      interactionWidth={18}
+    />
   )
 }

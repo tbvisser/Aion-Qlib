@@ -14,6 +14,7 @@ import {
   Filter,
   Layers,
   LayoutTemplate,
+  MessageSquare,
   Newspaper,
   Puzzle,
   Receipt,
@@ -58,6 +59,7 @@ const ICONS: Record<string, LucideIcon> = {
   newspaper: Newspaper,
   'rotate-ccw': RotateCcw,
   'trending-up': TrendingUp,
+  'message-square': MessageSquare,
   puzzle: Puzzle,
 }
 
@@ -81,6 +83,7 @@ const TEMPLATE_FAMILY_INFO: Record<string, { label: string; color: string }> = {
   cost: { label: 'Cost', color: '#f43f5e' },
   'model-comparison': { label: 'Model comparison', color: '#22d3ee' },
   aion: { label: 'Aion Blocks', color: '#f97316' },
+  examples: { label: 'Examples', color: '#22d3ee' },
 }
 
 export function NodePalette({ onUseTemplate }: Props) {

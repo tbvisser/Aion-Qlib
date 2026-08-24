@@ -10,6 +10,7 @@
 import { Notice } from '@/components/ui/notice'
 import type { StageId } from '@/lib/strategyGraph/stages'
 import { STAGES } from '@/lib/strategyGraph/stages'
+import { ContextInspector } from './inspectors/ContextInspector'
 import { CostsInspector } from './inspectors/CostsInspector'
 import { FeaturesInspector } from './inspectors/FeaturesInspector'
 import { LearnerInspector } from './inspectors/LearnerInspector'
@@ -20,6 +21,7 @@ import { UniverseInspector } from './inspectors/UniverseInspector'
 import type { InspectorComponent, InspectorProps } from './inspectors/types'
 
 const INSPECTORS: Record<StageId, InspectorComponent> = {
+  context: ContextInspector,
   store: StoreInspector,
   universe: UniverseInspector,
   features: FeaturesInspector,

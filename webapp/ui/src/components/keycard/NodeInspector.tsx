@@ -319,6 +319,20 @@ function ConfigField({
     )
   }
 
+  if (propKey === 'text') {
+    return (
+      <Field label={label}>
+        <Textarea
+          value={typeof value === 'string' ? value : ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={prop.description}
+          rows={4}
+        />
+        {prop.description && <p className="text-[10px] text-muted-foreground">{prop.description}</p>}
+      </Field>
+    )
+  }
+
   return (
     <Field label={label}>
       <Input

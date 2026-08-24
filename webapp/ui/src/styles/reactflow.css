@@ -233,13 +233,13 @@
 
 .react-flow__edge.aion-keycard-edge .react-flow__edge-path {
   stroke: hsl(var(--border));
-  stroke-width: 1.5;
+  stroke-width: 2;
 }
 
 .react-flow__edge.aion-keycard-edge:hover .react-flow__edge-path,
 .react-flow__edge.aion-keycard-edge.selected .react-flow__edge-path {
   stroke: hsl(var(--primary));
-  stroke-width: 2;
+  stroke-width: 2.5;
 }
 
 .react-flow__edge.aion-keycard-edge .aion-keycard-edge-defect {
@@ -253,24 +253,60 @@
   stroke: hsl(var(--destructive));
 }
 
+/* n8n-style handles: small grey dots that scale and tint on hover/connect. */
 .react-flow__handle.aion-keycard-handle {
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   border-radius: 9999px;
-  border: 2px solid hsl(var(--card));
+  border: 1.5px solid hsl(var(--border));
+  background: hsl(var(--card));
+  pointer-events: all;
+  z-index: 10;
+  cursor: crosshair;
   transition: transform 120ms ease, background-color 120ms ease, border-color 120ms ease;
 }
 
+.aion-keycard-node:hover .react-flow__handle.aion-keycard-handle,
 .react-flow__handle.aion-keycard-handle:hover,
 .react-flow__handle.aion-keycard-handle-connecting {
-  transform: scale(1.35);
+  transform: scale(1.5);
 }
 
-.react-flow__handle.aion-keycard-handle::after {
-  content: '';
+/* Invisible hit area child so the handle is easy to grab without
+   pixel-perfect aiming. Implemented as a real DOM node rather than a
+   pseudo-element so pointer events are reliably captured by React Flow.
+   The inset is set inline: input handles reach further left, output handles
+   reach further right, so the hit area sits mostly outside the card. */
+.aion-keycard-handle-hitarea {
   position: absolute;
-  inset: -6px;
   border-radius: 9999px;
+  pointer-events: all;
+}
+
+/* While a node is being dragged, the oversized handle hit area must not steal
+   pointer events from the drag. React Flow adds a `dragging` class to the node
+   wrapper during a node drag, so we can temporarily disable the hit area. */
+.react-flow__node.dragging .aion-keycard-handle-hitarea {
+  pointer-events: none;
+}
+
+/* During a drag from an output, compatible input handles call attention to
+   themselves so the user knows where the connection can land. */
+.react-flow__handle.aion-keycard-handle-compatible {
+  transform: scale(2);
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.22), 0 0 14px hsl(var(--primary) / 0.4);
+}
+
+/* Incompatible input handles are muted while a connection is in flight so the
+   eye is drawn only to valid targets. */
+.react-flow__handle.aion-keycard-handle-incompatible {
+  opacity: 0.25;
+}
+
+/* Handles pointing in the wrong direction (inputs when seeking an output,
+   outputs when seeking an input) are muted so the eye stays on valid targets. */
+.react-flow__handle.aion-keycard-handle-inactive-direction {
+  opacity: 0.35;
 }
 
 /* Inert handle used by ephemeral add-next pseudo-nodes. It must exist so React
@@ -285,4 +321,13 @@
   background: transparent;
   opacity: 0;
   pointer-events: none;
+}
+
+/* The invisible anchor that lets users drag an existing edge to reconnect it.
+   React Flow draws a small circle at each endpoint; enlarge it and keep the
+   crosshair cursor so it feels like a real grab target. */
+.react-flow__edgeupdater {
+  cursor: crosshair;
+  pointer-events: all;
+  fill: transparent;
 }

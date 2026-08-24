@@ -44,12 +44,18 @@ export function useKeycardChat(state: KeycardChatState): KeycardChat {
 
   const context = useCallback((): KeycardContext => {
     const spec = live.current.spec as unknown as Record<string, unknown>
+    const objective = live.current.spec.nodes
+      .filter((n) => n.type === 'context')
+      .map((n) => String(n.config.text ?? '').trim())
+      .filter(Boolean)
+      .join('\n')
     return {
       spec: live.current.spec,
       keycard_id: live.current.keycardId ?? null,
       saved: Boolean(live.current.keycardId),
       assumed: lastApplied.current?.assumed.filter(
         (a) => JSON.stringify(spec[a.path]) === JSON.stringify(a.value)) ?? null,
+      context: objective || undefined,
     }
   }, [])
 

@@ -78,6 +78,7 @@ export function useBuilderChat(state: BuilderChatState): BuilderChat {
       // told "topk=50, filled in rather than chosen" beside a canvas saying 20.
       assumed: lastApplied.current?.assumed.filter(
         (a) => JSON.stringify(spec[a.path]) === JSON.stringify(a.value)) ?? null,
+      context: live.current.spec.context,
     }
   }, [])
 

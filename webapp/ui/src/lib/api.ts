@@ -308,6 +308,29 @@ export const api = {
   evaluateFactor: (body: EvaluateFactorRequest) =>
     request<FactorEvaluation>('/factors/evaluate', { method: 'POST', body: JSON.stringify(body) }),
 
+  markovAnalyze: (params: {
+    symbol: string
+    window?: number
+    bull?: number
+    bear?: number
+    lookback?: number
+    steps?: string
+    store?: string
+  }) => request<MarkovAnalyzeResponse>(`/markov/analyze${qs(params)}`),
+
+  markovSignal: (params: {
+    symbol: string
+    window?: number
+    bull?: number
+    bear?: number
+    lookback?: number
+    steps?: string
+    store?: string
+  }) => request<MarkovSignalResponse>(`/markov/signal${qs(params)}`),
+
+  markovBacktest: (body: MarkovBacktestRequest) =>
+    request<MarkovBacktestResponse>('/markov/backtest', { method: 'POST', body: JSON.stringify(body) }),
+
   /**
    * Is this expression safe to run? Costs no data access, so it can be called
    * while an expression is still being drawn rather than when Run is pressed.
@@ -340,7 +363,7 @@ export const api = {
 
   listStrategies: () => request<{ strategies: StoredStrategy[] }>('/strategies'),
 
-  getStrategy: (id: string) => request<StoredStrategy>(`/strategies/${id}`),
+  getStrategy: (id: string) => request<StoredStrategy>(`/strategies/${encodeURIComponent(id)}`),
 
   saveStrategy: (spec: StrategySpec, id?: string) =>
     request<StoredStrategy>(id ? `/strategies/${id}` : '/strategies', {
@@ -389,6 +412,9 @@ export const api = {
     request<{ date: string; top: { instrument: string; score: number | null }[] }>(
       `/runs/${id}/predictions`,
     ),
+
+  runPositions: (id: string, params: { instrument?: string } = {}) =>
+    request<PositionHistory>(`/runs/${id}/positions${qs(params)}`),
   // ── Macro ───────────────────────────────────────────────────────────────
 
   macroSeries: () => request<MacroSeriesResponse>('/macro/series'),
@@ -1315,6 +1341,12 @@ export interface StrategySpec {
   features: FeatureColumn[] | null
   /** Whether `features` are added to the handler's own, or replace them. */
   feature_mode: FeatureMode
+  /** Whether this is a live/official fund strategy or a research backtest. */
+  origin: 'official' | 'backtest'
+  /** Plain-language summary of what the strategy does and why. */
+  description: string
+  /** User's plain-language objective for the AI assistant. */
+  context: string
 }
 
 export interface StoredStrategy extends StrategySpec {
@@ -1449,19 +1481,65 @@ export interface RunSanity {
   reasons: string[]
 }
 
+export interface TradeSummary {
+  estimated_trades: number
+  trading_days: number
+  annual_turnover: number | null
+}
+
+export interface RunDerived {
+  skew: number | null
+  excess_kurt: number | null
+  downside_vol: number | null
+  sortino: number | null
+  win_rate: number | null
+  profit_factor: number | null
+}
+
 export interface RunReport {
   recorder_id: string | null
   experiment_name: string
   metrics: Record<string, number | null>
   risk: Record<string, Record<string, number | null>>
   curves: Partial<Record<'strategy' | 'benchmark' | 'net_of_cost' | 'excess' | 'drawdown', CurvePoint[]>>
+  daily?: Partial<Record<'return' | 'bench' | 'cost' | 'turnover', CurvePoint[]>>
+  derived?: RunDerived
   indicators?: Record<string, number | null>
   period?: { start: string; end: string; days: number }
+  trade_summary?: TradeSummary
   /** Absent on runs whose report predates the check. */
   sanity?: RunSanity
   /** True when MLflow was unreadable and the run's own snapshot was used. */
   from_snapshot?: boolean
   run: Run
+}
+
+export interface PositionDaily {
+  date: string
+  position_count: number
+  long_exposure: number | null
+  short_exposure: number | null
+  net_exposure: number | null
+  gross_exposure: number | null
+}
+
+export interface PositionTrade {
+  date: string
+  instrument: string
+  direction: 'open' | 'close' | 'adjust'
+  delta: number | null
+  weight: number | null
+}
+
+export interface PositionHistory {
+  start: string
+  end: string
+  daily: PositionDaily[]
+  trades: PositionTrade[]
+  latest: {
+    date: string
+    top: { instrument: string; weight: number | null }[]
+  }
 }
 
 export const DEFAULT_STRATEGY: StrategySpec = {
@@ -1495,6 +1573,9 @@ export const DEFAULT_STRATEGY: StrategySpec = {
   limit_threshold: null,
   features: null,
   feature_mode: 'extend',
+  origin: 'backtest',
+  description: '',
+  context: '',
 }
 
 /** One entry in the curated factor library, judged against a store. */
@@ -1661,6 +1742,109 @@ export interface FactorEvaluation {
   rank_ic: IcStats
   series: { date: string; ic: number | null }[]
   cumulative_ic: number | null
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Markov Chain regime analyzer
+// ──────────────────────────────────────────────────────────────────────────
+
+export interface MarkovTransitionRow {
+  from: string
+  to: Record<string, number | null>
+}
+
+export interface MarkovForecast {
+  bull: number | null
+  bear: number | null
+  sideways: number | null
+}
+
+export interface MarkovBacktestMetrics {
+  annualized_return: number | null
+  annualized_sharpe: number | null
+  max_drawdown: number | null
+  n_days: number
+}
+
+export interface MarkovLatestSignal {
+  date: string | null
+  signal: number | null
+  position: number | null
+  bull_prob: number | null
+  bear_prob: number | null
+  sideways_prob: number | null
+}
+
+export interface MarkovSignalSeriesPoint {
+  date: string
+  state: string
+  signal: number | null
+  position: number | null
+}
+
+export interface MarkovEquityPoint {
+  date: string
+  equity: number | null
+}
+
+export interface MarkovAnalyzeResponse {
+  symbol: string | null
+  as_of: string
+  source: string
+  parameters: {
+    window: number
+    bull_threshold: number
+    bear_threshold: number
+    lookback: number
+  }
+  current_state: string
+  transition_matrix: MarkovTransitionRow[]
+  forecasts: Record<string, MarkovForecast>
+  stationary_distribution: Record<string, number | null>
+  regime_counts: Record<string, number>
+  latest_signal: MarkovLatestSignal
+  backtest: MarkovBacktestMetrics
+  equity_curve: MarkovEquityPoint[]
+  signal_series: MarkovSignalSeriesPoint[]
+}
+
+export interface MarkovSignalResponse {
+  symbol: string | null
+  as_of: string
+  current_state: string
+  signal: number | null
+  position: number | null
+  bull_prob: number | null
+  bear_prob: number | null
+  sideways_prob: number | null
+  forecasts: Record<string, MarkovForecast>
+  transition_matrix: MarkovTransitionRow[]
+  stationary_distribution: Record<string, number | null>
+  backtest: MarkovBacktestMetrics
+}
+
+export interface MarkovBacktestRequest {
+  symbol: string
+  window?: number
+  bull?: number
+  bear?: number
+  lookback?: number
+}
+
+export interface MarkovBacktestPoint {
+  date: string
+  return: number | null
+  equity: number | null
+}
+
+export interface MarkovBacktestResponse {
+  symbol: string
+  parameters: MarkovBacktestRequest
+  n_days: number
+  annualized_return: number | null
+  annualized_sharpe: number | null
+  max_drawdown: number | null
+  equity: MarkovBacktestPoint[]
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -1989,6 +2173,9 @@ export interface PortfolioSpec {
   rebalance: Rebalance
   cost_bps: number
   notes: string
+  objective: string
+  constraints: string
+  tags: string[]
 }
 
 export interface Portfolio extends PortfolioSpec {
@@ -2131,6 +2318,9 @@ export const DEFAULT_PORTFOLIO: PortfolioSpec = {
   rebalance: 'monthly',
   cost_bps: 10,
   notes: '',
+  objective: '',
+  constraints: '',
+  tags: [],
 }
 
 // ──────────────────────────────────────────────────────────────────────────

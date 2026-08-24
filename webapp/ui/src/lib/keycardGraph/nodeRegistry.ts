@@ -136,6 +136,12 @@ const PORTS: Record<string, KeycardPort[]> = {
     { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: false },
     { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'out', required: true },
   ],
+  context: [],
+  branch: [
+    { id: 'trigger', label: 'Trigger', type: 'trigger', direction: 'in', required: true, multiple: true },
+    { id: 'true', label: 'True', type: 'trigger', direction: 'out', required: true },
+    { id: 'false', label: 'False', type: 'trigger', direction: 'out', required: true },
+  ],
 }
 
 const SCHEMAS: Record<string, Record<string, unknown>> = {
@@ -330,6 +336,22 @@ const SCHEMAS: Record<string, Record<string, unknown>> = {
       price: { type: 'number', default: 0 },
     },
     required: ['type', 'price'],
+  },
+  context: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      text: { type: 'string', default: '', description: 'Describe what you want this strategy to achieve so the AI can factor it into the backtest.' },
+    },
+    required: ['text'],
+  },
+  branch: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      condition: { type: 'string', default: 'close > open', description: 'Boolean expression that decides which branch to take.' },
+    },
+    required: ['condition'],
   },
 }
 
@@ -627,6 +649,28 @@ export const NODE_TYPE_INFO: Record<string, NodeTypeInfo> = {
     ports: PORTS.chart_drawing,
     config_schema: SCHEMAS.chart_drawing,
   },
+  context: {
+    id: 'context',
+    category: 'Management',
+    phase: 'execute',
+    label: 'Context',
+    eyebrow: 'Objective',
+    icon: 'message-square',
+    description: "Type what you want to achieve so the AI can factor it in.",
+    ports: PORTS.context,
+    config_schema: SCHEMAS.context,
+  },
+  branch: {
+    id: 'branch',
+    category: 'Rules',
+    phase: 'execute',
+    label: 'Branch',
+    eyebrow: 'Split',
+    icon: 'git-branch',
+    description: 'Split the workflow into true and false branches.',
+    ports: PORTS.branch,
+    config_schema: SCHEMAS.branch,
+  },
 }
 
 export const FALLBACK_NODE_CATEGORIES: KeycardNodeCategory[] = [
@@ -639,9 +683,10 @@ export const FALLBACK_NODE_CATEGORIES: KeycardNodeCategory[] = [
     NODE_TYPE_INFO.price_above_previous_day_close,
     NODE_TYPE_INFO.no_trade_for_day,
     NODE_TYPE_INFO.news_filter,
+    NODE_TYPE_INFO.branch,
   ] },
   { id: 'Execution', label: 'Trading execution', items: [NODE_TYPE_INFO.buy_now] },
-  { id: 'Management', label: 'Trading management', items: [NODE_TYPE_INFO.trade_counter, NODE_TYPE_INFO.reset_trade_counter] },
+  { id: 'Management', label: 'Trading management', items: [NODE_TYPE_INFO.trade_counter, NODE_TYPE_INFO.reset_trade_counter, NODE_TYPE_INFO.context] },
   { id: 'Variables', label: 'Variables', items: [NODE_TYPE_INFO.variable] },
   { id: 'Chart Drawings', label: 'Chart drawings', items: [NODE_TYPE_INFO.chart_drawing] },
   { id: 'Data', label: 'Data', items: [NODE_TYPE_INFO.data_store, NODE_TYPE_INFO.universe] },

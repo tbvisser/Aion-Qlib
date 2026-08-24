@@ -14,12 +14,24 @@
       "weight": 0.4
     }
   ],
-  "strategy_ids": [],
+  "strategy_ids": [
+    "demo-official-core-equity",
+    "demo-official-defensive"
+  ],
   "inception": "2021-01-04",
   "rebalance": "monthly",
   "cost_bps": 10.0,
-  "notes": "The textbook balanced book, rebalanced monthly at 10bp.",
+  "notes": "Trades from 2021 (~5 years). The textbook balanced book: 60% US equities via SPY and 40% aggregate bonds via AGG, rebalanced monthly at 10bp. Linked to the official core-equity sleeve and the official defensive sleeve.",
+  "objective": "Replicate a classic 60/40 strategic allocation with a small active equity overlay.",
+  "constraints": "Long-only; 60% equity/40% bonds target; monthly rebalance; 10bp one-way cost.",
+  "tags": [
+    "balanced",
+    "core",
+    "multi-asset"
+  ],
   "id": "demo-pf-6040",
   "created_at": "2026-08-10T15:12:08.564114+00:00",
-  "updated_at": "2026-08-10T17:46:21.954040+00:00"
+  "updated_at": "2026-08-20T11:33:54.462771+00:00",
+  "user_id": "",
+  "visibility": "private"
 }

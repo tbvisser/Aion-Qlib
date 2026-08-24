@@ -141,3 +141,76 @@ class TestCurveConvention:
         source = inspect.getsource(results.build_report)
         assert "cumsum" not in source
         assert source.count(".cumprod()") == 4
+
+
+class TestPositionHistory:
+    """position_history turns qlib's position snapshots into a chart API."""
+
+    def test_multiindex_positions_are_normalised(self, monkeypatch):
+        from webapp.api import results
+
+        class FakeRecorder:
+            def load_object(self, name: str):
+                if name != "portfolio_analysis/positions_normal_1day.pkl":
+                    raise FileNotFoundError(name)
+                dates = pd.to_datetime(["2024-01-02", "2024-01-02", "2024-01-03", "2024-01-03"])
+                instruments = ["A", "B", "A", "B"]
+                return pd.DataFrame({
+                    "weight": [0.5, 0.3, 0.4, 0.4],
+                }, index=pd.MultiIndex.from_arrays([dates, instruments], names=["datetime", "instrument"]))
+
+        monkeypatch.setattr(results, "find_recorder", lambda name: FakeRecorder())
+        history = results.position_history("any")
+
+        assert history is not None
+        assert history["start"] == "2024-01-02"
+        assert history["end"] == "2024-01-03"
+        assert len(history["daily"]) == 2
+        assert history["daily"][0]["position_count"] == 2
+        assert history["daily"][0]["long_exposure"] == pytest.approx(0.8)
+        assert history["daily"][0]["gross_exposure"] == pytest.approx(0.8)
+        assert len(history["trades"]) == 4  # two opens, two adjustments
+        opens = [t for t in history["trades"] if t["direction"] == "open"]
+        assert len(opens) == 2
+        assert history["latest"]["date"] == "2024-01-03"
+        assert history["latest"]["top"][0]["instrument"] == "A"
+        assert history["latest"]["top"][0]["weight"] == pytest.approx(0.4)
+
+    def test_stacked_positions_are_normalised(self, monkeypatch):
+        from webapp.api import results
+
+        class FakeRecorder:
+            def load_object(self, name: str):
+                return pd.DataFrame({
+                    "A": [0.5, 0.4],
+                    "B": [0.3, 0.4],
+                }, index=pd.to_datetime(["2024-01-02", "2024-01-03"]))
+
+        monkeypatch.setattr(results, "find_recorder", lambda name: FakeRecorder())
+        history = results.position_history("any")
+
+        assert history is not None
+        assert history["daily"][0]["position_count"] == 2
+        assert history["daily"][0]["long_exposure"] == pytest.approx(0.8)
+
+    def test_dict_of_position_objects_are_normalised(self, monkeypatch):
+        from webapp.api import results
+
+        class FakePosition:
+            def __init__(self, weights):
+                self.position = {k: {"weight": v} for k, v in weights.items()}
+
+        class FakeRecorder:
+            def load_object(self, name: str):
+                return {
+                    pd.Timestamp("2024-01-02"): FakePosition({"A": 0.5, "B": 0.3}),
+                    pd.Timestamp("2024-01-03"): FakePosition({"A": 0.4, "B": 0.4}),
+                }
+
+        monkeypatch.setattr(results, "find_recorder", lambda name: FakeRecorder())
+        history = results.position_history("any")
+
+        assert history is not None
+        assert history["daily"][0]["position_count"] == 2
+        assert history["daily"][0]["long_exposure"] == pytest.approx(0.8)
+        assert len(history["trades"]) == 4

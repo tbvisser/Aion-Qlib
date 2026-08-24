@@ -64,6 +64,12 @@ class PortfolioSpec(BaseModel):
     #: One-way cost charged on turnover at each rebalance.
     cost_bps: float = Field(10.0, ge=0, le=500)
     notes: str = Field("", max_length=2000)
+    #: High-level investment objective (e.g. "Absolute return with vol < 10%").
+    objective: str = Field("", max_length=500)
+    #: Soft or hard constraints (e.g. "max 40% bonds, monthly rebalance").
+    constraints: str = Field("", max_length=500)
+    #: Searchable tags, e.g. ["macro", "multi-asset"].
+    tags: list[str] = Field(default_factory=list, max_length=16)
 
     @field_validator("benchmark")
     @classmethod

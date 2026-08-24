@@ -185,6 +185,35 @@ export function PortfolioDialog({
             </Button>
           </div>
 
+          <Field label="Objective">
+            <Input
+              value={spec.objective}
+              onChange={(e) => patch({ objective: e.target.value })}
+              placeholder="High-level investment objective"
+              className="h-8 text-xs"
+            />
+          </Field>
+
+          <Field label="Constraints">
+            <Input
+              value={spec.constraints}
+              onChange={(e) => patch({ constraints: e.target.value })}
+              placeholder="e.g. max 40% bonds, monthly rebalance"
+              className="h-8 text-xs"
+            />
+          </Field>
+
+          <Field label="Tags (comma separated)">
+            <Input
+              value={spec.tags.join(', ')}
+              onChange={(e) => patch({
+                tags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean),
+              })}
+              placeholder="macro, multi-asset"
+              className="h-8 text-xs"
+            />
+          </Field>
+
           <Field label="Notes">
             <Input
               value={spec.notes}

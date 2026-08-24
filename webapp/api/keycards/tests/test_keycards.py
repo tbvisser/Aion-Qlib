@@ -251,3 +251,52 @@ def test_validator_rejects_second_edge_into_non_multiple_port():
     defects = validate_keycard(keycard)
     codes = {d.code for d in defects}
     assert "too_many_incoming_edges" in codes
+
+
+def test_context_node_is_allowed_in_a_valid_keycard():
+    """A context node is an annotation and does not add its own defects."""
+    nodes = [
+        Node(id="store-1", type="data_store", position=Position(x=0, y=0),
+             config={"store": "us"}),
+        Node(id="universe-1", type="universe", position=Position(x=0, y=100),
+             config={"universe": "top500", "benchmark": "SPY"}),
+        Node(id="handler-1", type="handler", position=Position(x=0, y=200),
+             config={"handler": "Alpha158", "feature_mode": "extend"}),
+        Node(id="model-1", type="model", position=Position(x=0, y=300),
+             config={"model": "lightgbm"}),
+        Node(id="portfolio-1", type="portfolio", position=Position(x=0, y=400),
+             config={"strategy": "TopkDropoutStrategy", "topk": 50, "n_drop": 5}),
+        Node(id="costs-1", type="costs", position=Position(x=0, y=500),
+             config={"open_cost": 0.0005, "close_cost": 0.0015,
+                     "min_cost": 5, "account": 100_000_000}),
+        Node(id="records-1", type="records", position=Position(x=0, y=600), config={}),
+        Node(id="c", type="context", position=Position(x=200, y=0),
+             config={"text": "Lower volatility than the benchmark"}),
+    ]
+    edges = [
+        Edge(id="e1", source="store-1", source_port="data",
+             target="universe-1", target_port="data"),
+        Edge(id="e2", source="universe-1", source_port="data",
+             target="handler-1", target_port="data"),
+        Edge(id="e3", source="handler-1", source_port="features",
+             target="model-1", target_port="features"),
+        Edge(id="e4", source="model-1", source_port="signal",
+             target="portfolio-1", target_port="signal"),
+        Edge(id="e5", source="portfolio-1", source_port="trades",
+             target="costs-1", target_port="trades"),
+        Edge(id="e6", source="costs-1", source_port="trades",
+             target="records-1", target_port="trades"),
+    ]
+    keycard = Keycard(
+        id="context-test", name="context", nodes=nodes, edges=edges,
+        windows=Windows(),
+    )
+    defects = validate_keycard(keycard)
+    assert not any(d.severity == "blocking" for d in defects)
+
+
+def test_context_node_is_in_palette():
+    """The palette serves the context node type."""
+    categories = list_node_types()
+    ids = {item["id"] for cat in categories for item in cat["items"]}
+    assert "context" in ids

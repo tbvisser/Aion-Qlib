@@ -1,0 +1,33 @@
+id: official-risk-parity
+title: Official risk-parity sleeve
+family: factors
+tags: [official, risk-parity, multi-asset, etf]
+
+rationale: >
+  The active sleeve behind the Risk-parity and Global-macro portfolios. It ranks
+  ETFs by inverse realised volatility and 12-month momentum, so the model tilts
+  toward the least-volatile, strongest-trending exposures across equities,
+  duration, gold and commodities.
+
+good_for:
+  - A multi-asset risk-parity mandate
+  - Official portfolios that hold SPY, TLT, GLD, DBC and similar ETFs
+
+bad_for:
+  - A fixed equal-weight risk-parity allocation
+  - Single-name equity selection
+
+draft:
+  name: Official risk-parity sleeve
+  model: lightgbm
+  handler: Alpha158
+  universe: etf_top100
+  benchmark: SPY
+  topk: 12
+  n_drop: 3
+  feature_mode: extend
+  features:
+    - name: INV_VOL_20
+      expression: "1/(Std($change,20)+1e-12)"
+    - name: MOM_12_1
+      expression: "Ref($close,21)/(Ref($close,252)+1e-12) - 1"

@@ -15,7 +15,7 @@
 import type { StrategySpec } from '@/lib/api'
 
 export type StageId =
-  | 'store' | 'universe' | 'features' | 'periods' | 'learner' | 'portfolio' | 'costs'
+  | 'context' | 'store' | 'universe' | 'features' | 'periods' | 'learner' | 'portfolio' | 'costs'
 
 /**
  * Four phases over seven stages.
@@ -30,7 +30,7 @@ export type StagePhase = 'data' | 'shape' | 'fit' | 'execute'
 
 /** Icon keys, resolved to lucide components in the card. Keeps this file React-free. */
 export type StageIcon =
-  | 'database' | 'listFilter' | 'sigma' | 'calendarRange' | 'cpu' | 'layers' | 'receipt'
+  | 'messageSquare' | 'database' | 'listFilter' | 'sigma' | 'calendarRange' | 'cpu' | 'layers' | 'receipt'
 
 export interface StageDef {
   id: StageId
@@ -52,7 +52,7 @@ export interface StageDef {
 }
 
 export const STAGE_ORDER = [
-  'store', 'universe', 'features', 'periods', 'learner', 'portfolio', 'costs',
+  'context', 'store', 'universe', 'features', 'periods', 'learner', 'portfolio', 'costs',
 ] as const satisfies readonly StageId[]
 
 const STAGE_ID_SET: ReadonlySet<string> = new Set(STAGE_ORDER)
@@ -70,6 +70,14 @@ export function isStageId(id: string): id is StageId {
 }
 
 export const STAGES: Readonly<Record<StageId, StageDef>> = {
+  context: {
+    id: 'context',
+    phase: 'data',
+    eyebrow: 'Objective',
+    label: 'What you want to achieve',
+    icon: 'messageSquare',
+    owns: ['context'],
+  },
   store: {
     id: 'store',
     phase: 'data',

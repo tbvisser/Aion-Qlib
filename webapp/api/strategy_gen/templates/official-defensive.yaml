@@ -1,0 +1,32 @@
+id: official-defensive
+title: Official defensive sleeve
+family: factors
+tags: [official, defensive, low-vol, etf]
+
+rationale: >
+  The active defensive sleeve behind the Defensive and Classic 60/40 portfolios.
+  It favours low-volatility, positive-trend exposures in bonds, gold and
+  equities, implemented as an ETF rotation within the ETF top 100 universe.
+
+good_for:
+  - A defensive multi-asset mandate
+  - Stress-period and drawdown comparison
+
+bad_for:
+  - A fixed defensive allocation like TLT/GLD/SPY/AGG
+  - High-growth, high-volatility regimes
+
+draft:
+  name: Official defensive sleeve
+  model: lightgbm
+  handler: Alpha158
+  universe: etf_top100
+  benchmark: SPY
+  topk: 12
+  n_drop: 3
+  feature_mode: extend
+  features:
+    - name: VOL_20
+      expression: "Std($change,20)"
+    - name: TREND_60
+      expression: "Ref($close,21)/(Ref($close,126)+1e-12) - 1"

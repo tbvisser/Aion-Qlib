@@ -37,6 +37,29 @@ live in the API process and never reach the browser.
 | `ui/` | React + Vite + TS frontend. |
 | `data/` | Saved strategies and run records (gitignored). |
 
+## Markov Chain Regime Analyzer
+
+The **Markov Chains** page (`/lab/markov`) and the `get_markov_signal` chat tool
+implement the observable Markov Chain regime framework:
+
+- Label each day as **Bull / Bear / Sideways** from rolling returns.
+- Estimate the transition matrix by counting state changes.
+- Forecast regime probabilities at 1, 5, 12 and 24 steps via matrix powers
+  (Chapman-Kolmogorov).
+- Compute the stationary distribution.
+- Generate a walk-forward trading signal and equity curve.
+
+The model is deliberately simple: it makes the Markov property and time
+homogeneity assumptions explicit, so the page is a starting point for regime
+research rather than a production trading signal. A Hidden Markov Model
+extension is planned as a second phase.
+
+API endpoints:
+
+- `GET /api/markov/analyze?symbol=SPY`
+- `GET /api/markov/signal?symbol=SPY`
+- `POST /api/markov/backtest`
+
 ## Market data
 
 ```bash

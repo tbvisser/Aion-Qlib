@@ -85,6 +85,16 @@ export function PortfolioDetailPage() {
       />
 
       <div className="p-6">
+        {(portfolio.objective ?? '').trim() && (
+          <p className="mb-2 max-w-3xl text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Objective:</span> {portfolio.objective}
+          </p>
+        )}
+        {(portfolio.constraints ?? '').trim() && (
+          <p className="mb-2 max-w-3xl text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Constraints:</span> {portfolio.constraints}
+          </p>
+        )}
         {portfolio.notes && (
           <p className="mb-5 max-w-2xl text-sm text-muted-foreground">{portfolio.notes}</p>
         )}

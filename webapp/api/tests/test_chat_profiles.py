@@ -82,8 +82,8 @@ def test_the_general_profile_keeps_everything_it_had():
     """The builder is an addition, not a downgrade of the existing Chat page."""
     names = {t["function"]["name"] for t in tool_schemas("general")}
     assert names == {"get_data_status", "search_instruments", "get_price_summary",
-                     "evaluate_factor", "run_backtest", "get_run_status", "list_runs",
-                     "start_scalability_analysis", "get_scalability_report",
+                     "evaluate_factor", "get_markov_signal", "run_backtest", "get_run_status",
+                     "list_runs", "start_scalability_analysis", "get_scalability_report",
                      "book_venue_consultation"}
 
 
@@ -335,3 +335,23 @@ def test_keycard_context_rendering_includes_node_count():
     assert "Keycard Builder" in rendered
     assert "buy_now" in rendered
     assert "Not saved yet" in rendered
+
+
+def test_builder_context_renders_objective():
+    context = BuilderContext(
+        spec=StrategySpec(name="On screen", topk=25, context="Lower volatility"))
+    rendered = render_context(context)
+    assert "Lower volatility" in rendered
+    assert "stated objective" in rendered
+
+
+def test_keycard_context_renders_objective_from_context_node():
+    from webapp.api.keycards.models import KeycardSpec
+
+    spec = KeycardSpec(name="Test", nodes=[
+        {"id": "n1", "type": "context", "position": {"x": 0, "y": 0},
+         "config": {"text": "Trade only in the regular session"}, "notes": ""},
+    ], edges=[])
+    rendered = render_context(KeycardContext(spec=spec, saved=False))
+    assert "Trade only in the regular session" in rendered
+    assert "stated objective" in rendered

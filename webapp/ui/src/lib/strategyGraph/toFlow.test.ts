@@ -56,6 +56,7 @@ describe('stageEdges', () => {
     // The same wearer-side rule as the cards' base rules: the tint belongs to
     // the *target*, so the line into a card always matches the card's accent.
     expect(stageEdges(stageStatus([])).map((e) => e.className)).toEqual([
+      'aion-edge-phase-data',    // -> store
       'aion-edge-phase-data',    // -> universe
       'aion-edge-phase-shape',   // -> features
       'aion-edge-phase-shape',   // -> periods
@@ -66,11 +67,11 @@ describe('stageEdges', () => {
   })
 
   it('breaks every edge downstream of a blocked stage, and none before it', () => {
-    // `periods` is index 3, so the store->universe and universe->features edges
-    // stay whole and everything from periods onward is drawn broken.
+    // `periods` is index 4, so the edges into and before it stay whole and
+    // everything out of it is drawn broken.
     const edges = stageEdges(stageStatus(routeWarnings([TEST_OVERLAP])))
     const broken = edges.map((e) => e.className === 'aion-edge-blocked')
-    expect(broken).toEqual([false, false, false, true, true, true])
+    expect(broken).toEqual([false, false, false, false, true, true, true])
   })
 
   it('is tinted, never blocked, when no status is supplied at all', () => {
@@ -85,6 +86,7 @@ describe('stageEdges', () => {
     const colours = stageEdges(stageStatus(routeWarnings([TEST_OVERLAP])))
       .map((e) => (e.markerEnd as { color: string }).color)
     expect(colours).toEqual([
+      'hsl(var(--type-release) / 0.8)',   // -> store, healthy
       'hsl(var(--type-release) / 0.8)',   // -> universe, healthy
       'hsl(var(--type-process) / 0.8)',   // -> features, healthy
       'hsl(var(--type-process) / 0.8)',   // -> periods, healthy
@@ -177,7 +179,7 @@ describe('toStageNodes', () => {
 
   it('numbers the stages from 01', () => {
     expect(toStageNodes(DEFAULT_STRATEGY).map((n) => n.data.ordinal))
-      .toEqual(['01', '02', '03', '04', '05', '06', '07'])
+      .toEqual(['01', '02', '03', '04', '05', '06', '07', '08'])
   })
 
   it('defaults every card to ok when no status is supplied', () => {
@@ -246,19 +248,19 @@ describe('toHubNode', () => {
 })
 
 describe('toPipelineNodes', () => {
-  it('is the hub first, then the seven cards, so nothing paints over a card', () => {
+  it('is the hub first, then the eight cards, so nothing paints over a card', () => {
     expect(toPipelineNodes(DEFAULT_STRATEGY).map((n) => n.id))
       .toEqual([HUB_NODE_ID, ...STAGE_ORDER])
   })
 
-  it('keeps the hub and the seven cards as the prefix, whatever else is drawn', () => {
-    expect(toPipelineNodes(withFeatures(3)).slice(0, 8).map((n) => n.id))
+  it('keeps the hub and the eight cards as the prefix, whatever else is drawn', () => {
+    expect(toPipelineNodes(withFeatures(3)).slice(0, 9).map((n) => n.id))
       .toEqual([HUB_NODE_ID, ...STAGE_ORDER])
     // Including when the fan is opened to its widest -- the prefix is the thing
     // a careless append would break.
     const expanded = toPipelineNodes(withFeatures(32), {}, undefined, true)
-    expect(expanded).toHaveLength(8 + FEATURE_GRID_MAX)
-    expect(expanded.slice(0, 8).map((n) => n.id)).toEqual([HUB_NODE_ID, ...STAGE_ORDER])
+    expect(expanded).toHaveLength(9 + FEATURE_GRID_MAX)
+    expect(expanded.slice(0, 9).map((n) => n.id)).toEqual([HUB_NODE_ID, ...STAGE_ORDER])
   })
 })
 
@@ -270,8 +272,8 @@ describe('toFeatureNodes', () => {
    */
   it('draws nothing when a strategy has no custom columns', () => {
     expect(toFeatureNodes(DEFAULT_STRATEGY)).toEqual([])
-    expect(toPipelineNodes(DEFAULT_STRATEGY)).toHaveLength(8)
-    expect(pipelineEdges(stageStatus([]), DEFAULT_STRATEGY)).toHaveLength(13)
+    expect(toPipelineNodes(DEFAULT_STRATEGY)).toHaveLength(9)
+    expect(pipelineEdges(stageStatus([]), DEFAULT_STRATEGY)).toHaveLength(15)
   })
 
   it('leads with the handler set, then the columns added to it', () => {
@@ -476,7 +478,7 @@ describe('pipelineEdges with a feature set', () => {
   })
 
   it('draws the fixed picture when it is not given a spec', () => {
-    expect(pipelineEdges(stageStatus([]))).toHaveLength(13)
+    expect(pipelineEdges(stageStatus([]))).toHaveLength(15)
   })
 
   it('never blocks a tether — a blocker breaks flow, not membership', () => {

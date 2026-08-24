@@ -23,8 +23,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import db, qlib_session
 from .auth import get_principal
 from .config import get_settings
+from .macro_auto_refresh import start_macro_auto_refresh, stop_macro_auto_refresh
 from .routers import (activity, agenda, catalog, chat, data, factors, health, ingest,
-                      keycards, macro, outlook_reports, registry, scalability, scheduled,
+                      keycards, macro, markov, outlook_reports, registry, scalability, scheduled,
                       vibe, portfolios, projects, runs, workspace)
 from .scheduler import get_scheduler
 
@@ -66,6 +67,7 @@ app.include_router(runs.router, prefix="/api", tags=["runs"], dependencies=_auth
 app.include_router(chat.router, prefix="/api", tags=["chat"], dependencies=_authenticated)
 app.include_router(ingest.router, prefix="/api", tags=["ingest"], dependencies=_authenticated)
 app.include_router(macro.router, prefix="/api", tags=["macro"], dependencies=_authenticated)
+app.include_router(markov.router, prefix="/api", tags=["markov"], dependencies=_authenticated)
 app.include_router(portfolios.router, prefix="/api", tags=["portfolios"], dependencies=_authenticated)
 app.include_router(projects.router, prefix="/api", tags=["projects"], dependencies=_authenticated)
 app.include_router(activity.router, prefix="/api", tags=["activity"], dependencies=_authenticated)
@@ -106,8 +108,16 @@ def _startup() -> None:
     except Exception as exc:  # noqa: BLE001 - reported, not handled
         logging.getLogger(__name__).warning("could not start scheduled-task scheduler: %s", exc)
 
+    # Start the macro desk's background EODHD refresh. It only runs if
+    # EODHD_API_KEY is configured, so a missing key is a no-op, not a failure.
+    try:
+        start_macro_auto_refresh()
+    except Exception as exc:  # noqa: BLE001 - reported, not handled
+        logging.getLogger(__name__).warning("could not start macro auto-refresh: %s", exc)
+
 
 @app.on_event("shutdown")
 def _shutdown() -> None:
+    stop_macro_auto_refresh()
     get_scheduler().stop()
     db.close_pool()

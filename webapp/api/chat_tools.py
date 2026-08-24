@@ -102,6 +102,29 @@ _TOOL_SCHEMAS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "get_markov_signal",
+            "description": (
+                "Estimate a Markov Chain regime model for a single symbol and return "
+                "the current state, transition probabilities, forecast regime "
+                "probabilities, and a trading signal (long/short/flat)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "symbol": {"type": "string", "description": "e.g. 'SPY'"},
+                    "window": {"type": "integer", "default": 20, "description": "Rolling window for state labels"},
+                    "bull": {"type": "number", "default": 0.02, "description": "Bull threshold as a fraction"},
+                    "bear": {"type": "number", "default": -0.02, "description": "Bear threshold as a fraction"},
+                    "lookback": {"type": "integer", "default": 252, "description": "Days used to estimate the transition matrix"},
+                    "steps": {"type": "string", "default": "1,5,12,24", "description": "Comma-separated forecast steps"},
+                },
+                "required": ["symbol"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "run_backtest",
             "description": (
                 "Train a model and backtest it. Returns a run id immediately; the run "
@@ -249,6 +272,8 @@ class BuilderContext(BaseModel):
     feature_mode: str | None = None
     #: Rows from a previous proposal, so "why 50 positions?" is answerable.
     assumed: list[AssumedParam] | None = None
+    #: User's plain-language objective for the AI.
+    context: str = ""
 
 
 class KeycardContext(BaseModel):
@@ -263,6 +288,21 @@ class KeycardContext(BaseModel):
     spec: KeycardSpec | None = None
     keycard_id: str | None = None
     saved: bool = False
+
+
+def _builder_objective(context: BuilderContext) -> str:
+    return context.context or (context.spec.context if context.spec else "")
+
+
+def _keycard_objective(spec: KeycardSpec | None) -> str:
+    if spec is None:
+        return ""
+    texts = [
+        str(n.config.get("text", "")).strip()
+        for n in spec.nodes
+        if n.type == "context"
+    ]
+    return "\n".join(t for t in texts if t)
 
 
 def _render_builder_context(context: BuilderContext) -> str | None:
@@ -292,6 +332,9 @@ def _render_builder_context(context: BuilderContext) -> str | None:
     if context.assumed:
         rows = "; ".join(f"{a.path}={a.value!r} ({a.why})" for a in context.assumed)
         lines.append(f"Filled in by an earlier proposal rather than chosen: {rows}")
+    objective = _builder_objective(context)
+    if objective:
+        lines.append(f"The user's stated objective: {objective}")
     return "\n".join(lines)
 
 
@@ -313,6 +356,9 @@ def _render_keycard_context(context: KeycardContext) -> str | None:
     if len(spec.nodes) > 10:
         node_summary += f"; and {len(spec.nodes) - 10} more"
     lines.append(f"Node types: {node_summary}")
+    objective = _keycard_objective(spec)
+    if objective:
+        lines.append(f"The user's stated objective: {objective}")
     lines.append("Saved." if context.saved else "Not saved yet.")
     return "\n".join(lines)
 
@@ -660,6 +706,39 @@ def build_registry(
         # Trim the monthly series: the model needs the summary, not 60 points.
         return {k: v for k, v in result.items() if k != "series"}
 
+    def get_markov_signal(
+        symbol: str,
+        window: int = 20,
+        bull: float = 0.02,
+        bear: float = -0.02,
+        lookback: int = 252,
+        steps: str = "1,5,12,24",
+    ) -> dict:
+        from .routers.markov import signal as signal_endpoint
+
+        result = signal_endpoint(
+            symbol=symbol,
+            window=window,
+            bull=bull,
+            bear=bear,
+            lookback=lookback,
+            steps=steps,
+        )
+        # Keep the payload compact for the model.
+        return {
+            "symbol": result.get("symbol"),
+            "as_of": result.get("as_of"),
+            "current_state": result.get("current_state"),
+            "signal": result.get("signal"),
+            "position": result.get("position"),
+            "bull_prob": result.get("bull_prob"),
+            "bear_prob": result.get("bear_prob"),
+            "sideways_prob": result.get("sideways_prob"),
+            "forecasts": result.get("forecasts"),
+            "stationary_distribution": result.get("stationary_distribution"),
+            "backtest": result.get("backtest"),
+        }
+
     def run_backtest(**kwargs) -> dict:
         provider_uri, region = _require_store()
         spec = StrategySpec(**{k: v for k, v in kwargs.items() if v is not None})
@@ -949,6 +1028,7 @@ def build_registry(
         "search_instruments": search_instruments,
         "get_price_summary": get_price_summary,
         "evaluate_factor": evaluate_factor,
+        "get_markov_signal": get_markov_signal,
         "run_backtest": run_backtest,
         "get_run_status": get_run_status,
         "list_runs": list_runs,
@@ -1001,6 +1081,10 @@ To propose, call propose_strategy. Every field may be left null. Null means "the
 did not state this", and the server fills it from the default and records a row saying so. \
 Leaving a field null is better than guessing it — state a field only when the user's words \
 imply it.
+
+If the user has entered an objective in the Context block, treat it as the primary guide \
+when proposing changes. A strategy that contradicts its own objective is worse than no \
+proposal at all.
 
 The user usually has a strategy on screen. When they ask to change it — "more conservative", \
 "fewer names", "try it on ETFs" — call propose_strategy with start_from="current" and state \
@@ -1079,6 +1163,10 @@ did not state this", and the server fills it from the default and records a row 
 Leaving a field null is better than guessing it — state a field only when the user's words \
 imply it.
 
+If the user has entered an objective in the Context block, treat it as the primary guide \
+when proposing changes. A keycard that contradicts its own objective is worse than no \
+proposal at all.
+
 The user usually has a keycard on screen. When they ask to change it — "add a rule", "trade \
 only in the regular session", "make it long only" — call propose_keycard with \
 start_from="current" and state only the fields that change; everything else is carried over \
@@ -1103,8 +1191,8 @@ PROFILES: dict[str, Profile] = {
     "general": Profile(
         system_prompt=SYSTEM_PROMPT,
         tools=("get_data_status", "search_instruments", "get_price_summary",
-               "evaluate_factor", "run_backtest", "get_run_status", "list_runs",
-               "start_scalability_analysis", "get_scalability_report",
+               "evaluate_factor", "get_markov_signal", "run_backtest", "get_run_status",
+               "list_runs", "start_scalability_analysis", "get_scalability_report",
                "book_venue_consultation"),
     ),
     "builder": Profile(

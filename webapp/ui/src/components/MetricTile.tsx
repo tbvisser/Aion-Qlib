@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
  * a lie of emphasis.
  */
 export function MetricTile({
-  label, value, text, digits = 2, percent, negative, bare, hint, className,
+  label, value, text, digits = 2, percent, negative, bare, hint, className, suffix,
 }: {
   label: string
   value?: number | null
@@ -24,14 +24,16 @@ export function MetricTile({
   bare?: boolean
   hint?: string
   className?: string
+  suffix?: string
 }) {
+  const suffix_ = suffix ?? ''
   const display =
     text ??
     (value == null || !Number.isFinite(value)
       ? '—'
       : percent
-        ? `${(value * 100).toFixed(digits === 2 ? 1 : digits)}%`
-        : value.toFixed(digits))
+        ? `${(value * 100).toFixed(digits === 2 ? 1 : digits)}%${suffix_}`
+        : `${value.toFixed(digits)}${suffix_}`)
 
   const tone =
     value == null || !Number.isFinite(value) || text

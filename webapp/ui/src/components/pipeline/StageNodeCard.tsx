@@ -12,7 +12,7 @@
 import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import {
-  CalendarRange, Cpu, Database, Layers, ListFilter, Receipt, Sigma,
+  CalendarRange, Cpu, Database, Layers, ListFilter, MessageSquare, Receipt, Sigma,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -23,6 +23,7 @@ import type { StageFlowNode } from '@/lib/strategyGraph/toFlow'
 import { cn } from '@/lib/utils'
 
 const STAGE_ICONS: Record<StageIcon, LucideIcon> = {
+  messageSquare: MessageSquare,
   database: Database,
   listFilter: ListFilter,
   sigma: Sigma,

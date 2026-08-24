@@ -15,6 +15,9 @@ import numpy as np
 import pandas as pd
 
 
+TRADING_DAYS = 252
+
+
 def _clean(x) -> float | None:
     if x is None:
         return None
@@ -99,6 +102,7 @@ def build_report(experiment_name: str) -> dict[str, Any] | None:
         "metrics": {},
         "curves": {},
         "risk": {},
+        "daily": {},
     }
 
     # Signal-quality metrics (IC / ICIR / Rank IC), logged by SigAnaRecord.
@@ -118,12 +122,15 @@ def build_report(experiment_name: str) -> dict[str, Any] | None:
             risk.setdefault(group, {})[metric] = _clean(row.iloc[0])
         report["risk"] = risk
 
+    trading_days = 0
+    frame: pd.DataFrame | None = None
     normal = _load(recorder, "portfolio_analysis/report_normal_1day.pkl")
     if isinstance(normal, pd.DataFrame) and not normal.empty:
         # `return` is the strategy, `bench` the benchmark; cost is already
         # deducted in the columns qlib reports with the _wo_cost pair.
         frame = normal.copy()
         frame.index = pd.to_datetime(frame.index)
+        trading_days = int(len(frame))
 
         curves: dict[str, list[dict]] = {}
         if "return" in frame:
@@ -146,7 +153,33 @@ def build_report(experiment_name: str) -> dict[str, Any] | None:
         report["period"] = {
             "start": str(frame.index[0].date()),
             "end": str(frame.index[-1].date()),
-            "days": int(len(frame)),
+            "days": trading_days,
+        }
+
+        # Daily series for macro-style analysis: rolling volatility, IR, drawdown
+        # and turnover ladders. Kept thin -- one float per day per series.
+        daily: dict[str, list[dict]] = {}
+        for col in ("return", "bench", "cost", "turnover"):
+            if col in frame:
+                daily[col] = _series_points(frame[col])
+        report["daily"] = daily
+
+        cost_series = frame.get("cost", pd.Series(0.0, index=frame.index))
+        excess_rets = (frame["return"] - cost_series.fillna(0) - frame["bench"]).fillna(0)
+        report["derived"] = {
+            "skew": _clean(float(excess_rets.skew())),
+            "excess_kurt": _clean(float(excess_rets.kurt())),
+            "downside_vol": _clean(float(excess_rets[excess_rets < 0].std() * math.sqrt(TRADING_DAYS))),
+            "sortino": _clean(
+                float(excess_rets.mean() * TRADING_DAYS /
+                      (excess_rets[excess_rets < 0].std() * math.sqrt(TRADING_DAYS)))
+                if excess_rets[excess_rets < 0].std() > 0 else None
+            ),
+            "win_rate": _clean(float((excess_rets > 0).mean())),
+            "profit_factor": _clean(
+                float(excess_rets[excess_rets > 0].sum() / -excess_rets[excess_rets < 0].sum())
+                if excess_rets[excess_rets < 0].sum() != 0 else None
+            ),
         }
 
     # Turnover / fill-rate indicators.
@@ -154,6 +187,22 @@ def build_report(experiment_name: str) -> dict[str, Any] | None:
     if isinstance(indicators, pd.DataFrame):
         report["indicators"] = {
             str(k): _clean(v.iloc[0]) for k, v in indicators.iterrows()
+        }
+
+    # qlib does not emit a per-trade blotter, but daily turnover is a honest
+    # proxy. Prefer the aggregate indicator when present; otherwise derive the
+    # same numbers from the daily turnover series so every report has a trade
+    # estimate.
+    turnover: float | None = None
+    if isinstance(report.get("indicators"), dict):
+        turnover = report["indicators"].get("turnover")
+    if turnover is None and trading_days and frame is not None and "turnover" in frame:
+        turnover = _clean(float(frame["turnover"].mean()))
+    if turnover and trading_days:
+        report["trade_summary"] = {
+            "estimated_trades": max(0, round(turnover * trading_days * 2)),
+            "trading_days": trading_days,
+            "annual_turnover": _clean(turnover * TRADING_DAYS),
         }
 
     report["sanity"] = _sanity(report["risk"].get("excess_return_with_cost") or {})
@@ -230,4 +279,161 @@ def prediction_sample(experiment_name: str, limit: int = 50) -> dict[str, Any] |
             {"instrument": str(inst), "score": _clean(row["score"])}
             for inst, row in today.head(limit).iterrows()
         ],
+    }
+
+
+def _position_weights(positions: Any) -> pd.DataFrame | None:
+    """Normalise qlib position snapshots to a tidy (date, instrument, weight) frame.
+
+    qlib has shipped several serialisation shapes. The current one is a dict
+    mapping dates to ``Position`` objects; older runs wrote MultiIndex or wide
+    DataFrames. This function tries them in order of specificity.
+    """
+    if isinstance(positions, dict):
+        rows: list[dict[str, Any]] = []
+        for ts, pos in positions.items():
+            date = str(pd.Timestamp(ts).date())
+            weights: dict[str, float]
+            if hasattr(pos, "get_stock_weight_dict"):
+                weights = pos.get_stock_weight_dict()
+            elif hasattr(pos, "position") and isinstance(pos.position, dict):
+                weights = {
+                    k: float(v["weight"])
+                    for k, v in pos.position.items()
+                    if isinstance(v, dict) and "weight" in v
+                }
+            else:
+                continue
+            for instrument, weight in weights.items():
+                rows.append({"date": date, "instrument": str(instrument), "weight": float(weight)})
+        return pd.DataFrame(rows) if rows else None
+
+    if isinstance(positions, pd.DataFrame):
+        if isinstance(positions.index, pd.MultiIndex):
+            try:
+                frame = positions.reset_index()
+                date_col = next(
+                    (c for c in frame.columns if c in ("datetime", "date", "level_0")),
+                    frame.columns[0],
+                )
+                inst_col = next(
+                    (c for c in frame.columns if c in ("instrument", "stock_id", "level_1")),
+                    frame.columns[1],
+                )
+                weight_col = next(
+                    (c for c in frame.columns if c in ("weight", "value", 0)),
+                    None,
+                )
+                if weight_col is None:
+                    numeric = frame.select_dtypes(include="number")
+                    weight_col = numeric.columns[0] if not numeric.empty else frame.columns[-1]
+                frame = frame.rename(
+                    columns={date_col: "date", inst_col: "instrument", weight_col: "weight"}
+                )
+                frame["date"] = pd.to_datetime(frame["date"]).dt.strftime("%Y-%m-%d")
+                frame["instrument"] = frame["instrument"].astype(str)
+                frame["weight"] = pd.to_numeric(frame["weight"], errors="coerce").fillna(0)
+                return frame
+            except Exception:
+                return None
+        try:
+            positions.index = pd.to_datetime(positions.index)
+            stacked = positions.stack().reset_index()
+            stacked.columns = ["date", "instrument", "weight"]
+            stacked["date"] = stacked["date"].dt.strftime("%Y-%m-%d")
+            stacked["instrument"] = stacked["instrument"].astype(str)
+            stacked["weight"] = pd.to_numeric(stacked["weight"], errors="coerce").fillna(0)
+            return stacked
+        except Exception:
+            return None
+
+    return None
+
+
+def position_history(experiment_name: str) -> dict[str, Any] | None:
+    """Historical positions and inferred trades for one run.
+
+    qlib writes ``positions_normal_1day.pkl`` as a by-product of the backtest.
+    It is the actual weight the book held in each instrument on each day,
+    which is the only honest source for "open vs closed positions".
+    """
+    recorder = find_recorder(experiment_name)
+    if recorder is None:
+        return None
+
+    raw = _load(recorder, "portfolio_analysis/positions_normal_1day.pkl")
+    if raw is None:
+        raw = _load(recorder, "positions_normal_1day.pkl")
+    frame = _position_weights(raw)
+    if frame is None or frame.empty:
+        return None
+
+    # Discard tiny residual weights and cash.
+    frame = frame[frame["weight"].abs() > 1e-6]
+
+    # Daily aggregate timeline.
+    daily = frame.groupby("date").agg(
+        position_count=("instrument", "nunique"),
+        long_exposure=("weight", lambda s: float(s[s > 0].sum())),
+        short_exposure=("weight", lambda s: abs(float(s[s < 0].sum()))),
+    ).reset_index()
+    daily["long_exposure"] = daily["long_exposure"].fillna(0)
+    daily["short_exposure"] = daily["short_exposure"].fillna(0)
+    daily["net_exposure"] = daily["long_exposure"] - daily["short_exposure"]
+    daily["gross_exposure"] = daily["long_exposure"] + daily["short_exposure"]
+
+    # Infer trades by comparing day-to-day weight changes.
+    trades: list[dict[str, Any]] = []
+    prev: dict[str, float] = {}
+    for date, group in frame.groupby("date"):
+        current = dict(zip(group["instrument"], group["weight"]))
+        for instrument, weight in current.items():
+            old = prev.get(instrument, 0.0)
+            delta = weight - old
+            if abs(delta) > 1e-6:
+                trades.append({
+                    "date": date,
+                    "instrument": instrument,
+                    "direction": "open" if delta > 0 and old == 0 else "close" if delta < 0 and weight == 0 else "adjust",
+                    "delta": _clean(delta),
+                    "weight": _clean(weight),
+                })
+        # Also capture full closes for instruments that dropped out.
+        for instrument, old in prev.items():
+            if instrument not in current and abs(old) > 1e-6:
+                trades.append({
+                    "date": date,
+                    "instrument": instrument,
+                    "direction": "close",
+                    "delta": _clean(-old),
+                    "weight": 0,
+                })
+        prev = current
+
+    # Latest holdings.
+    last_date = frame["date"].max()
+    latest = frame[frame["date"] == last_date].sort_values("weight", ascending=False)
+
+    return {
+        "start": str(frame["date"].min()),
+        "end": str(last_date),
+        "daily": [
+            {
+                "date": row["date"],
+                "position_count": int(row["position_count"]),
+                "long_exposure": _clean(row["long_exposure"]),
+                "short_exposure": _clean(row["short_exposure"]),
+                "net_exposure": _clean(row["net_exposure"]),
+                "gross_exposure": _clean(row["gross_exposure"]),
+            }
+            for _, row in daily.iterrows()
+        ],
+        "trades": trades,
+        "latest": {
+            "date": str(last_date),
+            "top": [
+                {"instrument": row["instrument"], "weight": _clean(row["weight"])}
+                for _, row in latest.head(50).iterrows()
+            ],
+        },
     }

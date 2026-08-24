@@ -141,6 +141,8 @@ export interface BuilderContext {
   feature_mode?: 'extend' | 'replace' | null
   /** Rows from the last applied proposal that are still true of `spec`. */
   assumed?: { path: string; value: unknown; why: string }[] | null
+  /** User's plain-language objective for the AI assistant. */
+  context?: string
 }
 
 /** What the Keycard Builder has on screen. Only sent by the keycard-builder profile. */
@@ -150,6 +152,8 @@ export interface KeycardContext {
   saved?: boolean
   /** Rows from the last applied proposal that are still true of `spec`. */
   assumed?: { path: string; value: unknown; why: string }[] | null
+  /** User's plain-language objective for the AI assistant. */
+  context?: string
 }
 
 /** A `propose_strategy` result, as the panel renders it. */

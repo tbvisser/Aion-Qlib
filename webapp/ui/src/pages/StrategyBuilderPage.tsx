@@ -12,7 +12,7 @@
  * is `invisible pointer-events-none`, never unmounted. That is load-bearing --
  * see the comment on the pane container.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Bot, FileCode2, Play } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -220,6 +220,18 @@ export function StrategyBuilderPage() {
   const openSaved = useCallback((s: StoredStrategy) => {
     guard({ label: `open “${s.name}”`, run: () => openSavedNow(s) })
   }, [guard, openSavedNow])
+
+  // A deep link from /strategies/:id opens the referenced saved strategy once.
+  const openedFromUrl = useRef(false)
+  useEffect(() => {
+    if (openedFromUrl.current) return
+    const id = params.get('strategy')
+    if (!id) return
+    const s = saved.find((x) => x.id === id)
+    if (!s) return
+    openedFromUrl.current = true
+    openSavedNow(s)
+  }, [params, saved, openSavedNow])
 
   // Covers a tab close or a reload. An in-app route change cannot be guarded
   // here: `main.tsx` mounts a `<BrowserRouter>` and `useBlocker` needs a data
