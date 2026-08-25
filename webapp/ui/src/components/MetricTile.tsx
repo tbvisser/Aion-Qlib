@@ -1,4 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { cn } from '@/lib/utils'
 
 /**
@@ -12,7 +13,7 @@ import { cn } from '@/lib/utils'
  * a lie of emphasis.
  */
 export function MetricTile({
-  label, value, text, digits = 2, percent, negative, bare, hint, className, suffix,
+  label, value, text, digits = 2, percent, negative, bare, hero, tone: toneOverride, hint, className, suffix,
 }: {
   label: string
   value?: number | null
@@ -22,6 +23,10 @@ export function MetricTile({
   negative?: boolean
   /** Drop the card chrome; render as a bare label + value pair. */
   bare?: boolean
+  /** The page-top size: value at text-2xl instead of text-lg. */
+  hero?: boolean
+  /** Overrides the sign-derived colour, for domain tone logic (metricTone). */
+  tone?: 'positive' | 'negative' | 'neutral'
   hint?: string
   className?: string
   suffix?: string
@@ -36,25 +41,28 @@ export function MetricTile({
         : `${value.toFixed(digits)}${suffix_}`)
 
   const tone =
-    value == null || !Number.isFinite(value) || text
-      ? ''
-      : negative
-        ? 'text-clay'
-        : value > 0
-          ? 'text-primary'
-          : value < 0
-            ? 'text-clay'
-            : ''
+    toneOverride != null
+      ? toneOverride === 'positive'
+        ? 'text-primary'
+        : toneOverride === 'negative'
+          ? 'text-clay'
+          : ''
+      : value == null || !Number.isFinite(value) || text
+        ? ''
+        : negative
+          ? 'text-clay'
+          : value > 0
+            ? 'text-primary'
+            : value < 0
+              ? 'text-clay'
+              : ''
 
   const body = (
     <>
-      <div
-        className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70"
-        title={hint}
-      >
+      <MicroLabel as="div" className="truncate" title={hint}>
         {label}
-      </div>
-      <div className={cn('tnum mt-1 truncate font-mono text-lg', tone)}>{display}</div>
+      </MicroLabel>
+      <div className={cn('tnum mt-1 truncate font-mono', hero ? 'text-2xl' : 'text-lg', tone)}>{display}</div>
     </>
   )
 

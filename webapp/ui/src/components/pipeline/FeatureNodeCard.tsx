@@ -6,11 +6,12 @@
  * assertable in a repo with no component tests.
  *
  * Deliberately not a small stage card. A chip is 156x40 against a card's
- * 200x148, has no header band, no watermark and no badge, and wears its phase
- * accent on the *left* edge rather than the bottom -- on something hanging off
- * the outside of the ring, the edge that reads the same however the fan grows
- * is the one facing the card it belongs to. The one thing it does share is the
- * `core` handle, because the tether is the spoke idea one level down.
+ * 72px-tall slab, has no header band, no watermark and no badge, and wears its
+ * phase accent on the *left* edge rather than the bottom -- on something
+ * hanging off the side of the stack, the edge that reads the same however the
+ * fan grows is the one facing the card it belongs to. The one thing it does
+ * share is the `core` handle, because the tether is the spoke idea one level
+ * down.
  *
  * Three kinds, one card:
  *
@@ -51,21 +52,21 @@ export const FeatureNodeCard = memo(function FeatureNodeCard({
       )}
     >
       {kind === 'more' ? (
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+        <span className="font-mono text-micro uppercase tracking-wider text-muted-foreground">
           {title}
         </span>
       ) : (
         <>
           <span
             className={cn(
-              'truncate font-mono text-[11px] font-semibold leading-tight',
+              'truncate font-mono text-label font-semibold leading-tight',
               replaced && 'line-through',
             )}
           >
             {title}
           </span>
           {subtitle && (
-            <span className="truncate font-mono text-[9px] leading-tight text-muted-foreground/70">
+            <span className="truncate font-mono text-tiny leading-tight text-muted-foreground/70">
               {subtitle}
             </span>
           )}

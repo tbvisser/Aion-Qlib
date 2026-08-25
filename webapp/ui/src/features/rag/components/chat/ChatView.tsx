@@ -90,7 +90,7 @@ function CitationGroupToggleChip({
       }}
       className="inline-flex items-center justify-center align-baseline mx-0.5 h-[1.25em] min-w-[1.25em] px-1 rounded-full border border-border bg-muted/70 text-[0.7em] leading-none font-medium text-muted-foreground transition-colors cursor-pointer hover:bg-muted"
     >
-      {expanded ? 'x' : '...'}
+      {expanded ? 'x' : '…'}
     </button>
   )
 }
@@ -767,7 +767,7 @@ export function ChatView({ threadId, onThreadTitleUpdate, onTodosUpdate, onAgent
       // Set temporary title while waiting for LLM-generated one
       const titleSeed = userMessage || attachments[0]?.file.name || 'Attached file'
       const tempTitle = titleSeed.length > 50
-        ? titleSeed.substring(0, 47) + '...'
+        ? titleSeed.substring(0, 47) + '…'
         : titleSeed
       onThreadTitleUpdate(tid, tempTitle)
     }
@@ -1791,7 +1791,7 @@ export function ChatView({ threadId, onThreadTitleUpdate, onTodosUpdate, onAgent
                 handleSubmit(e as unknown as React.FormEvent)
               }
             }}
-            placeholder="Ask anything..."
+            placeholder="Ask anything…"
             disabled={sending || uploading}
             inputRef={inputRef}
             attachmentsSlot={
@@ -1916,7 +1916,7 @@ export function ChatView({ threadId, onThreadTitleUpdate, onTodosUpdate, onAgent
                 <div className="flex items-center gap-2 text-muted-foreground animate-fade-in">
                   <Shield className="h-3.5 w-3.5 animate-pulse" />
                   <span className="text-xs">
-                    {redactionStage === 'anonymizing' ? 'Protecting PII...' : 'Restoring identities...'}
+                    {redactionStage === 'anonymizing' ? 'Protecting PII…' : 'Restoring identities…'}
                   </span>
                 </div>
               )}
@@ -1929,7 +1929,7 @@ export function ChatView({ threadId, onThreadTitleUpdate, onTodosUpdate, onAgent
                     <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
                     <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
-                  <span className="text-sm">Thinking...</span>
+                  <span className="text-sm">Thinking…</span>
                 </div>
               )}
 
@@ -1995,7 +1995,7 @@ export function ChatView({ threadId, onThreadTitleUpdate, onTodosUpdate, onAgent
                     handleSubmit(e as unknown as React.FormEvent)
                   }
                 }}
-                placeholder="Ask anything..."
+                placeholder="Ask anything…"
                 disabled={sending || uploading}
                 inputRef={inputRef}
                 attachmentsSlot={

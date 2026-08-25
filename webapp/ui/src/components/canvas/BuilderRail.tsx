@@ -6,10 +6,11 @@
  * reasonable thing to type whichever half you are looking at, and the tab
  * strip tells you which half answered.
  *
- * The rail is mounted in both builder modes. Blocks need a canvas to be
- * inserted into, so that tab is disabled in form mode and says why — but
- * templates and saved strategies are how you start in either mode, and the
- * form used to be the only place that showed your saved work at all.
+ * The rail is mounted in both panes. Blocks need an expression canvas to be
+ * inserted into, so that tab is disabled in the pipeline pane and says why —
+ * but templates and saved strategies are how you start from either pane, and
+ * the old form view used to be the only place that showed your saved work at
+ * all.
  */
 import { useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
@@ -30,9 +31,9 @@ export interface BuilderRailProps {
   /**
    * Blocks are insertable only when there is a canvas to insert them into.
    *
-   * Form mode passes false and omits everything below it: the rail is mounted
-   * there for its templates half, and the block vocabulary lives inside
-   * `FactorCanvas` alongside the editor that would receive it.
+   * The pipeline pane passes false and omits everything below it: the rail is
+   * mounted there for its templates half, and the block vocabulary lives
+   * inside `FactorCanvas` alongside the editor that would receive it.
    */
   canInsert: boolean
   registry?: OperatorRegistry
@@ -66,7 +67,7 @@ export function BuilderRail({
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()
 
-  // Form mode has no canvas; land on the half that still works there.
+  // The pipeline pane has no expression canvas; land on the half that works there.
   const active: Tab = canInsert ? tab : 'templates'
 
   // The box is shared, the query is not. "vwap" is a fine thing to type at the
@@ -92,7 +93,7 @@ export function BuilderRail({
         className="flex min-h-0 w-72 shrink-0 flex-col border-r border-border/50"
       >
         <RailTabs
-          data-testid="builder-rail"
+          data-testid="builder-rail-tabs"
           value={active}
           onChange={select}
           tabs={[

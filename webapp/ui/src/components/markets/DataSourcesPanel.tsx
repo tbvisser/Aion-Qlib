@@ -5,6 +5,9 @@ import { Badge } from '@/components/ui/badge'
 import { Panel } from '@/components/ui/panel'
 import { Segmented } from '@/components/ui/segmented'
 import type { SegmentedOption } from '@/components/ui/segmented'
+import {
+  Table, TableBody, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
 import { api, ApiError } from '@/lib/api'
 import type { VibeSymbolCandidate } from '@/lib/api'
 import { useDebouncedValue } from '@/features/rag/hooks/useDebouncedValue'
@@ -34,14 +37,14 @@ function SectionSpinner() {
   return (
     <div className="flex items-center gap-1.5 py-2">
       <div className="h-2.5 w-2.5 animate-spin rounded-full border border-border border-t-primary/60" />
-      <span className="text-[11px] text-muted-foreground/60">Loading…</span>
+      <span className="text-label text-muted-foreground/60">Loading…</span>
     </div>
   )
 }
 
 function InlineError({ message }: { message: string }) {
   return (
-    <p className="rounded-md bg-destructive/5 px-2.5 py-1.5 font-mono text-[11px] text-destructive/80">
+    <p className="rounded-md bg-destructive/5 px-2.5 py-1.5 font-mono text-label text-destructive/80">
       {message}
     </p>
   )
@@ -49,7 +52,7 @@ function InlineError({ message }: { message: string }) {
 
 function Attribution({ source }: { source: string }) {
   return (
-    <p className="mt-2 text-[10px] text-muted-foreground/40">
+    <p className="mt-2 text-micro text-muted-foreground/40">
       via Vibe-Trading sidecar · sources: {source}
     </p>
   )
@@ -64,16 +67,16 @@ function Attribution({ source }: { source: string }) {
 function KvGrid({ data }: { data: Record<string, unknown> }) {
   const entries = Object.entries(data).filter(([, v]) => isPrimitive(v))
   if (!entries.length) {
-    return <p className="text-[11px] text-muted-foreground/50">—</p>
+    return <p className="text-label text-muted-foreground/50">—</p>
   }
   return (
     <dl className="grid grid-cols-[1fr_1fr] gap-x-4 gap-y-0.5">
       {entries.map(([k, v]) => (
         <div key={k} className="contents">
-          <dt className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/55">
+          <dt className="truncate font-mono text-micro uppercase tracking-wider text-muted-foreground/55">
             {k.replace(/_/g, ' ')}
           </dt>
-          <dd className="truncate font-mono text-[11px] text-foreground/80">
+          <dd className="truncate font-mono text-label text-foreground/80">
             {String(v ?? '—')}
           </dd>
         </div>
@@ -91,42 +94,35 @@ function FlatTable({ rows }: { rows: Record<string, unknown>[] }) {
     new Set(rows.flatMap((r) => Object.keys(r).filter((k) => isPrimitive(r[k])))),
   )
   if (!cols.length) {
-    return <p className="text-[11px] text-muted-foreground/50">No readable columns.</p>
+    return <p className="text-label text-muted-foreground/50">No readable columns.</p>
   }
   return (
-    <div className="overflow-x-auto rounded-md border border-border/50">
-      <table className="min-w-full border-collapse font-mono text-[11px]">
-        <thead>
-          <tr className="bg-foreground/[0.02]">
-            {cols.map((c) => (
-              <th
-                key={c}
-                scope="col"
-                className="whitespace-nowrap border-b border-border/50 px-2.5 py-1.5 text-left text-[10px] uppercase tracking-wider text-muted-foreground/55"
-              >
-                {c.replace(/_/g, ' ')}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr
-              // Rows lack stable keys; position is the closest proxy.
-              // eslint-disable-next-line react/no-array-index-key
-              key={i}
-              className="border-b border-border/30 last:border-0 odd:bg-foreground/[0.01]"
-            >
-              {cols.map((c) => (
-                <td key={c} className="whitespace-nowrap px-2.5 py-1 text-foreground/80">
-                  {String(row[c] ?? '—')}
-                </td>
-              ))}
-            </tr>
+    <Table containerClassName="rounded-md border border-border/50" className="font-mono text-label">
+      <TableHead className="bg-foreground/[0.02]">
+        <tr>
+          {cols.map((c) => (
+            <TableHeader key={c} className="whitespace-nowrap">
+              {c.replace(/_/g, ' ')}
+            </TableHeader>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </tr>
+      </TableHead>
+      <TableBody>
+        {rows.map((row, i) => (
+          <TableRow
+            // Rows lack stable keys; position is the closest proxy.
+            key={i}
+            className="odd:bg-foreground/[0.01]"
+          >
+            {cols.map((c) => (
+              <td key={c} className="whitespace-nowrap px-2.5 py-1 text-foreground/80">
+                {String(row[c] ?? '—')}
+              </td>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   )
 }
 
@@ -143,7 +139,7 @@ function FinancialsData({ data }: { data: unknown }) {
   if (data && typeof data === 'object' && !Array.isArray(data)) {
     return <KvGrid data={data as Record<string, unknown>} />
   }
-  return <p className="text-[11px] text-muted-foreground/50">No data available.</p>
+  return <p className="text-label text-muted-foreground/50">No data available.</p>
 }
 
 // ── Profile section ────────────────────────────────────────────────────────
@@ -193,14 +189,14 @@ function ProfileView({ ticker }: { ticker: string }) {
   })
 
   if (!renderable.length) {
-    return <p className="text-[11px] text-muted-foreground/50">No profile data available.</p>
+    return <p className="text-label text-muted-foreground/50">No profile data available.</p>
   }
 
   return (
     <div className="space-y-3">
       {renderable.map(([sectionKey, sectionData]) => (
         <div key={sectionKey}>
-          <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/55">
+          <div className="mb-1.5 font-mono text-micro uppercase tracking-wider text-muted-foreground/55">
             {sectionKey.replace(/_/g, ' ')}
           </div>
           <KvGrid data={sectionData as Record<string, unknown>} />
@@ -303,7 +299,7 @@ function CandidateDetail({ candidate }: { candidate: VibeSymbolCandidate }) {
       {/* Identity row */}
       <div className="flex items-center gap-2 border-t border-border/50 pt-2.5">
         <span className="font-mono text-xs font-semibold tracking-tight">{candidate.symbol}</span>
-        <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground/80">
+        <span className="min-w-0 flex-1 truncate text-label text-muted-foreground/80">
           {candidate.name}
         </span>
         <Badge variant="muted">{candidate.market}</Badge>
@@ -324,7 +320,7 @@ function CandidateDetail({ candidate }: { candidate: VibeSymbolCandidate }) {
 
       {tab === 'profile' && hasProfile && <ProfileView ticker={candidate.symbol} />}
       {tab === 'profile' && !hasProfile && (
-        <p className="text-[11px] text-muted-foreground/50">
+        <p className="text-label text-muted-foreground/50">
           Profile data is only available for US and HK tickers.
         </p>
       )}
@@ -421,7 +417,7 @@ export function DataSourcesPanel() {
       }
     >
       {!open && (
-        <p className="text-[11px] text-muted-foreground/50">
+        <p className="text-label text-muted-foreground/50">
           Search Yahoo Finance, Eastmoney, and 18+ other providers.{' '}
           <button
             type="button"
@@ -437,7 +433,7 @@ export function DataSourcesPanel() {
         <div className="space-y-2">
           {/* Sidecar offline notice — quiet, actionable */}
           {offline && (
-            <p className="rounded-md bg-muted px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground/70">
+            <p className="rounded-md bg-muted px-2.5 py-1.5 font-mono text-micro text-muted-foreground/70">
               Vibe sidecar offline —{' '}
               <code className="text-muted-foreground">
                 infra\stack.ps1 up
@@ -486,8 +482,8 @@ export function DataSourcesPanel() {
                     'hover:bg-foreground/[0.04]',
                   )}
                 >
-                  <span className="mr-2 font-mono text-[11px] font-medium">{c.symbol}</span>
-                  <span className="text-[11px] text-muted-foreground/80">{c.name}</span>
+                  <span className="mr-2 font-mono text-label font-medium">{c.symbol}</span>
+                  <span className="text-label text-muted-foreground/80">{c.name}</span>
                   <span className="ml-2 inline-flex gap-1">
                     <Badge variant="muted">{c.market}</Badge>
                     {c.source && <Badge variant="outline">{c.source}</Badge>}
@@ -499,12 +495,12 @@ export function DataSourcesPanel() {
 
           {/* Empty state after a search settles */}
           {!searching && !searchError && debouncedQuery.trim() && candidates.length === 0 && !selected && (
-            <p className="text-[11px] text-muted-foreground/50">No matches found.</p>
+            <p className="text-label text-muted-foreground/50">No matches found.</p>
           )}
 
           {/* Attribution below the candidate list */}
           {showCandidates && searchSource && (
-            <p className="text-[10px] text-muted-foreground/40">
+            <p className="text-micro text-muted-foreground/40">
               via Vibe-Trading sidecar · sources: {searchSource}
             </p>
           )}
@@ -514,7 +510,7 @@ export function DataSourcesPanel() {
             <div>
               <button
                 type="button"
-                className="mb-2 font-mono text-[10px] text-muted-foreground/55 underline-offset-2 hover:text-muted-foreground hover:underline"
+                className="mb-2 font-mono text-micro text-muted-foreground/55 underline-offset-2 hover:text-muted-foreground hover:underline"
                 onClick={() => setSelected(null)}
               >
                 ← back to results

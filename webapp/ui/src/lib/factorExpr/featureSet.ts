@@ -41,6 +41,12 @@ export type IssueCode =
    * list the tab dots and the blocker count would not see.
    */
   | 'server-defect'
+  /**
+   * A saved expression the canvas could not parse and therefore cannot draw.
+   * The column is preserved in the spec untouched; this only tells the user
+   * why it is not on the canvas.
+   */
+  | 'unparsed'
 
 export interface FeatureIssue {
   /** null for an issue about the set rather than one column. */

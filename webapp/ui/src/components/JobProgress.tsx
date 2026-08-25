@@ -1,3 +1,4 @@
+import { MicroLabel } from '@/components/ui/micro-label'
 import { cn } from '@/lib/utils'
 
 /**
@@ -23,9 +24,9 @@ export function JobProgress({
   return (
     <div className="space-y-2">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground/70">
+        <MicroLabel className="text-label">
           {stage ?? '—'}
-        </span>
+        </MicroLabel>
         <span className="tnum font-mono text-xs text-muted-foreground">
           {total ? `${done ?? 0} / ${total}` : ''}
         </span>

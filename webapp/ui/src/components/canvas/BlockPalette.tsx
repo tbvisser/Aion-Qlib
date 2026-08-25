@@ -10,7 +10,7 @@
  * summary, the caveat, the raw expression — is in the tooltip, which can hold
  * all three without costing every row its height.
  */
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { RailRow, RailSection, RailTip } from '@/components/ui/rail'
@@ -64,8 +64,10 @@ interface Props {
 export function BlockPalette({
   registry, fields, catalog, families, indicators, needle, onInsert, onAdd,
 }: Props) {
-  const matches = (name: string, summary: string) =>
-    !needle || name.toLowerCase().includes(needle) || summary.toLowerCase().includes(needle)
+  const matches = useCallback(
+    (name: string, summary: string) =>
+      !needle || name.toLowerCase().includes(needle) || summary.toLowerCase().includes(needle),
+    [needle])
 
   const grouped = useMemo(() => {
     const out = new Map<OpCategory, OperatorSpec[]>()
@@ -77,7 +79,7 @@ export function BlockPalette({
     }
     for (const list of out.values()) list.sort((a, b) => a.name.localeCompare(b.name))
     return out
-  }, [registry, needle])
+  }, [registry, matches])
 
   const visibleFields = fields.filter((f) => matches(`$${f}`, 'price volume field'))
 
@@ -102,7 +104,7 @@ export function BlockPalette({
       : [...byFamily.keys()]
     const label = (key: string) => families.find((f) => f.key === key)?.label ?? key
     return { hits, byFamily, order, label }
-  }, [catalog, families, needle])
+  }, [catalog, families, matches])
 
   const library = useMemo(() => {
     const hits = indicators.filter(
@@ -114,7 +116,7 @@ export function BlockPalette({
       byFamily.set(indicator.family, list)
     }
     return { hits, byFamily }
-  }, [indicators, needle])
+  }, [indicators, matches])
 
   // A search wants results, not somewhere to click to find them: every section
   // is forced open while a query is live, and forgotten again when it clears.
@@ -230,7 +232,7 @@ export function BlockPalette({
 
       {visibleFields.length === 0 && grouped.size === 0 && curated.hits.length === 0
         && library.hits.length === 0 && (
-        <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">
+        <p className="px-2 py-6 text-center text-label text-muted-foreground">
           Nothing matches “{needle}”.
         </p>
       )}
@@ -240,7 +242,7 @@ export function BlockPalette({
 
 function Overflow({ n, where }: { n: number; where: string }) {
   return (
-    <p className="px-1 py-1 text-[10px] text-muted-foreground">
+    <p className="px-1 py-1 text-micro text-muted-foreground">
       …and {n} more. Narrow the search, or open {where}.
     </p>
   )

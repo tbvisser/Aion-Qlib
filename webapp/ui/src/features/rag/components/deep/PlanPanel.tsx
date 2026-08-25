@@ -38,7 +38,7 @@ export function PlanPanel({ todos, locked }: PlanPanelProps) {
               >
                 <div className="mt-0.5 shrink-0">
                   {todo.status === 'completed' ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
                   ) : todo.status === 'in_progress' ? (
                     <Loader2 className="h-4 w-4 animate-spin text-primary" />
                   ) : (

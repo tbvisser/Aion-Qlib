@@ -1,5 +1,6 @@
 import { EntryList } from '@/components/agenda/EntryList'
 import { Panel } from '@/components/ui/panel'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { groupAgenda, type AgendaDay, type AgendaEntry, type AgendaSelection } from '@/lib/agenda'
 import { agendaDayLabel } from '@/lib/macroFormat'
 
@@ -61,13 +62,13 @@ export function AgendaStream({
           {row(grouped.today)}
           {grouped.upcoming.map(row)}
           {grouped.earlier.length > 0 && (
-            <p className="border-y border-border/50 bg-foreground/[0.02] px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+            <MicroLabel as="div" className="border-y border-border/50 bg-foreground/[0.02] px-3 py-1.5">
               Earlier
-            </p>
+            </MicroLabel>
           )}
           {grouped.earlier.map(row)}
           {floor !== null && (
-            <p className="border-t border-border/30 px-3 py-2 text-[10px] text-muted-foreground/60">
+            <p className="border-t border-border/30 px-3 py-2 text-micro text-muted-foreground/60">
               Before {agendaDayLabel(floor, today)}, only economic releases are
               shown — the other lanes keep recent items only.
             </p>
@@ -90,13 +91,13 @@ function DaySection({ day, today, prevLastSeen, selection, onSelect }: {
       {/* Sticky, so the day a row belongs to stays named while it scrolls. */}
       <header className="sticky top-0 z-10 flex items-baseline justify-between gap-2 border-b border-border/50 bg-card/95 px-3 py-1.5 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="flex min-w-0 items-baseline gap-2">
-          <h4 className="truncate font-mono text-[10px] uppercase tracking-wider text-foreground/80">
+          <h4 className="truncate font-mono text-micro uppercase tracking-wider text-foreground/80">
             {day.label}
           </h4>
-          <span className="truncate text-[10px] text-muted-foreground/60">{day.weekday}</span>
+          <span className="truncate text-micro text-muted-foreground/60">{day.weekday}</span>
         </div>
         {day.entries.length > 0 && (
-          <span className="tnum shrink-0 font-mono text-[10px] text-muted-foreground/60">
+          <span className="tnum shrink-0 font-mono text-micro text-muted-foreground/60">
             {day.entries.length}
           </span>
         )}

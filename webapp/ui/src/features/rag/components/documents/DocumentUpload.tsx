@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { Upload, FileUp, Info } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import {
   DOCUMENT_UPLOAD_ACCEPT,
   DOCUMENT_UPLOAD_FORMAT_LABEL,
@@ -81,7 +82,7 @@ export function DocumentUpload({ onUploadComplete, onSkipped, folderId }: Docume
           </div>
           <div>
             <p className="text-sm font-medium">
-              {uploading ? 'Uploading...' : 'Drop files here or click to upload'}
+              {uploading ? 'Uploading…' : 'Drop files here or click to upload'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {DOCUMENT_UPLOAD_FORMAT_LABEL}
@@ -91,15 +92,16 @@ export function DocumentUpload({ onUploadComplete, onSkipped, folderId }: Docume
       </div>
 
       {feedback && (
-        <div className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 animate-fade-in ${
+        <div className={cn(
+          'flex items-center gap-2 text-sm rounded-lg px-3 py-2 animate-fade-in',
           feedback.type === 'info'
-            ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50'
-            : 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50'
-        }`}>
+            ? 'text-clay bg-clay/10 border border-clay/30'
+            : 'text-primary bg-primary/10 border border-primary/20',
+        )}>
           {feedback.type === 'info' ? (
             <Info className="w-4 h-4 flex-shrink-0" />
           ) : (
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+            <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
           )}
           {feedback.message}
         </div>

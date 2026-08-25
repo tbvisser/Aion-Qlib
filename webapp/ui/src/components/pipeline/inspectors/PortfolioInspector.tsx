@@ -1,5 +1,5 @@
 /**
- * Stage 06 — how the signal becomes positions.
+ * Stage 07 — how the signal becomes positions.
  *
  * `TopkDropoutStrategy`: hold the top K by score, replace the worst N each
  * rebalance. Both bounds match the Pydantic constraints so an out-of-range

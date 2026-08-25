@@ -39,7 +39,7 @@ export function CoverageBanner({ coverage }: { coverage?: StrategyCoverage }) {
   return (
     <Notice tone={dead.length && linear ? 'clay' : 'muted'} icon={dead.length > 0}>
       {dead.length > 0 && (
-        <p className="text-[13px] leading-relaxed">
+        <p className="text-body-sm leading-relaxed">
           <span className="font-mono">{LIST(dead)}</span>{' '}
           {dead.length === 1 ? 'is a column' : 'are columns'} {coverage.handler} trains on,
           and this store cannot compute {dead.length === 1 ? 'it' : 'them'} —{' '}
@@ -62,7 +62,7 @@ export function CoverageBanner({ coverage }: { coverage?: StrategyCoverage }) {
       )}
 
       {partial.length > 0 && (
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
+        <p className="text-body-sm leading-relaxed text-muted-foreground">
           <span className="font-mono">{LIST(partial.map((c) => `$${c}`))}</span> is present
           for some instruments in this store and not others. An expression reading it is not
           broken — the names that lack it simply drop out of the cross-section, without an

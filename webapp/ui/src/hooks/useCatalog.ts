@@ -136,7 +136,6 @@ export function useReindex(onDone: () => void) {
     setError(null)
     try {
       const { job_id } = await api.catalogReindex(only?.length ? { only } : {})
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const state = await api.catalogReindexJob(job_id)
         setJob(state)

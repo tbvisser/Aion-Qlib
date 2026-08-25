@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { SkeletonText } from '@/components/ui/skeleton'
 import { RunLog } from '@/components/runs/RunLog'
 import { RunReportView } from '@/components/runs/RunReportView'
 import { RunStatusIcon } from '@/components/runs/RunStatusIcon'
@@ -52,7 +53,7 @@ export function RunsPage() {
                 <RunStatusIcon status={r.status} />
                 <span className="min-w-0 flex-1 truncate text-sm">{r.name}</span>
               </div>
-              <div className="mt-0.5 pl-6 font-mono text-[10px] text-muted-foreground">
+              <div className="mt-0.5 pl-6 font-mono text-micro text-muted-foreground">
                 {r.model} · {new Date(r.created_at).toLocaleString()}
               </div>
             </button>
@@ -72,7 +73,7 @@ export function RunsPage() {
 function RunDetail({ runId, onChange }: { runId: string; onChange: () => void }) {
   const { run, log, report, cancel, cancelling } = useRunStream(runId, onChange)
 
-  if (!run) return <p className="text-sm text-muted-foreground">Loading…</p>
+  if (!run) return <SkeletonText lines={4} className="max-w-md" />
 
   return (
     <div className="space-y-6">
@@ -102,7 +103,7 @@ function RunDetail({ runId, onChange }: { runId: string; onChange: () => void })
             <CardTitle className="text-sm text-destructive">Run failed</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="max-h-64 overflow-auto rounded-lg bg-surface-2 p-3 font-mono text-[11px]">
+            <pre className="max-h-64 overflow-auto rounded-lg bg-surface-2 p-3 font-mono text-label">
               {run.error}
             </pre>
           </CardContent>

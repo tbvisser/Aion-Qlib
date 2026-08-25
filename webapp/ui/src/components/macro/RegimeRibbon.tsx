@@ -68,7 +68,7 @@ export function RegimeRibbon({ history, lens, onLensChange, loading }: {
                     title={cell.title}
                     data-testid={`macro-ribbon-cell-${cell.month}`}
                     className={cn(
-                      'flex h-8 w-6 items-center justify-center rounded font-mono text-[11px]',
+                      'flex h-8 w-6 items-center justify-center rounded font-mono text-label',
                       cell.missing
                         ? 'border border-dashed border-border/60 text-muted-foreground/40'
                         : cn(tone.cell, 'text-black/70 dark:text-white/85'),
@@ -80,7 +80,7 @@ export function RegimeRibbon({ history, lens, onLensChange, loading }: {
                   >
                     {cell.missing ? '·' : glyph}
                   </span>
-                  <span className="tnum h-3 font-mono text-[10px] text-muted-foreground">
+                  <span className="tnum h-3 font-mono text-micro text-muted-foreground">
                     {cell.yearLabel ?? ' '}
                   </span>
                 </div>
@@ -94,25 +94,25 @@ export function RegimeRibbon({ history, lens, onLensChange, loading }: {
                 {QUADRANT_ORDER.map((state) => (
                   <span
                     key={state}
-                    className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground"
+                    className="inline-flex items-center gap-1.5 text-micro text-muted-foreground"
                   >
                     <span className={cn('h-2 w-2 rounded-full', QUADRANT_TONES[state].dot)} />
                     {quadrantLabel(state)}
                   </span>
                 ))}
-                <span className="font-mono text-[10px] text-muted-foreground/70">
+                <span className="font-mono text-micro text-muted-foreground/70">
                   ↑ hiking · ↓ cutting · – hold
                 </span>
               </>
             ) : (
               <>
-                <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 text-micro text-muted-foreground">
                   <span className="h-2 w-2 rounded-full bg-primary" /> Rates rising
                 </span>
-                <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 text-micro text-muted-foreground">
                   <span className="h-2 w-2 rounded-full bg-clay" /> Rates falling
                 </span>
-                <span className="font-mono text-[10px] text-muted-foreground/70">
+                <span className="font-mono text-micro text-muted-foreground/70">
                   ▲ vol high · ▼ vol low · price-based, not the top-down read
                 </span>
               </>

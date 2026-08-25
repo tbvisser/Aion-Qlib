@@ -31,8 +31,14 @@ export type StageStatus = 'ok' | 'attention' | 'blocked'
 
 export interface StageBadge {
   status: StageStatus
-  /** The sentences behind the badge, for the card's title and the inspector. */
+  /** Every sentence behind the badge, both tiers, for the card's title. */
   notes: string[]
+  /**
+   * The advisory tier alone, for the inspector rail — which prints blockers
+   * from its own prop and must not say them twice. Carried separately because
+   * recovering it from `notes` means re-deriving which sentences were which.
+   */
+  advisories: string[]
 }
 
 export interface StatusContext {
@@ -102,11 +108,11 @@ export function stageStatus(
     // are about the spec the reader just wrote, not about the store underneath.
     const notes = [...advisoryFor(routed, id), ...advisory[id]]
     if (blocking.length) {
-      out[id] = { status: 'blocked', notes: [...blocking, ...notes] }
+      out[id] = { status: 'blocked', notes: [...blocking, ...notes], advisories: notes }
     } else if (notes.length) {
-      out[id] = { status: 'attention', notes }
+      out[id] = { status: 'attention', notes, advisories: notes }
     } else {
-      out[id] = { status: 'ok', notes: [] }
+      out[id] = { status: 'ok', notes: [], advisories: [] }
     }
   }
   return out

@@ -3,7 +3,9 @@ import { X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Notice } from '@/components/ui/notice'
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { SourceBadge } from '@/components/database/CatalogBrowser'
 import { api, type RegistryEntity } from '@/lib/api'
 
@@ -47,7 +49,7 @@ export function RosterDetail({ uid, onClose }: { uid: string; onClose: () => voi
 
   if (!entity) {
     return (
-      <aside className="w-[420px] shrink-0 border-l border-border/50 p-4 text-[12px] text-muted-foreground">
+      <aside className="w-[420px] shrink-0 border-l border-border/50 p-4 text-caption text-muted-foreground">
         Loading…
       </aside>
     )
@@ -77,7 +79,7 @@ export function RosterDetail({ uid, onClose }: { uid: string; onClose: () => voi
       </div>
 
       <div className="space-y-4 p-4">
-        {description && <p className="text-[12px] text-muted-foreground">{description}</p>}
+        {description && <p className="text-caption text-muted-foreground">{description}</p>}
 
         {entity.kind === 'swarm' && <SwarmBody payload={payload} />}
         {entity.kind === 'agent' && <AgentBody payload={payload} />}
@@ -94,9 +96,9 @@ export function RosterDetail({ uid, onClose }: { uid: string; onClose: () => voi
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+    <MicroLabel as="div">
       {children}
-    </div>
+    </MicroLabel>
   )
 }
 
@@ -104,12 +106,12 @@ function Pairs({ rows }: { rows: [string, React.ReactNode][] }) {
   const present = rows.filter(([, value]) => value !== null && value !== undefined && value !== '')
   if (!present.length) return null
   return (
-    <dl className="grid grid-cols-2 gap-2 text-[11px]">
+    <dl className="grid grid-cols-2 gap-2 text-label">
       {present.map(([label, value]) => (
         <div key={label}>
-          <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+          <MicroLabel as="dt">
             {label}
-          </dt>
+          </MicroLabel>
           <dd className="font-mono">{value}</dd>
         </div>
       ))}
@@ -148,7 +150,7 @@ function SwarmBody({ payload }: { payload: Record<string, unknown> }) {
           {variables.map((raw) => {
             const variable = raw as { name?: string; description?: string; required?: boolean }
             return (
-              <div key={variable.name} className="text-[11px]">
+              <div key={variable.name} className="text-label">
                 <span className="font-mono">{variable.name}</span>
                 {variable.required === false && (
                   <span className="ml-1 text-muted-foreground/60">optional</span>
@@ -181,19 +183,19 @@ function AgentBody({ payload }: { payload: Record<string, unknown> }) {
         ['Max rounds', num(payload.max_rounds)],
       ]} />
       {str(payload.availability) && (
-        <p className="text-[11px] text-muted-foreground">{payload.availability as string}</p>
+        <p className="text-label text-muted-foreground">{payload.availability as string}</p>
       )}
       <TagList label="Tools" values={tools} />
       {scope && (
         <div className="space-y-1">
           <Label>Tool scope</Label>
-          <p className="text-[11px] text-muted-foreground">{scope}</p>
+          <p className="text-label text-muted-foreground">{scope}</p>
         </div>
       )}
       {capabilities.length > 0 && (
         <div className="space-y-1">
           <Label>Reads</Label>
-          <ul className="space-y-0.5 text-[11px] text-muted-foreground">
+          <ul className="space-y-0.5 text-label text-muted-foreground">
             {capabilities.map((line) => <li key={line}>· {line}</li>)}
           </ul>
         </div>
@@ -209,7 +211,7 @@ function SkillBody({ payload }: { payload: Record<string, unknown> }) {
     <>
       <Pairs rows={[['Scope', str(payload.scope)], ['Path', str(payload.path)]]} />
       {str(payload.loaded_by) && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-label text-muted-foreground">
           Loaded on demand by the <span className="font-mono">{payload.loaded_by as string}</span>{' '}
           tool — it is not in the assistant's prompt until it is needed.
         </p>
@@ -236,31 +238,31 @@ function ToolBody({ payload }: { payload: Record<string, unknown> }) {
       {names.length > 0 && (
         <div className="space-y-1">
           <Label>Parameters</Label>
-          <table className="w-full border-collapse text-left">
-            <tbody>
+          <Table>
+            <TableBody>
               {names.map((name) => {
                 const spec = properties[name] as { type?: string; description?: string }
                 return (
-                  <tr key={name} className="border-b border-border/30 last:border-0">
-                    <td className="py-1 pr-2 align-top">
-                      <span className="font-mono text-[11px]">{name}</span>
+                  <TableRow key={name}>
+                    <TableCell className="py-1 pr-2 align-top">
+                      <span className="font-mono text-label">{name}</span>
                       {required.has(name) && (
-                        <span className="ml-1 font-mono text-[9px] uppercase text-clay">req</span>
+                        <span className="ml-1 font-mono text-tiny uppercase text-clay">req</span>
                       )}
-                    </td>
-                    <td className="py-1 align-top text-[11px] text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="py-1 align-top text-label text-muted-foreground">
                       {spec?.type && <span className="font-mono">{spec.type}</span>}
                       {spec?.description && <div>{spec.description}</div>}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
       {names.length === 0 && (
-        <p className="text-[11px] text-muted-foreground">Takes no parameters.</p>
+        <p className="text-label text-muted-foreground">Takes no parameters.</p>
       )}
     </>
   )
@@ -273,12 +275,12 @@ function Collapsible({ label, body }: { label: string; body: string }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70 hover:text-foreground"
+        className="font-mono text-micro uppercase tracking-wider text-muted-foreground/70 hover:text-foreground"
       >
         {open ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
       </button>
       {open && (
-        <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded border border-border/50 p-2 font-mono text-[10px] leading-relaxed">
+        <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded border border-border/50 p-2 font-mono text-micro leading-relaxed">
           {body}
         </pre>
       )}
@@ -335,7 +337,7 @@ function Missing({ kind, payload }: { kind: string; payload: Record<string, unkn
     <div className="space-y-2 border-t border-border/50 pt-4">
       <Label>Not shown here</Label>
       {notes.map((note) => (
-        <p key={note} className="text-[11px] text-muted-foreground">{note}</p>
+        <p key={note} className="text-label text-muted-foreground">{note}</p>
       ))}
     </div>
   )

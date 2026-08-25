@@ -34,7 +34,7 @@ export function AttachmentPreviewTray({ attachments, onRemove, disabled }: Attac
                 ) : (
                   <File className="h-5 w-5" />
                 )}
-                <span className="max-w-full truncate text-[10px]">{attachment.file.name}</span>
+                <span className="max-w-full truncate text-micro">{attachment.file.name}</span>
               </div>
             )}
             <button
@@ -46,7 +46,7 @@ export function AttachmentPreviewTray({ attachments, onRemove, disabled }: Attac
             >
               <X className="h-3.5 w-3.5" />
             </button>
-            <div className="absolute bottom-0 left-0 right-0 bg-background/85 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            <div className="absolute bottom-0 left-0 right-0 bg-background/85 px-1.5 py-0.5 text-micro text-muted-foreground">
               <span className="block truncate">{formatAttachmentSize(attachment.file.size)}</span>
             </div>
           </div>

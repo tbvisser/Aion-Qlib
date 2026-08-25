@@ -1,8 +1,10 @@
 import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Badge } from '@/components/ui/badge'
 import { Notice } from '@/components/ui/notice'
 import { Panel } from '@/components/ui/panel'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useBrokerAccounts } from '@/hooks/useBrokerAccounts'
 import { type VibeBrokerProfile, type VibeBrokerResult } from '@/lib/api'
@@ -70,7 +72,7 @@ function ProfileCard({
     >
       <div className="flex items-start justify-between gap-2">
         {/* connector chip */}
-        <span className="shrink-0 rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-widest text-foreground">
+        <span className="shrink-0 rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-label font-semibold tracking-widest text-foreground">
           {connectorChip(profile.connector)}
         </span>
         <div className="flex flex-wrap justify-end gap-1">
@@ -88,7 +90,7 @@ function ProfileCard({
       <div>
         <p className="text-sm font-medium leading-tight">{profile.label}</p>
         {profile.notes && (
-          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{profile.notes}</p>
+          <p className="mt-1 text-label leading-snug text-muted-foreground">{profile.notes}</p>
         )}
       </div>
 
@@ -97,7 +99,7 @@ function ProfileCard({
           {profile.capabilities.map((cap) => (
             <span
               key={cap}
-              className="rounded border border-border/40 px-1 py-0.5 font-mono text-[9px] text-muted-foreground/70"
+              className="rounded border border-border/40 px-1 py-0.5 font-mono text-tiny text-muted-foreground/70"
             >
               {cap}
             </span>
@@ -120,44 +122,33 @@ function LooseTable({ rows }: { rows: unknown[] }) {
   )
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-max border-collapse text-[11px]">
-        <thead>
-          <tr className="border-b border-border/50">
-            {allKeys.map((k) => (
-              <th
-                key={k}
-                className="px-3 py-1.5 text-left font-mono text-[9px] uppercase tracking-wider text-muted-foreground/60"
-              >
-                {k}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="border-b border-border/30 last:border-0 hover:bg-foreground/[0.02]">
-              {allKeys.map((k) => {
-                const v = (row as Record<string, unknown>)[k]
-                const str = v === null || v === undefined ? '—' : String(v)
-                const isNum = isNumericString(str)
-                return (
-                  <td
-                    key={k}
-                    className={cn(
-                      'px-3 py-1.5 font-mono',
-                      isNum ? 'text-right' : '',
-                    )}
-                  >
-                    {str}
-                  </td>
-                )
-              })}
-            </tr>
+    <Table className="min-w-max text-label">
+      <TableHead>
+        <tr>
+          {allKeys.map((k) => (
+            <TableHeader key={k} className="px-3 py-1.5">
+              {k}
+            </TableHeader>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </tr>
+      </TableHead>
+      <TableBody>
+        {rows.map((row, i) => (
+          <TableRow key={i} className="hover:bg-foreground/[0.02]">
+            {allKeys.map((k) => {
+              const v = (row as Record<string, unknown>)[k]
+              const str = v === null || v === undefined ? '—' : String(v)
+              const isNum = isNumericString(str)
+              return (
+                <TableCell key={k} numeric={isNum} className="px-3 py-1.5">
+                  {str}
+                </TableCell>
+              )
+            })}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   )
 }
 
@@ -168,8 +159,8 @@ function ScalarCard({ entries }: { entries: [string, string][] }) {
     <div className="grid gap-x-6 gap-y-0.5 p-3 sm:grid-cols-2 lg:grid-cols-3">
       {entries.map(([k, v]) => (
         <div key={k} className="flex items-baseline justify-between gap-2 border-b border-border/20 py-1.5 last:border-0">
-          <span className="shrink-0 font-mono text-[9px] uppercase tracking-wider text-muted-foreground/60">{k}</span>
-          <span className={cn('font-mono text-[11px]', isNumericString(v) ? 'tabular-nums' : '')}>{v}</span>
+          <MicroLabel className="shrink-0 text-tiny">{k}</MicroLabel>
+          <span className={cn('font-mono text-label', isNumericString(v) ? 'tabular-nums' : '')}>{v}</span>
         </div>
       ))}
     </div>
@@ -199,10 +190,10 @@ function BrokerSection({
         <p className="text-xs text-muted-foreground">Loading…</p>
       ) : result.status === 'error' ? (
         <div className="space-y-2">
-          <div className="rounded border border-border/60 bg-muted/30 p-3 font-mono text-[11px] text-muted-foreground">
+          <div className="rounded border border-border/60 bg-muted/30 p-3 font-mono text-label text-muted-foreground">
             {result.error ?? 'Unknown error from broker sidecar.'}
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-label text-muted-foreground">
             Configure credentials in <code className="font-mono">vibe/.env</code> — see{' '}
             <code className="font-mono">vibe/README.md</code>.
           </p>
@@ -224,19 +215,31 @@ export function AccountsPage() {
   const { health, connections, account, positions, orders, history, error, loading, refresh, select } =
     useBrokerAccounts()
 
+  // One header for all three render branches — repeating it per branch is how
+  // its copy drifted three ways. Refresh is valid in every state (it retries).
+  const header = (
+    <PageHeader
+      title="Broker accounts"
+      description="Read-only broker connectivity via the Vibe-Trading sidecar."
+      actions={
+        <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+          <RefreshCw className={cn('mr-1 h-3.5 w-3.5', loading && 'animate-spin')} />
+          Refresh
+        </Button>
+      }
+    />
+  )
+
   // Sidecar offline — show one card and nothing else.
   if (health?.status === 'unreachable' || error === 'unreachable') {
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <PageHeader
-          title="Broker Accounts"
-          description="Read-only broker connectivity via the Vibe-Trading sidecar."
-        />
+        {header}
         <div className="p-6">
           <Notice tone="muted">
             <p>
               Vibe sidecar offline — run{' '}
-              <code className="font-mono text-[11px]">infra\stack.ps1 up</code> to
+              <code className="font-mono text-label">infra\stack.ps1 up</code> to
               start it.
             </p>
           </Notice>
@@ -249,10 +252,7 @@ export function AccountsPage() {
   if (error && error !== 'unreachable') {
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <PageHeader
-          title="Broker Accounts"
-          description="Read-only broker connectivity via the Vibe-Trading sidecar."
-        />
+        {header}
         <div className="p-6">
           <Notice tone="destructive">{error}</Notice>
         </div>
@@ -265,30 +265,16 @@ export function AccountsPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <PageHeader
-        title="Broker Accounts"
-        description="Read-only broker connectivity via the Vibe-Trading sidecar."
-        actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refresh}
-            disabled={loading}
-          >
-            <RefreshCw className={cn('mr-1 h-3.5 w-3.5', loading && 'animate-spin')} />
-            Refresh
-          </Button>
-        }
-      />
+      {header}
 
       <div className="space-y-6 p-6">
         {/* Profile cards row */}
         {profiles.length === 0 && !loading ? (
           <Notice tone="muted">
             No broker profiles configured. Add a profile block in{' '}
-            <code className="font-mono text-[11px]">vibe/.env</code> or{' '}
-            <code className="font-mono text-[11px]">vibe/connections.yaml</code> — see{' '}
-            <code className="font-mono text-[11px]">vibe/README.md</code>.
+            <code className="font-mono text-label">vibe/.env</code> or{' '}
+            <code className="font-mono text-label">vibe/connections.yaml</code> — see{' '}
+            <code className="font-mono text-label">vibe/README.md</code>.
           </Notice>
         ) : (
           <div className={cn(
@@ -313,13 +299,13 @@ export function AccountsPage() {
           <div className="space-y-4">
             <BrokerSection title="Account" result={account} loading={loading} />
             <BrokerSection title="Positions" result={positions} loading={loading} />
-            <BrokerSection title="Open Orders" result={orders} loading={loading} />
-            <BrokerSection title="Trade History" result={history} loading={loading} />
+            <BrokerSection title="Open orders" result={orders} loading={loading} />
+            <BrokerSection title="Trade history" result={history} loading={loading} />
           </div>
         )}
 
         {/* Safety footer */}
-        <p className="border-t border-border/30 pt-4 font-mono text-[10px] text-muted-foreground/50">
+        <p className="border-t border-border/30 pt-4 font-mono text-micro text-muted-foreground/50">
           Read-only + paper. Live order placement is not wired through this app.
         </p>
       </div>

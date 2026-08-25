@@ -45,7 +45,7 @@ export function OutlookPanel({ anchor }: { anchor: string }) {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 gap-1.5 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+            className="h-7 gap-1.5 px-2 text-label text-muted-foreground hover:text-foreground"
             onClick={() => void regenerate()}
             disabled={loading}
             data-testid="outlook-regenerate"
@@ -120,7 +120,7 @@ export function OutlookPanel({ anchor }: { anchor: string }) {
         </div>
 
         {data && (
-          <p className="border-t border-border/30 px-3 py-1.5 text-[10px] text-muted-foreground/60">
+          <p className="border-t border-border/30 px-3 py-1.5 text-micro text-muted-foreground/60">
             {data.cached ? 'Served from cache' : 'Generated just now'}
             {' · '}
             {new Date(data.generated_at).toLocaleString(undefined, {

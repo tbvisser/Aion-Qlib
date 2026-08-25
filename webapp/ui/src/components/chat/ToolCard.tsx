@@ -25,12 +25,12 @@ export function ToolCard({ tool }: { tool: ToolEvent }) {
         <Wrench className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground',
                               pending && 'animate-subtle-pulse')} />
         <span className="font-mono text-xs">{tool.name}</span>
-        <span className="ml-auto font-mono text-[10px] uppercase text-muted-foreground">
+        <span className="ml-auto font-mono text-micro uppercase text-muted-foreground">
           {pending ? 'running' : 'done'}
         </span>
       </button>
       {open && (
-        <pre className="max-h-64 overflow-auto border-t border-border/50 p-3 font-mono text-[10px] leading-relaxed">
+        <pre className="max-h-64 overflow-auto border-t border-border/50 p-3 font-mono text-micro leading-relaxed">
           {JSON.stringify({ arguments: tool.arguments, result: tool.result }, null, 2)}
         </pre>
       )}

@@ -7,6 +7,7 @@ import { PriceChart, type ChartType } from '@/components/PriceChart'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
+import { Notice } from '@/components/ui/notice'
 import type { SegmentedOption } from '@/components/ui/segmented'
 import { api, type AssetClassKey, type Bar, type Instrument } from '@/lib/api'
 import { useHealth } from '@/hooks/useHealth'
@@ -188,7 +189,7 @@ export function MarketsPage() {
                 )}
               >
                 <div className="font-mono text-xs">{item.symbol}</div>
-                <div className="truncate text-[11px] text-muted-foreground/70">{item.name}</div>
+                <div className="truncate text-label text-muted-foreground/70">{item.name}</div>
               </button>
             ))}
             {!rows.length && (
@@ -198,7 +199,7 @@ export function MarketsPage() {
 
           {/* Truncation is stated, not hidden — the old page silently capped at 300. */}
           {total > rows.length && (
-            <div className="border-t border-border/50 px-3 py-2 font-mono text-[10px] text-muted-foreground/70">
+            <div className="border-t border-border/50 px-3 py-2 font-mono text-micro text-muted-foreground/70">
               showing {rows.length.toLocaleString()} of {total.toLocaleString()} — refine search
             </div>
           )}
@@ -209,47 +210,31 @@ export function MarketsPage() {
           {/* Header */}
           <div className="mb-2 flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h2 className="font-mono text-xl font-semibold tracking-tight">
+              <h2 className="text-lg font-semibold tracking-tight">
                 {selected?.symbol ?? '—'}
               </h2>
               <p className="truncate text-sm text-foreground/80">{selected?.name}</p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
               {backtestable && (
-                <div className="flex items-center gap-1 rounded-lg border border-border/50 p-0.5">
-                  {(['Raw', 'Adjusted'] as const).map((label, i) => (
-                    <button
-                      key={label}
-                      onClick={() => setAdjusted(i === 1)}
-                      className={cn(
-                        'rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors',
-                        adjusted === (i === 1)
-                          ? 'bg-foreground/[0.07] text-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <Segmented
+                  value={adjusted ? 'adjusted' : 'raw'}
+                  options={[
+                    { value: 'raw', label: 'Raw' },
+                    { value: 'adjusted', label: 'Adjusted' },
+                  ]}
+                  onChange={(v) => setAdjusted(v === 'adjusted')}
+                />
               )}
 
-              <div className="flex items-center gap-1 rounded-lg border border-border/50 p-0.5">
-                {RANGES.map((r) => (
-                  <button
-                    key={r.label}
-                    onClick={() => setRangeDays(r.days)}
-                    className={cn(
-                      'rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors',
-                      rangeDays === r.days
-                        ? 'bg-foreground/[0.07] text-foreground'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {r.label}
-                  </button>
-                ))}
-              </div>
+              <Segmented
+                value={(RANGES.find((r) => r.days === rangeDays) ?? RANGES[0]).label}
+                options={RANGES.map((r) => ({ value: r.label, label: r.label }))}
+                onChange={(label) => {
+                  const range = RANGES.find((r) => r.label === label)
+                  if (range) setRangeDays(range.days)
+                }}
+              />
 
               <Segmented<ChartType>
                 size="sm"
@@ -262,7 +247,7 @@ export function MarketsPage() {
 
           {/* Subtitle / quick stats */}
           <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-label text-muted-foreground">
               {!selected
                 ? 'Select an instrument'
                 : selected.store === 'market'
@@ -272,7 +257,7 @@ export function MarketsPage() {
                     : 'Raw traded price'}
             </p>
             {stats && (
-              <div className="ml-auto flex flex-wrap items-center gap-3 font-mono text-[11px]">
+              <div className="ml-auto flex flex-wrap items-center gap-3 font-mono text-label">
                 <span className="text-muted-foreground/60">Last</span>
                 <span className="tnum">{stats.last}</span>
                 <span className={cn('tnum', stats.returnTone === 'up' && 'text-primary', stats.returnTone === 'down' && 'text-clay')}>
@@ -285,11 +270,9 @@ export function MarketsPage() {
           </div>
 
           {(error || overlaysError) && (
-            <Card className="mb-3 shrink-0 border-destructive/40">
-              <CardContent className="p-3 text-sm text-destructive">
-                {error ?? overlaysError}
-              </CardContent>
-            </Card>
+            <Notice tone="destructive" className="mb-3 shrink-0">
+              {error ?? overlaysError}
+            </Notice>
           )}
 
           {/* Chart fills remaining height */}
@@ -313,7 +296,7 @@ export function MarketsPage() {
           {/* Bottom studies drawer */}
           <div className="mt-3 shrink-0 space-y-3">
             {overlayDisabled && selected && (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-label text-muted-foreground">
                 Indicators and model signals are only available for qlib-backed instruments.
               </p>
             )}
@@ -343,7 +326,7 @@ function ClassTab({
     <button
       onClick={onClick}
       className={cn(
-        'rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
+        'rounded-full px-2.5 py-1 text-label font-medium transition-colors',
         active
           ? 'bg-foreground/[0.07] text-foreground'
           : 'text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground',
@@ -351,7 +334,7 @@ function ClassTab({
     >
       {label}
       {count !== undefined && (
-        <span className="ml-1 font-mono text-[10px] text-muted-foreground/60">{count}</span>
+        <span className="ml-1 font-mono text-micro text-muted-foreground/60">{count}</span>
       )}
     </button>
   )

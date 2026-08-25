@@ -62,7 +62,7 @@ export function SkillFilePreview({ file, skillId, onClose }: SkillFilePreviewPro
         <div className="flex items-center gap-1 shrink-0">
           {data?.content !== null && data?.content !== undefined && (
             <Button variant="ghost" size="sm" onClick={handleCopy} className="h-10 w-10 p-0 lg:h-7 lg:w-7">
-              {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
             </Button>
           )}
           {data?.download_url && (

@@ -91,6 +91,22 @@ describe('blockers', () => {
     expect(status.features.notes).toHaveLength(3)
   })
 
+  it('carry the advisory tier separately, without the blocker in it', () => {
+    // The inspector rail prints blockers from its own prop; `advisories` is
+    // what it prints beneath them, so a blocker appearing there would be said
+    // twice on the same rail.
+    const collision = '`MA5` is already a column in Alpha158.'
+    const status = stageStatus(routeWarnings([collision], [{ name: 'MA5' }]), {
+      coverage: coverage({ feature_partial_fields: ['vwap'] }),
+      unfinished: 1,
+    })
+    expect(status.features.advisories).toHaveLength(2)
+    expect(status.features.advisories).not.toContain(collision)
+    // And on an unblocked stage the two lists agree.
+    const calm = stageStatus([], { unfinished: 1 })
+    expect(calm.features.advisories).toEqual(calm.features.notes)
+  })
+
   it('leave an unrouted warning off every card', () => {
     const status = stageStatus(routeWarnings(['something a future server said']))
     for (const badge of Object.values(status)) expect(badge.status).toBe('ok')

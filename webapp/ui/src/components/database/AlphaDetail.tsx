@@ -3,6 +3,7 @@ import { ArrowUpRight, Play, X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Notice } from '@/components/ui/notice'
 import { Segmented } from '@/components/ui/segmented'
 import { IcChart, IcMetrics } from '@/components/factors/IcResult'
@@ -87,7 +88,7 @@ export function AlphaDetail({ uid, onClose }: { uid: string; onClose: () => void
 
   if (!entity) {
     return (
-      <aside className="w-[420px] shrink-0 border-l border-border/50 p-4 text-[12px] text-muted-foreground">
+      <aside className="w-[420px] shrink-0 border-l border-border/50 p-4 text-caption text-muted-foreground">
         Loading…
       </aside>
     )
@@ -121,34 +122,34 @@ export function AlphaDetail({ uid, onClose }: { uid: string; onClose: () => void
       </div>
 
       <div className="space-y-4 p-4">
-        {entity.summary && <p className="text-[12px] text-muted-foreground">{entity.summary}</p>}
-        {about && <p className="text-[12px] text-muted-foreground">{about}</p>}
+        {entity.summary && <p className="text-caption text-muted-foreground">{entity.summary}</p>}
+        {about && <p className="text-caption text-muted-foreground">{about}</p>}
 
         {entity.expression && (
           <div className="space-y-1">
-            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+            <MicroLabel as="div">
               Expression
-            </div>
-            <code className="block break-all rounded border border-border/50 p-2 font-sans text-[11px]">
+            </MicroLabel>
+            <code className="block break-all rounded border border-border/50 p-2 font-sans text-label">
               {entity.expression}
             </code>
           </div>
         )}
 
-        <dl className="grid grid-cols-2 gap-2 text-[11px]">
+        <dl className="grid grid-cols-2 gap-2 text-label">
           {fields.length > 0 && (
             <div>
-              <dt className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+              <MicroLabel as="dt">
                 Reads
-              </dt>
+              </MicroLabel>
               <dd>{fields.map((f) => `$${f}`).join(', ')}</dd>
             </div>
           )}
           {backDays != null && (
             <div>
-              <dt className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+              <MicroLabel as="dt">
                 Warm-up
-              </dt>
+              </MicroLabel>
               {/* The number that separates two factors nothing else does:
                   qlib's rolling uses min_periods=1, so a 60-day std returns a
                   confident value from two observations. */}
@@ -157,10 +158,10 @@ export function AlphaDetail({ uid, onClose }: { uid: string; onClose: () => void
           )}
         </dl>
 
-        {caveat && <Notice tone="clay" className="text-[11px]">{caveat}</Notice>}
+        {caveat && <Notice tone="clay" className="text-label">{caveat}</Notice>}
 
         {derivedFrom && (
-          <div className="text-[11px] text-muted-foreground">
+          <div className="text-label text-muted-foreground">
             Adapted from{' '}
             <span>{parseUid(derivedFrom)?.localId ?? derivedFrom}</span>
             {' in the '}{sourceLabel(parseUid(derivedFrom)?.source ?? 'vibe')}.
@@ -173,19 +174,19 @@ export function AlphaDetail({ uid, onClose }: { uid: string; onClose: () => void
 
         {entity.expression && (
           <div className="space-y-3 border-t border-border/50 pt-4">
-            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+            <MicroLabel as="div">
               Measure it
-            </div>
+            </MicroLabel>
             <div className="flex flex-wrap items-end gap-2">
               <label className="space-y-1">
-                <span className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                <MicroLabel className="block">
                   From
-                </span>
+                </MicroLabel>
                 <input
                   type="date"
                   value={start}
                   onChange={(e) => setStart(e.target.value)}
-                  className="h-7 rounded border border-border/50 bg-background px-2 text-[11px]"
+                  className="h-7 rounded border border-border/50 bg-background px-2 text-label"
                 />
               </label>
               <Segmented
@@ -199,7 +200,7 @@ export function AlphaDetail({ uid, onClose }: { uid: string; onClose: () => void
                 {running ? 'Measuring…' : 'Evaluate'}
               </Button>
             </div>
-            <p className="text-[10px] text-muted-foreground/70">
+            <p className="text-micro text-muted-foreground/70">
               Cross-sectional IC against {horizon}-day forward returns on {universe}.
             </p>
 
@@ -207,7 +208,7 @@ export function AlphaDetail({ uid, onClose }: { uid: string; onClose: () => void
             {result && (
               <div className="space-y-3">
                 <IcMetrics result={result} compact font="sans" />
-                {verdict && <p className="text-[11px] text-muted-foreground">{verdict}</p>}
+                {verdict && <p className="text-label text-muted-foreground">{verdict}</p>}
                 <IcChart result={result} height={140} font="sans" />
               </div>
             )}
@@ -255,31 +256,31 @@ function VibeSource({
 
   return (
     <div className="space-y-2 border-t border-border/50 pt-4">
-      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div">
         From the zoo
-      </div>
+      </MicroLabel>
       {/* The sentence that stops someone hunting for an Evaluate button: these
           are pandas functions on a price panel, not qlib expressions, so the
           IC evaluator on this page cannot run them. */}
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-label text-muted-foreground">
         This alpha is Python that runs on the Vibe sidecar's own bench, not a qlib
         expression — so it cannot be measured with the evaluator here.
       </p>
 
-      <dl className="grid grid-cols-2 gap-2 text-[11px]">
+      <dl className="grid grid-cols-2 gap-2 text-label">
         {warmup != null && (
           <div>
-            <dt className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+            <MicroLabel as="dt">
               Warm-up
-            </dt>
+            </MicroLabel>
             <dd>{warmup} bars</dd>
           </div>
         )}
         {decay != null && (
           <div>
-            <dt className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+            <MicroLabel as="dt">
               Decay horizon
-            </dt>
+            </MicroLabel>
             <dd>{decay} days</dd>
           </div>
         )}
@@ -287,28 +288,28 @@ function VibeSource({
 
       {detail?.alpha?.meta?.formula_latex && (
         <div className="space-y-1">
-          <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+          <MicroLabel as="div">
             Formula
-          </div>
-          <code className="block break-all rounded border border-border/50 p-2 font-sans text-[10px] text-muted-foreground">
+          </MicroLabel>
+          <code className="block break-all rounded border border-border/50 p-2 font-sans text-micro text-muted-foreground">
             {detail.alpha.meta.formula_latex}
           </code>
         </div>
       )}
 
-      {notes && <p className="text-[11px] text-muted-foreground">{notes}</p>}
+      {notes && <p className="text-label text-muted-foreground">{notes}</p>}
 
       {detail?.source_code && (
         <div className="space-y-1">
           <button
             type="button"
             onClick={() => setShowSource((v) => !v)}
-            className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70 hover:text-foreground"
+            className="text-micro font-medium uppercase tracking-wider text-muted-foreground/70 hover:text-foreground"
           >
             {showSource ? 'Hide source' : 'Show source'}
           </button>
           {showSource && (
-            <pre className="max-h-64 overflow-auto rounded border border-border/50 p-2 font-sans text-[10px] leading-relaxed">
+            <pre className="max-h-64 overflow-auto rounded border border-border/50 p-2 font-sans text-micro leading-relaxed">
               {detail.source_code}
             </pre>
           )}
@@ -333,13 +334,13 @@ function Links({ entity }: { entity: CatalogEntityDetail }) {
 
   return (
     <div className="space-y-1">
-      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div">
         Connected
-      </div>
+      </MicroLabel>
       {all.map((link) => (
         <div
           key={`${link.rel}:${link.uid}`}
-          className="flex items-baseline justify-between gap-2 text-[11px]"
+          className="flex items-baseline justify-between gap-2 text-label"
         >
           <span className="truncate">
             {/* Falls back to the raw uid rather than blanking: a link whose
@@ -347,7 +348,7 @@ function Links({ entity }: { entity: CatalogEntityDetail }) {
                 dropped, still has to say what it points at. */}
             {link.title ?? link.name ?? <span>{link.uid}</span>}
           </span>
-          <span className="shrink-0 text-[10px] text-muted-foreground/70">
+          <span className="shrink-0 text-micro text-muted-foreground/70">
             {REL_LABELS[link.rel] ?? link.rel}
             <ArrowUpRight className="ml-0.5 inline h-2.5 w-2.5" />
           </span>

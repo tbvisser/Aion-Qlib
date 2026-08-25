@@ -5,6 +5,7 @@ import { ComingSoon } from '@/components/ComingSoon'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Notice } from '@/components/ui/notice'
+import { SkeletonText } from '@/components/ui/skeleton'
 import { Segmented } from '@/components/ui/segmented'
 import {
   CatalogBrowser, ExpressionCell, NameCell, SourceBadge, type Column,
@@ -73,9 +74,7 @@ export function DatabasePage() {
         <div className="flex min-h-0 flex-1">
           <div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-6">
             {error && <Notice tone="destructive">{error}</Notice>}
-            {loading && !summary && (
-              <div className="text-[12px] text-muted-foreground">Loading the catalog…</div>
-            )}
+            {loading && !summary && <SkeletonText lines={3} className="max-w-md" />}
 
             {summary && tab === 'overview' && (
               <CatalogOverview summary={summary} onReload={reload} onOpenTab={setTab} />
@@ -121,7 +120,7 @@ const ALPHA_COLUMNS: Column<CatalogEntity>[] = [
   {
     key: 'family', label: 'Family', width: 'w-[16%]',
     render: (e) => (
-      <span className="truncate text-[11px] text-muted-foreground">{familyLabel(e)}</span>
+      <span className="truncate text-label text-muted-foreground">{familyLabel(e)}</span>
     ),
   },
   {
@@ -139,7 +138,7 @@ function AlphasPanel({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <p className="text-[12px] text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         qlib's Alpha158 and Alpha360 handler columns, the curated library, and the
         Vibe zoo's 462 — searchable together by name, description or expression.
         Pick one to read it; the ones written as qlib expressions can be measured
@@ -190,7 +189,7 @@ function IndicatorsPanel({
     {
       key: 'family', label: 'Family', width: 'w-[14%]',
       render: (e) => (
-        <span className="truncate text-[11px] text-muted-foreground">{familyLabel(e)}</span>
+        <span className="truncate text-label text-muted-foreground">{familyLabel(e)}</span>
       ),
     },
     {
@@ -201,7 +200,7 @@ function IndicatorsPanel({
         // the flag is matched on the expression rather than the name.
         return e.payload.in_handler
           ? <Badge variant="primary" className="font-normal">yes</Badge>
-          : <span className="text-[11px] text-muted-foreground/60">no</span>
+          : <span className="text-label text-muted-foreground/60">no</span>
       },
     },
     {
@@ -210,7 +209,7 @@ function IndicatorsPanel({
         if (e.kind === 'operator') return <span className="text-muted-foreground/50">—</span>
         const mark = marks.byName.get(e.name)
         if (!mark || mark.runnable === null) {
-          return <span className="text-[11px] text-muted-foreground/50">—</span>
+          return <span className="text-label text-muted-foreground/50">—</span>
         }
         if (mark.runnable === false) {
           return (
@@ -228,7 +227,7 @@ function IndicatorsPanel({
             </Badge>
           )
         }
-        return <span className="text-[11px] text-muted-foreground/60">ok</span>
+        return <span className="text-label text-muted-foreground/60">ok</span>
       },
     },
     { key: 'expression', label: 'Expression', render: (e) => <ExpressionCell entity={e} /> },
@@ -237,7 +236,7 @@ function IndicatorsPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
-        <p className="max-w-2xl text-[12px] text-muted-foreground">
+        <p className="max-w-2xl text-caption text-muted-foreground">
           The vocabulary a factor is built out of, read from qlib rather than transcribed.
           184 expressions the generator can emit, 158 of which the Alpha158 handler
           actually trains on — and the operators they are written in.

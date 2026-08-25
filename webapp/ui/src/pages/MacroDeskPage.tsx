@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { RefreshCw } from 'lucide-react'
 import { Panel } from '@/components/ui/panel'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { TabNav } from '@/components/ui/tab-nav'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { CountryIndicatorPanel } from '@/components/macro/CountryIndicatorPanel'
 import { CrossAssetBoard } from '@/components/macro/CrossAssetBoard'
@@ -284,27 +287,20 @@ export function MacroDeskPage() {
           <div className="flex flex-wrap items-center justify-end gap-2">
             {regime?.as_of && (
               <>
-                <span className="font-mono text-[11px] text-muted-foreground">
+                <span className="font-mono text-label text-muted-foreground">
                   as of {formatIsoDate(regime.as_of)}
                 </span>
                 {staleDays > 3 && (
-                  <span className="rounded bg-clay/10 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-clay">
-                    {staleDays}d behind
-                  </span>
+                  <Badge variant="clay">{staleDays}d behind</Badge>
                 )}
               </>
             )}
-            <button
-              type="button"
-              onClick={runBackendRefresh}
-              disabled={refreshing}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-background px-2 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground disabled:opacity-60"
-            >
-              <RefreshCw className={cn('h-3 w-3', refreshing && 'animate-spin')} />
+            <Button variant="outline" size="sm" onClick={runBackendRefresh} disabled={refreshing}>
+              <RefreshCw className={cn('mr-1.5 h-3 w-3', refreshing && 'animate-spin')} />
               {refreshing ? 'Refreshing…' : 'Refresh data'}
-            </button>
+            </Button>
             {refreshError && (
-              <span className="max-w-[16rem] truncate text-[10px] text-destructive">
+              <span className="max-w-[16rem] truncate text-micro text-destructive">
                 {refreshError}
               </span>
             )}
@@ -315,29 +311,15 @@ export function MacroDeskPage() {
       <div className="p-6 pt-0">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
           <main className="min-w-0 flex-1">
-            <div className="sticky top-0 z-20 -mx-6 mb-4 border-b border-border/50 bg-background/80 px-6 py-2 backdrop-blur">
-              <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-border/50 p-0.5">
-                {SECTIONS.map((section) => (
-                  <button
-                    key={section.id}
-                    type="button"
-                    onClick={() => {
-                      setActive(section.id)
-                      document.getElementById(section.id)
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    }}
-                    className={cn(
-                      'shrink-0 rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors',
-                      active === section.id
-                        ? 'bg-foreground/[0.07] text-foreground'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {section.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <TabNav
+              className="-mx-6 mb-4"
+              tabs={SECTIONS.map((section) => ({ key: section.id as string, label: section.label }))}
+              active={active}
+              onChange={(id) => {
+                setActive(id)
+                document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}
+            />
 
             <div className="space-y-8">
               <section id="verdict" className="scroll-mt-14">

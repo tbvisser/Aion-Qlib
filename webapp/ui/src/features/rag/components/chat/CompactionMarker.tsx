@@ -54,7 +54,7 @@ export function CompactionMarker({
               {summary}
             </pre>
             {modelUsed && (
-              <p className="mt-3 text-[11px] text-muted-foreground/70">
+              <p className="mt-3 text-label text-muted-foreground/70">
                 Summarized by {modelUsed}
               </p>
             )}

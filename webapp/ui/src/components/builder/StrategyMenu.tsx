@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/tooltip'
 import type { StoredStrategy } from '@/lib/api'
 import { SAVE_STATE_LABELS, saveState } from '@/lib/strategyDirty'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { cn } from '@/lib/utils'
 
 /** Seeded demo books, grouped apart so they do not crowd out your own work. */
@@ -79,9 +80,9 @@ export function StrategyMenu({
 
   return (
     <div className="flex min-w-0 items-baseline gap-2">
-      <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel className="shrink-0">
         AION
-      </span>
+      </MicroLabel>
       <span aria-hidden className="shrink-0 text-muted-foreground/40">·</span>
 
       <input
@@ -108,7 +109,7 @@ export function StrategyMenu({
         <DropdownMenuContent align="start" className="w-72">
           {mine.length > 0 && (
             <>
-              <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+              <DropdownMenuLabel className="font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
                 My strategies
               </DropdownMenuLabel>
               {mine.map((s) => (
@@ -119,7 +120,7 @@ export function StrategyMenu({
 
           {book.length > 0 && (
             <>
-              <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+              <DropdownMenuLabel className="font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
                 Fund book
               </DropdownMenuLabel>
               {book.map((s) => (
@@ -253,7 +254,7 @@ function StateDot({ currentId, dirty, changed }: {
           />
         </TooltipTrigger>
         <TooltipContent>
-          <span className="text-[11px]">{detail}</span>
+          <span className="text-label">{detail}</span>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

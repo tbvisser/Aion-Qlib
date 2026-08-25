@@ -49,10 +49,10 @@ export function StageInspector({ selected, blocking, ...props }: StageInspectorP
       data-testid="stage-inspector"
     >
       <div className="space-y-0.5">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <span className="font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
           {STAGES[selected].eyebrow}
         </span>
-        <p className="text-[13px] text-muted-foreground">{STAGES[selected].label}</p>
+        <p className="text-body-sm text-muted-foreground">{STAGES[selected].label}</p>
       </div>
 
       {/* The sentences behind the card's badge. The badge can only carry a
@@ -61,6 +61,18 @@ export function StageInspector({ selected, blocking, ...props }: StageInspectorP
         <Notice tone="clay">
           <div className="space-y-1">
             {blocking.map((w) => <p key={w}>{w}</p>)}
+          </div>
+        </Notice>
+      )}
+
+      {/* The advisory tier, rendered here for every stage: a card wearing an
+          "N advisory" badge used to open a rail that said nothing about it on
+          seven of the eight stages. Muted, the same tone the run dialog gives
+          this tier — worth reading, never a reason to hold anything. */}
+      {props.notes.length > 0 && (
+        <Notice tone="muted" icon={false}>
+          <div className="space-y-1">
+            {props.notes.map((w) => <p key={w}>{w}</p>)}
           </div>
         </Notice>
       )}

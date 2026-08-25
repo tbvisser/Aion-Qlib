@@ -7,9 +7,8 @@
  * in the reference screenshot. A small dot is drawn at the midpoint of the curve
  * to match the screenshot's connection points.
  */
+import { memo } from 'react'
 import { BaseEdge, type EdgeProps } from '@xyflow/react'
-
-import { cn } from '@/lib/utils'
 
 function cubicBezierMidpoint(
   sx: number,
@@ -28,7 +27,9 @@ function cubicBezierMidpoint(
   }
 }
 
-export function StageEdge({
+// `memo`, like every other React Flow renderer in the builder — this was the
+// only one without it.
+export const StageEdge = memo(function StageEdge({
   sourceX,
   sourceY,
   targetX,
@@ -58,8 +59,8 @@ export function StageEdge({
         cx={dot.x}
         cy={dot.y}
         r={3}
-        className={cn('pointer-events-none', 'fill-muted-foreground/50')}
+        className="pointer-events-none fill-muted-foreground/50"
       />
     </>
   )
-}
+})

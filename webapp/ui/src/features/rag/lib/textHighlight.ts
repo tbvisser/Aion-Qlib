@@ -224,7 +224,7 @@ function highlightNodeRanges(ranges: Array<[Text, { start: number; end: number }
     range.setStart(node, start)
     range.setEnd(node, end)
     const mark = document.createElement('mark')
-    mark.className = 'citation-highlight rounded-sm bg-amber-200/70 dark:bg-amber-500/30 px-0.5'
+    mark.className = 'citation-highlight rounded-sm bg-clay/30 px-0.5'
     mark.setAttribute('data-citation-target', 'active')
     range.surroundContents(mark)
     marks.unshift(mark)

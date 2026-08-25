@@ -14,7 +14,7 @@ const MAX_LENGTH = 2000
 export function ContextInspector({ spec, setSpec }: InspectorProps) {
   return (
     <Section title="Objective" columns={1}>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-label leading-relaxed text-muted-foreground">
         Describe what you want this strategy to achieve. The assistant uses this
         as its primary guide when proposing changes.
       </p>
@@ -25,10 +25,10 @@ export function ContextInspector({ spec, setSpec }: InspectorProps) {
           setSpec((prev) => ({ ...prev, context }))
         }}
         placeholder="e.g. Lower volatility than the benchmark, with a turnover budget of one round-trip per month."
-        className="min-h-[120px] resize-y text-[13px]"
+        className="min-h-[120px] resize-y text-body-sm"
       />
       <div className="flex justify-end">
-        <span className="text-[10px] text-muted-foreground/70">
+        <span className="text-micro text-muted-foreground/70">
           {spec.context.length}/{MAX_LENGTH}
         </span>
       </div>

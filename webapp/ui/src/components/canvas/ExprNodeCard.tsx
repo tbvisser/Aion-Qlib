@@ -76,7 +76,7 @@ const PHASE_RULE = 'bg-type-process/70'
  * anywhere but a label. A plain day count needs no chip -- the number already
  * says it.
  */
-export function windowMode(value: number | null): string | null {
+function windowMode(value: number | null): string | null {
   if (value === null) return null
   if (value === 0) return 'expanding'
   if (value > 0 && value < 1) return `ewm α=${value}`
@@ -171,11 +171,11 @@ export const ExprNodeCard = memo(function ExprNodeCard({ data }: NodeProps<ExprF
                     position={Position.Left}
                     className={child ? 'aion-expr-handle' : 'aion-handle-empty'}
                   />
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+                  <span className="font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
                     {label}
                   </span>
                   {!child && (
-                    <span className="ml-auto rounded border border-dashed border-clay/40 px-1.5 py-0.5 font-mono text-[10px] text-clay">
+                    <span className="ml-auto rounded border border-dashed border-clay/40 px-1.5 py-0.5 font-mono text-micro text-clay">
                       empty
                     </span>
                   )}
@@ -185,7 +185,7 @@ export const ExprNodeCard = memo(function ExprNodeCard({ data }: NodeProps<ExprF
             const value = node.kind === 'call' ? node.params[slot.name] ?? null : null
             return (
               <div key={slot.name} className="flex h-[30px] items-center gap-2 px-2.5">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+                <span className="font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
                   {label}
                 </span>
                 <span className="ml-auto flex items-center gap-1.5">
@@ -198,7 +198,7 @@ export const ExprNodeCard = memo(function ExprNodeCard({ data }: NodeProps<ExprF
                     // drag on the card and the caret would never land.
                     className={cn(
                       'nodrag tnum w-16 rounded-md border border-border/50 bg-surface-2 px-2 py-0.5',
-                      'text-right font-mono text-[11px] transition-colors duration-200',
+                      'text-right font-mono text-label transition-colors duration-200',
                       'focus-visible:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20',
                       value === null && 'border-dashed border-clay/40',
                     )}
@@ -221,7 +221,7 @@ export const ExprNodeCard = memo(function ExprNodeCard({ data }: NodeProps<ExprF
 
       {/* A leaf's header already is its expression; repeating it says nothing. */}
       {text !== title(data) && (
-        <div className="truncate border-t border-border/50 px-2.5 py-1 font-mono text-[10px] text-muted-foreground/70">
+        <div className="truncate border-t border-border/50 px-2.5 py-1 font-mono text-micro text-muted-foreground/70">
           {text}
         </div>
       )}

@@ -4,6 +4,7 @@ import {
   XAxis, YAxis,
 } from 'recharts'
 
+import { MicroLabel } from '@/components/ui/micro-label'
 import { api, type RunReport } from '@/lib/api'
 import { CURVE_STYLE, mergeCurves } from '@/lib/curves'
 import { monthlyReturns } from '@/lib/monthlyReturns'
@@ -50,16 +51,16 @@ export function RunReportView({ report, hidePerformance }: { report: RunReport; 
           finished, so this is a verdict about the spec, not an error. */}
       {sanity.implausible && (
         <div className="space-y-2 rounded-lg border border-clay/40 bg-clay/5 px-4 py-3">
-          <div className="font-mono text-[10px] uppercase tracking-wider text-clay">
+          <div className="font-mono text-micro uppercase tracking-wider text-clay">
             Implausible result
           </div>
-          <div className="text-[13px] text-muted-foreground">
+          <div className="text-body-sm text-muted-foreground">
             The run finished cleanly, but these numbers cannot be read as a
             result. Everything below is arithmetic on the same input.
           </div>
           <ul className="space-y-1">
             {sanity.reasons.map((reason) => (
-              <li key={reason} className="text-[13px] leading-snug text-muted-foreground">
+              <li key={reason} className="text-body-sm leading-snug text-muted-foreground">
                 {reason}
               </li>
             ))}
@@ -169,10 +170,10 @@ function Section({ n, title, caption, children }: {
   return (
     <section>
       <div className="mb-3 flex items-baseline gap-2.5">
-        <span className="font-mono text-[11px] text-muted-foreground/50">{n}</span>
+        <span className="font-mono text-label text-muted-foreground/50">{n}</span>
         <h3 className="text-base font-medium">{title}</h3>
         {caption && (
-          <span className="min-w-0 truncate text-[11px] text-muted-foreground">{caption}</span>
+          <span className="min-w-0 truncate text-label text-muted-foreground">{caption}</span>
         )}
       </div>
       {children}
@@ -183,9 +184,9 @@ function Section({ n, title, caption, children }: {
 function Panel({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-2 rounded-lg border border-border/50 p-3">
-      <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="mb-1">
         {label}
-      </div>
+      </MicroLabel>
       {children}
     </div>
   )
@@ -223,11 +224,11 @@ function Metric({
 
   return (
     <div className="min-w-0 border-b border-r border-border/50 p-4">
-      <div className="truncate font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground/70">
+      <div className="truncate font-mono text-micro uppercase tracking-[0.15em] text-muted-foreground/70">
         {label}
       </div>
       <div className={cn('tnum mt-1.5 truncate font-mono text-xl', tone)}>{display}</div>
-      {sub && <div className="mt-1 truncate text-[11px] text-muted-foreground">{sub}</div>}
+      {sub && <div className="mt-1 truncate text-label text-muted-foreground">{sub}</div>}
     </div>
   )
 }
@@ -304,17 +305,17 @@ function Positions({ runId }: { runId: string }) {
     return () => { live = false }
   }, [runId])
 
-  if (error) return <p className="text-[11px] text-muted-foreground">No predictions recorded.</p>
-  if (!data) return <p className="text-[11px] text-muted-foreground">Loading positions…</p>
+  if (error) return <p className="text-label text-muted-foreground">No predictions recorded.</p>
+  if (!data) return <p className="text-label text-muted-foreground">Loading positions…</p>
   if (!data.top.length) {
-    return <p className="text-[11px] text-muted-foreground">Nothing scored on {data.date}.</p>
+    return <p className="text-label text-muted-foreground">Nothing scored on {data.date}.</p>
   }
 
   return (
     <div className="rounded-lg border border-border/50">
-      <div className="border-b border-border/50 px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="border-b border-border/50 px-3 py-2">
         {data.date} · top {data.top.length}
-      </div>
+      </MicroLabel>
       {/* Fifty near-identical scores would otherwise be the longest thing in
           the report; it scrolls in place rather than pushing everything else
           off the end of a modal. */}

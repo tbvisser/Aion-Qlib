@@ -3,9 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { KeycardSpec } from '@/lib/api'
 import {
   KEYCARD_EDGE_TYPE,
-  KEYCARD_NODE_TYPE,
   addNextPosition,
-  fromFlow,
   layoutTree,
   routeDefects,
   toFlowEdges,
@@ -105,7 +103,7 @@ describe('toFlowNodes', () => {
 
   it('propagates connection highlight state for handle highlighting', () => {
     const keycard = makeKeycardSpec()
-    const nodes = toFlowNodes(keycard, makeMetaByType(), [], null, undefined, undefined, undefined, undefined, 'data', 'target')
+    const nodes = toFlowNodes(keycard, makeMetaByType(), [], null, undefined, undefined, undefined, 'data', 'target')
     nodes.forEach((n) => {
       expect(n.data.connectingPortType).toBe('data')
       expect(n.data.seekingHandle).toBe('target')
@@ -141,55 +139,15 @@ describe('toFlowEdges', () => {
     const meta = makeMetaByType()
     const edges = toFlowEdges(keycard, meta)
     expect(edges).toHaveLength(1)
-    expect(edges[0].style).toEqual({ stroke: '#3b82f6' })
+    // The token reference, not a literal colour: the hue resolves through
+    // `--kc-*` in index.css so dark mode can retune it.
+    expect(edges[0].style).toEqual({ stroke: 'hsl(var(--kc-blue))' })
     expect(edges[0].markerEnd).toMatchObject({
       type: 'arrowclosed',
-      color: '#3b82f6',
+      color: 'hsl(var(--kc-blue))',
       width: 12,
       height: 12,
     })
-  })
-})
-
-describe('fromFlow', () => {
-  it('preserves positions from React Flow nodes', () => {
-    const keycard = makeKeycardSpec()
-    const rfNodes = keycard.nodes.map((n) => ({
-      id: n.id,
-      type: KEYCARD_NODE_TYPE,
-      position: { x: n.position.x + 10, y: n.position.y + 20 },
-      data: {},
-    }))
-    const next = fromFlow(keycard, rfNodes, toFlowEdges(keycard))
-    next.nodes.forEach((n, i) => {
-      expect(n.position).toEqual({
-        x: keycard.nodes[i].position.x + 10,
-        y: keycard.nodes[i].position.y + 20,
-      })
-    })
-  })
-
-  it('drops nodes and edges removed from the canvas', () => {
-    const keycard = makeKeycardSpec()
-    const rfNodes = keycard.nodes.slice(1).map((n) => ({
-      id: n.id,
-      type: KEYCARD_NODE_TYPE,
-      position: n.position,
-      data: {},
-    }))
-    const rfEdges = toFlowEdges(keycard).slice(1)
-    const next = fromFlow(keycard, rfNodes, rfEdges)
-    expect(next.nodes).toHaveLength(keycard.nodes.length - 1)
-    expect(next.edges).toHaveLength(keycard.edges.length - 1)
-    expect(next.nodes.find((n) => n.id === keycard.nodes[0].id)).toBeUndefined()
-  })
-
-  it('copies scalar metadata unchanged', () => {
-    const keycard = makeKeycardSpec()
-    const next = fromFlow(keycard, toFlowNodes(keycard, makeMetaByType()), toFlowEdges(keycard))
-    expect(next.name).toBe(keycard.name)
-    expect(next.windows).toEqual(keycard.windows)
-    expect(next.tags).toEqual(keycard.tags)
   })
 })
 

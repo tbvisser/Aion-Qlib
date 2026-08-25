@@ -92,7 +92,7 @@ export function RosterOverview({
               className="h-full transition-shadow hover:shadow-card"
             >
               <div className="space-y-3">
-                <div className="tnum text-3xl font-semibold">{count.toLocaleString()}</div>
+                <div className="tnum text-2xl font-semibold">{count.toLocaleString()}</div>
                 <div className="h-[120px]">
                   <SourceBreakdownChart sources={sources} height={120} />
                 </div>
@@ -100,12 +100,12 @@ export function RosterOverview({
                   {breakdown.length ? breakdown.map((entry) => (
                     <span
                       key={entry.value}
-                      className="inline-flex items-center rounded-md border border-border/50 bg-foreground/[0.02] px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                      className="inline-flex items-center rounded-md border border-border/50 bg-foreground/[0.02] px-1.5 py-0.5 text-micro text-muted-foreground"
                     >
                       {sourceLabel(entry.value)} {entry.count.toLocaleString()}
                     </span>
                   )) : (
-                    <span className="text-[11px] text-muted-foreground/70">Unreachable</span>
+                    <span className="text-label text-muted-foreground/70">Unreachable</span>
                   )}
                 </div>
               </div>
@@ -128,7 +128,7 @@ export function RosterOverview({
       </div>
 
       <div className="col-span-12">
-        <p className="text-[11px] text-muted-foreground/70">
+        <p className="text-label text-muted-foreground/70">
           {rosterSummaryLine(summary)}
         </p>
       </div>
@@ -157,8 +157,8 @@ function RecentFetchesPanel({ providers }: { providers: RegistryProvider[] }) {
               <div className="flex min-w-0 items-center gap-2">
                 <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
                 <div className="min-w-0">
-                  <div className="truncate text-[12px]">{provider.label}</div>
-                  <div className="font-mono text-[10px] text-muted-foreground/70">
+                  <div className="truncate text-caption">{provider.label}</div>
+                  <div className="font-mono text-micro text-muted-foreground/70">
                     {sourceLabel(provider.source)}
                     {provider.remote ? ' · over the network' : ' · in process'}
                   </div>
@@ -169,11 +169,11 @@ function RecentFetchesPanel({ providers }: { providers: RegistryProvider[] }) {
                   className={cn(
                     'h-1.5 w-1.5 rounded-full',
                     provider.error
-                      ? provider.stale ? 'bg-amber-500' : 'bg-destructive'
-                      : 'bg-emerald-500',
+                      ? provider.stale ? 'bg-clay' : 'bg-destructive'
+                      : 'bg-primary',
                   )}
                 />
-                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                <span className="whitespace-nowrap text-label text-muted-foreground">
                   {formatRelativeStamp(provider.fetched_at!)}
                 </span>
               </div>

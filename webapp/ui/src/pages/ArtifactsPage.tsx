@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronDown, FileText, Image, LineChart, Plus, Table2 } from 'lucide-react'
 import { IndexHeader } from '@/components/layout/IndexHeader'
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   DropdownMenu,
@@ -12,6 +13,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Notice } from '@/components/ui/notice'
 import { Segmented } from '@/components/ui/segmented'
+import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useArtifacts, type Artifact, type ArtifactKind } from '@/hooks/useArtifacts'
 import { useRunReports } from '@/hooks/useRunReports'
 import type { RunReport } from '@/lib/api'
@@ -139,21 +142,19 @@ export function ArtifactsPage() {
           {loading && (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 6 }, (_, i) => (
-                <div key={i} className="h-52 animate-pulse rounded-xl bg-muted/60" />
+                <Skeleton key={i} className="h-52 rounded-xl" />
               ))}
             </div>
           )}
 
           {!loading && visible.length === 0 && !(tab === 'report' && !inTab('report')) && (
-            <div className="rounded-xl border border-dashed border-border/60 p-10 text-center">
-              <p className="text-sm text-muted-foreground">
-                {artifacts.length === 0
-                  ? 'Nothing generated yet. Run a backtest, or let an agent write a file, and it lands here.'
-                  : query
-                    ? `Nothing matches “${query}”.`
-                    : 'Nothing of this kind yet.'}
-              </p>
-            </div>
+            <EmptyState
+              title={artifacts.length === 0
+                ? 'Nothing generated yet. Run a backtest, or let an agent write a file, and it lands here.'
+                : query
+                  ? `Nothing matches “${query}”.`
+                  : 'Nothing of this kind yet.'}
+            />
           )}
 
           {!loading && visible.length > 0 && (
@@ -196,7 +197,7 @@ function ArtifactCard({
         <p className="truncate text-sm font-medium" title={artifact.title}>
           {artifact.title}
         </p>
-        <p className="font-mono text-[11px] text-muted-foreground/70">
+        <p className="font-mono text-label text-muted-foreground/70">
           {artifact.source}
           {artifact.updatedAt && ` · ${formatRelativeStamp(artifact.updatedAt)}`}
         </p>
@@ -227,11 +228,11 @@ function ArtifactPreview({ artifact, report }: { artifact: Artifact; report?: Ru
     case 'status':
       return (
         <div className="space-y-2 text-center">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground/70">
+          <MicroLabel as="div" className="text-label">
             {tier.status}
-          </p>
+          </MicroLabel>
           {tier.hint && (
-            <p className="line-clamp-3 text-[11px] text-muted-foreground">{tier.hint}</p>
+            <p className="line-clamp-3 text-label text-muted-foreground">{tier.hint}</p>
           )}
         </div>
       )
@@ -249,10 +250,10 @@ function ArtifactPreview({ artifact, report }: { artifact: Artifact; report?: Ru
         <dl className="w-full space-y-1.5">
           {tier.lines.map((line) => (
             <div key={line.label} className="flex items-baseline justify-between gap-3">
-              <dt className="shrink-0 font-mono text-[9px] uppercase tracking-wider text-muted-foreground/60">
+              <MicroLabel as="dt" className="shrink-0 text-tiny">
                 {line.label}
-              </dt>
-              <dd className="truncate text-[11px] text-muted-foreground">{line.value}</dd>
+              </MicroLabel>
+              <dd className="truncate text-label text-muted-foreground">{line.value}</dd>
             </div>
           ))}
         </dl>
@@ -354,9 +355,9 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
       {/* Always label the number — a bare figure on a card is a riddle. */}
-      <p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="text-tiny">
         {label}
-      </p>
+      </MicroLabel>
       <p className="truncate font-mono text-sm text-foreground">{value}</p>
     </div>
   )

@@ -9,6 +9,7 @@ import { useState } from 'react'
 
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { MicroLabel } from '@/components/ui/micro-label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -49,11 +50,11 @@ export function Field({
 }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
   return (
     <div className={cn('space-y-1.5', className)}>
-      <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div">
         {label}
-      </div>
+      </MicroLabel>
       {children}
-      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-label text-muted-foreground">{hint}</p>}
     </div>
   )
 }
@@ -112,7 +113,7 @@ export function Choice({
                   {o.label}
                 </span>
                 {off && o.reason && (
-                  <span className="max-w-[22rem] whitespace-normal font-sans text-[11px]
+                  <span className="max-w-[22rem] whitespace-normal font-sans text-label
                                    leading-snug text-muted-foreground">
                     {o.reason}
                   </span>
@@ -151,7 +152,7 @@ export function FieldProblem({
   return (
     <div className="space-y-1.5 rounded-lg border border-clay/30 bg-clay/5 p-2">
       {messages.map((m) => (
-        <p key={m} className="text-[11px] leading-snug text-clay">{m}</p>
+        <p key={m} className="text-label leading-snug text-clay">{m}</p>
       ))}
       {!!resolutions?.length && onApply && (
         <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -161,7 +162,7 @@ export function FieldProblem({
               type="button"
               onClick={() => onApply(r.patch)}
               className="rounded-md border border-border/60 bg-background px-2 py-1
-                         text-left text-[11px] leading-tight hover:border-primary/50"
+                         text-left text-label leading-tight hover:border-primary/50"
             >
               <span className="block font-medium">{r.label}</span>
               {r.preserves && (
@@ -215,7 +216,7 @@ export function DateInput({
         className="h-10 w-full rounded-lg border border-border/50 bg-background px-3 font-mono text-xs"
       />
       {draft !== null && (
-        <p className="text-[11px] leading-relaxed text-clay">Enter a complete date.</p>
+        <p className="text-label leading-relaxed text-clay">Enter a complete date.</p>
       )}
     </div>
   )
@@ -255,7 +256,7 @@ export function NumberInput({
         className="tnum font-mono text-xs"
       />
       {parsed && !parsed.ok && (
-        <p className="text-[11px] leading-relaxed text-clay">{parsed.error}</p>
+        <p className="text-label leading-relaxed text-clay">{parsed.error}</p>
       )}
     </div>
   )
@@ -298,12 +299,63 @@ export function BpsInput({
           }}
           className="tnum pr-10 font-mono text-xs"
         />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <MicroLabel className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
           bps
-        </span>
+        </MicroLabel>
       </div>
       {parsed && !parsed.ok && (
-        <p className="text-[11px] leading-relaxed text-clay">{parsed.error}</p>
+        <p className="text-label leading-relaxed text-clay">{parsed.error}</p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * A number whose empty field is a real value — null — rather than an error.
+ *
+ * `NumberInput`'s draft snaps back on blur because its fields always hold a
+ * number; here clearing the field *is* the edit. Lives beside its three
+ * draft-and-commit siblings rather than in the one inspector that first needed
+ * it, so a fix to the pattern reaches all four.
+ */
+export function NullableNumberInput({
+  value, onChange, min = 0, step = 0.05, placeholder = 'No limit',
+}: {
+  value: number | null
+  onChange: (v: number | null) => void
+  min?: number
+  step?: number
+  placeholder?: string
+}) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const parsed = draft === null ? null : parseNumberField(draft, { min })
+
+  return (
+    <div className="space-y-1">
+      <Input
+        type="number"
+        value={draft ?? (value === null ? '' : value)}
+        min={min}
+        step={step}
+        placeholder={placeholder}
+        onChange={(e) => {
+          const text = e.target.value
+          if (text.trim() === '') {
+            setDraft(null)
+            onChange(null)
+            return
+          }
+          setDraft(text)
+          const next = parseNumberField(text, { min })
+          if (next.ok) onChange(next.value)
+        }}
+        onBlur={() => {
+          if (draft !== null && parseNumberField(draft, { min }).ok) setDraft(null)
+        }}
+        className="tnum font-mono text-xs"
+      />
+      {parsed && !parsed.ok && (
+        <p className="text-label leading-relaxed text-clay">{parsed.error}</p>
       )}
     </div>
   )

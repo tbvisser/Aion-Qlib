@@ -24,10 +24,21 @@ export type Baseline = StrategySpec
  * Exported so the indicator can answer "what did I change?" in a tooltip
  * without anyone opening a diff view.
  */
+/**
+ * Server bookkeeping carried by a `StoredStrategy` but absent from the spec
+ * the user edits. The baseline is set to the *server's* record after a save,
+ * so without this list the id and timestamps alone would read as "edits" and
+ * the dot would go dirty the instant a save succeeded — permanently.
+ */
+const STORED_ONLY_KEYS = [
+  'id', 'created_at', 'updated_at', 'user_id', 'visibility',
+] as const
+
 export function dirtyFields(spec: StrategySpec, baseline: Baseline): string[] {
   return changedKeys(
     baseline as unknown as Record<string, unknown>,
     spec as unknown as Record<string, unknown>,
+    STORED_ONLY_KEYS,
   )
 }
 

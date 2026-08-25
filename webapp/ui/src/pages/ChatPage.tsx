@@ -6,8 +6,8 @@ import { ArrowUp } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ToolCard } from '@/components/chat/ToolCard'
 import { useChatStream } from '@/hooks/useChatStream'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Notice } from '@/components/ui/notice'
 import { Textarea } from '@/components/ui/textarea'
 import { authHeaders } from '@/lib/authFetch'
 import { cn } from '@/lib/utils'
@@ -118,11 +118,7 @@ export function ChatPage() {
             </div>
           ))}
 
-          {error && (
-            <Card className="border-destructive/40">
-              <CardContent className="p-3 font-mono text-xs text-destructive">{error}</CardContent>
-            </Card>
-          )}
+          {error && <Notice tone="destructive">{error}</Notice>}
 
           <div ref={endRef} />
         </div>

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { AlertCircle, ChevronDown, ChevronRight, Code, Loader2, Check, Circle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { ToolCallInfo } from '@/features/rag/types'
 import { getToolDisplayName, getToolIcon, toolGroupIcon } from './toolRegistry'
 
@@ -83,8 +84,8 @@ function extractStreamingInfo(args: string): { code: string | null; libraries: s
 
 function getQueryFromArgs(toolName: string, args: string): string {
   if (!args) {
-    if (toolName === 'execute_code') return 'Generating code...'
-    return 'Preparing...'
+    if (toolName === 'execute_code') return 'Generating code…'
+    return 'Preparing…'
   }
   try {
     const parsed = JSON.parse(args)
@@ -116,7 +117,7 @@ function getQueryFromArgs(toolName: string, args: string): string {
     if (toolName === 'query_sales_database') {
       // Show a truncated SQL query
       const sql = parsed.sql || parsed.query || ''
-      return sql.length > 60 ? sql.substring(0, 57) + '...' : sql
+      return sql.length > 60 ? sql.substring(0, 57) + '…' : sql
     }
     if (toolName === 'analyze_document') {
       return parsed.query || 'Analyzing document'
@@ -159,7 +160,7 @@ function getQueryFromArgs(toolName: string, args: string): string {
     }
     if (toolName === 'execute_code') {
       const preview = (parsed.code || '').substring(0, 50)
-      return `[Python] ${preview}${(parsed.code || '').length > 50 ? '...' : ''}`
+      return `[Python] ${preview}${(parsed.code || '').length > 50 ? '…' : ''}`
     }
     const usefulValue = parsed.query || parsed.path || parsed.file_path || parsed.pattern || parsed.name
     return usefulValue || getToolDisplayName(toolName)
@@ -169,12 +170,12 @@ function getQueryFromArgs(toolName: string, args: string): string {
       const info = extractStreamingInfo(args)
       if (info.code) {
         const preview = info.code.substring(0, 50)
-        return `[Python] ${preview}${info.code.length > 50 ? '...' : ''}`
+        return `[Python] ${preview}${info.code.length > 50 ? '…' : ''}`
       }
       if (info.libraries.length > 0) {
-        return `[Python] Installing ${info.libraries.join(', ')}...`
+        return `[Python] Installing ${info.libraries.join(', ')}…`
       }
-      return `[Python] Preparing...`
+      return `[Python] Preparing…`
     }
     return args
   }
@@ -209,7 +210,7 @@ function formatRawPayload(value: unknown): string {
 }
 
 function formatResponse(result?: string): string {
-  if (!result) return 'Waiting for response...'
+  if (!result) return 'Waiting for response…'
 
   try {
     const parsed = JSON.parse(result) as unknown
@@ -226,7 +227,7 @@ function FormattedValue({ value }: { value: unknown }) {
   }
 
   if (typeof value === 'number' || typeof value === 'boolean') {
-    return <span className="text-amber-400">{String(value)}</span>
+    return <span className="text-clay">{String(value)}</span>
   }
 
   if (value === null) {
@@ -280,7 +281,7 @@ function ResponseView({ result, status }: { result?: string; status: ToolCallInf
   const empty = !result && status !== 'completed'
 
   return (
-    <pre className={`whitespace-pre-wrap break-words ${empty ? 'text-muted-foreground/70' : 'text-foreground/90'}`}>
+    <pre className={cn('whitespace-pre-wrap break-words', empty ? 'text-muted-foreground/70' : 'text-foreground/90')}>
       {formatResponse(result)}
     </pre>
   )
@@ -308,9 +309,9 @@ function ToolStatus({ toolCall }: { toolCall: ToolCallInfo }) {
 
   if (toolCall.status === 'error') {
     return (
-      <span className="flex items-center gap-2 text-xs font-medium text-red-400">
+      <span className="flex items-center gap-2 text-xs font-medium text-destructive">
         <span>{toolCall.result_summary || 'Error'}</span>
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/15">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive/15">
           <AlertCircle className="h-3 w-3" />
         </span>
       </span>
@@ -320,8 +321,8 @@ function ToolStatus({ toolCall }: { toolCall: ToolCallInfo }) {
   return (
     <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
       <span>{toolCall.result_summary || 'Complete'}</span>
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15">
-        <Check className="h-3 w-3 text-emerald-400" />
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15">
+        <Check className="h-3 w-3 text-primary" />
       </span>
     </span>
   )
@@ -353,8 +354,8 @@ function CodeStreamPreview({ args, isComplete }: { args: string; isComplete?: bo
     return (
       <div className="mt-2 rounded-lg border border-border/50 bg-surface-1 overflow-hidden">
         <div className="flex items-center justify-between px-3 py-1.5 bg-muted/30 border-b border-border/40">
-          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">python</span>
-          <span className="text-[10px] text-muted-foreground">preparing</span>
+          <span className="text-micro font-medium text-muted-foreground uppercase tracking-wider">python</span>
+          <span className="text-micro text-muted-foreground">preparing</span>
         </div>
         <pre className="p-3 text-xs font-mono text-muted-foreground leading-relaxed">
           {libraries.length > 0
@@ -374,8 +375,8 @@ function CodeStreamPreview({ args, isComplete }: { args: string; isComplete?: bo
   return (
     <div className="mt-2 rounded-lg border border-border/50 bg-surface-1 overflow-hidden">
       <div className="flex items-center justify-between px-3 py-1.5 bg-muted/30 border-b border-border/40">
-        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">python</span>
-        <span className="text-[10px] text-muted-foreground tabular-nums">{lineCount} line{lineCount !== 1 ? 's' : ''}</span>
+        <span className="text-micro font-medium text-muted-foreground uppercase tracking-wider">python</span>
+        <span className="text-micro text-muted-foreground tabular-nums">{lineCount} line{lineCount !== 1 ? 's' : ''}</span>
       </div>
       <pre
         ref={preRef}
@@ -419,17 +420,17 @@ export function StepsPanel({ toolCalls }: StepsPanelProps) {
   const groupLabel = `Ran ${toolCalls.length} tool${toolCalls.length === 1 ? '' : 's'}`
 
   return (
-    <div className="overflow-hidden rounded-[14px] border border-border/60 bg-surface-2/80 animate-fade-in dark:border-[#2E2E2E] dark:bg-[#1D1D1D]">
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-surface-2/80 animate-fade-in">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm transition-colors hover:bg-muted/30 dark:hover:bg-[#262626]/70"
+        className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm transition-colors hover:bg-muted/30"
         aria-expanded={expanded}
       >
         <GroupIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <span className="font-semibold text-foreground">{groupLabel}</span>
         <span className="ml-auto flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           {expanded ? 'Hide steps' : 'Show steps'}
-          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? '' : '-rotate-90'}`} />
+          <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', !expanded && '-rotate-90')} />
         </span>
       </button>
 
@@ -449,30 +450,30 @@ export function StepsPanel({ toolCalls }: StepsPanelProps) {
             return (
               <div
                 key={`${tc.tool_name}-${idx}`}
-                className={`rounded-[10px] text-sm animate-fade-in ${isOpen ? 'bg-muted/60 dark:bg-[#262626]' : 'bg-transparent'}`}
+                className={cn('rounded-lg text-sm animate-fade-in', isOpen ? 'bg-muted/60' : 'bg-transparent')}
                 style={{ animationDelay: `${idx * 100}ms` }}
               >
                 <button
                   type="button"
                   onClick={() => rowCanExpand && toggleResult(idx)}
-                  className={`grid w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-2 rounded-[10px] px-2.5 py-2.5 text-left transition-colors ${rowCanExpand ? 'hover:bg-muted/70 dark:hover:bg-[#262626]' : 'cursor-default'}`}
+                  className={cn('grid w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-2.5 py-2.5 text-left transition-colors', rowCanExpand ? 'hover:bg-muted/60' : 'cursor-default')}
                   aria-expanded={isOpen}
                 >
-                  <div className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-muted text-muted-foreground dark:bg-[#303030] dark:text-[#C8CBD0]">
+                  <div className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <div className="truncate text-[14.5px] font-semibold leading-tight text-foreground">
+                    <div className="truncate text-sm font-semibold leading-tight text-foreground">
                       {label}
                     </div>
-                    <div className={`mt-0.5 text-[12.75px] leading-tight text-muted-foreground ${isCodeStreaming ? '' : 'truncate'}`}>
+                    <div className={cn('mt-0.5 text-body-sm leading-tight text-muted-foreground', !isCodeStreaming && 'truncate')}>
                       {query}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <ToolStatus toolCall={tc} />
                     {rowCanExpand ? (
-                      <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground/70 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                      <ChevronRight className={cn('h-3.5 w-3.5 text-muted-foreground/70 transition-transform', isOpen && 'rotate-90')} />
                     ) : (
                       <Circle className="h-3 w-3 text-muted-foreground/50" />
                     )}
@@ -481,9 +482,9 @@ export function StepsPanel({ toolCalls }: StepsPanelProps) {
 
                 {isOpen && (
                   <div className="px-3 pb-3 animate-fade-in">
-                    <div className="overflow-hidden rounded-[10px] border border-border/50 bg-background/70 font-mono text-[12.5px] leading-relaxed dark:border-[#212121] dark:bg-[#161616]">
-                      <div className="grid grid-cols-[42px_minmax(0,1fr)] border-b border-border/50 dark:border-[#212121]">
-                        <div className="px-3 py-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    <div className="overflow-hidden rounded-lg border border-border/50 bg-muted/50 font-mono text-caption leading-relaxed">
+                      <div className="grid grid-cols-[42px_minmax(0,1fr)] border-b border-border/50">
+                        <div className="px-3 py-3 text-micro font-semibold uppercase tracking-wider text-muted-foreground/70">
                           Req
                         </div>
                         <div className="max-h-[220px] overflow-auto px-3 py-3">
@@ -491,7 +492,7 @@ export function StepsPanel({ toolCalls }: StepsPanelProps) {
                         </div>
                       </div>
                       <div className="grid grid-cols-[42px_minmax(0,1fr)]">
-                        <div className="px-3 py-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                        <div className="px-3 py-3 text-micro font-semibold uppercase tracking-wider text-muted-foreground/70">
                           Res
                         </div>
                         <div className="max-h-[220px] overflow-auto px-3 py-3">
@@ -505,7 +506,7 @@ export function StepsPanel({ toolCalls }: StepsPanelProps) {
                     <button
                       type="button"
                       onClick={() => toggleRaw(idx)}
-                      className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border/70 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-muted-foreground/70 hover:text-foreground dark:border-[#2E2E2E]"
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border/70 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-muted-foreground/70 hover:text-foreground"
                     >
                       <Code className="h-3 w-3" />
                       {isRaw ? 'Formatted' : 'View raw'}

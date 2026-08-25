@@ -1,4 +1,8 @@
 import { Segmented } from '@/components/ui/segmented'
+import { MicroLabel } from '@/components/ui/micro-label'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
 import type { MacroCalendar, MacroRelease } from '@/lib/api'
 import { formatIsoDayMonth, todayIso } from '@/lib/macroFormat'
 import { cn } from '@/lib/utils'
@@ -40,7 +44,7 @@ export function EconomicCalendar({
           data-testid="macro-calendar-country"
         />
         {calendar?.available && calendar.stale && (
-          <span className="font-mono text-[10px] text-clay">cache is stale</span>
+          <span className="font-mono text-micro text-clay">cache is stale</span>
         )}
       </div>
 
@@ -82,31 +86,31 @@ function Section({
 }) {
   return (
     <div>
-      <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="mb-1">
         {title}
-      </div>
+      </MicroLabel>
       {rows.length === 0 ? (
         <p className="py-3 text-xs text-muted-foreground">{empty}</p>
       ) : (
         <div className="max-h-72 overflow-y-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border/50 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
-                <th className="py-1 pr-2 font-normal">Date</th>
-                <th className="py-1 pr-2 font-normal">Release</th>
+          <Table>
+            <TableHead>
+              <tr>
+                <TableHeader>Date</TableHeader>
+                <TableHeader>Release</TableHeader>
                 {showActual && (
-                  <th className="py-1 pr-2 text-right font-normal">Act</th>
+                  <TableHeader numeric>Act</TableHeader>
                 )}
-                <th className="py-1 pr-2 text-right font-normal">Est</th>
-                <th className="py-1 text-right font-normal">Prev</th>
+                <TableHeader numeric>Est</TableHeader>
+                <TableHeader numeric>Prev</TableHeader>
               </tr>
-            </thead>
-            <tbody>
+            </TableHead>
+            <TableBody>
               {rows.slice(0, 60).map((row, i) => (
                 <Row key={`${row.event_key}-${row.date}-${i}`} row={row} today={today} showActual={showActual} />
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
@@ -121,34 +125,37 @@ function Row({ row, today, showActual }: { row: MacroRelease; today: string; sho
   const awaiting = showActual && row.actual == null && row.date < today
 
   return (
-    <tr className="border-b border-border/30 last:border-0 hover:bg-foreground/[0.04]">
-      <td className="tnum whitespace-nowrap py-1 pr-2 font-mono text-[11px] text-muted-foreground">
+    <TableRow className="hover:bg-foreground/[0.04]">
+      <TableCell className="whitespace-nowrap font-mono text-label text-muted-foreground">
         {formatIsoDayMonth(row.date)}
-      </td>
-      <td className="py-1 pr-2 text-xs">
+      </TableCell>
+      <TableCell className="text-xs">
         <span className="truncate">{row.type}</span>
         {row.comparison && (
-          <span className="ml-1 font-mono text-[9px] uppercase text-muted-foreground/60">
+          <span className="ml-1 font-mono text-tiny uppercase text-muted-foreground/60">
             {row.comparison}
           </span>
         )}
-      </td>
+      </TableCell>
       {showActual && (
-        <td className={cn('tnum py-1 pr-2 text-right font-mono text-[11px]',
-          surprise != null && (surprise > 0 ? 'text-primary' : surprise < 0 ? 'text-clay' : ''))}>
+        <TableCell
+          numeric
+          className={cn('font-mono text-label',
+            surprise != null && (surprise > 0 ? 'text-primary' : surprise < 0 ? 'text-clay' : ''))}
+        >
           {awaiting ? (
             <span className="text-muted-foreground/60">awaiting</span>
           ) : (
             num(row.actual)
           )}
-        </td>
+        </TableCell>
       )}
-      <td className="tnum py-1 pr-2 text-right font-mono text-[11px] text-muted-foreground">
+      <TableCell numeric className="font-mono text-label text-muted-foreground">
         {num(row.estimate)}
-      </td>
-      <td className="tnum py-1 text-right font-mono text-[11px] text-muted-foreground/60">
+      </TableCell>
+      <TableCell numeric className="font-mono text-label text-muted-foreground/60">
         {num(row.previous)}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   )
 }

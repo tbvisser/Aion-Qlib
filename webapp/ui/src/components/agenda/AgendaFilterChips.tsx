@@ -49,7 +49,7 @@ export function AgendaFilterChips({ value, counts, onChange }: {
             />
             {chip.label}
             {count !== null && count > 0 && (
-              <span className="tnum font-mono text-[10px] text-muted-foreground/70">
+              <span className="tnum font-mono text-micro text-muted-foreground/70">
                 {count}
               </span>
             )}

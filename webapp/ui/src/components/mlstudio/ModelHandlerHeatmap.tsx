@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { MicroLabel } from '@/components/ui/micro-label'
 import type { Run, RunReport } from '@/lib/api'
 import { metricRow } from '@/lib/runMetrics'
 import { cn } from '@/lib/utils'
@@ -76,22 +77,20 @@ export function ModelHandlerHeatmap({
         <div className="grid" style={{ gridTemplateColumns: `80px repeat(${handlers.length}, minmax(64px, 1fr))` }}>
           <div className="py-1" />
           {handlers.map((h) => (
-            <div key={h} className="px-1 py-1 text-center font-mono text-[9px] uppercase tracking-wider text-muted-foreground/70">
+            <MicroLabel as="div" key={h} className="px-1 py-1 text-center text-tiny">
               {h}
-            </div>
+            </MicroLabel>
           ))}
           {cells.map((row, i) => (
-            // eslint-disable-next-line react/no-array-index-key
             <div key={i} className="contents">
-              <div className="flex items-center py-1 pr-2 font-mono text-[9px] uppercase tracking-wider text-muted-foreground/70">
+              <MicroLabel as="div" className="flex items-center py-1 pr-2 text-tiny">
                 {models[i]}
-              </div>
+              </MicroLabel>
               {row.map((cell, j) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <div key={j} className="p-0.5">
+                    <div key={j} className="p-0.5">
                   <div
                     className={cn(
-                      'flex h-8 items-center justify-center rounded font-mono text-[10px]',
+                      'flex h-8 items-center justify-center rounded font-mono text-micro',
                       textColor(cell.ir),
                     )}
                     style={{ background: cellColor(cell.ir) }}

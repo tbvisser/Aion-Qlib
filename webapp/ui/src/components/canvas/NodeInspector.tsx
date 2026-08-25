@@ -58,11 +58,11 @@ function Selected({ node, registry, fields, editor, isRoot }: Props & { node: Ex
     <div className="space-y-4">
       <div>
         <div className="font-mono text-sm font-medium">{title}</div>
-        {spec && <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{spec.summary}</p>}
+        {spec && <p className="mt-1 text-label leading-relaxed text-muted-foreground">{spec.summary}</p>}
       </div>
 
       <Field label="Renders as">
-        <code className="block break-all rounded-lg bg-surface-2 p-2 font-mono text-[11px] leading-relaxed">
+        <code className="block break-all rounded-lg bg-surface-2 p-2 font-mono text-label leading-relaxed">
           {serializeNode(node, registry)}
         </code>
       </Field>
@@ -77,7 +77,7 @@ function Selected({ node, registry, fields, editor, isRoot }: Props & { node: Ex
                 <div className="flex items-center gap-2">
                   <code
                     className={cn(
-                      'min-w-0 flex-1 truncate rounded-md border border-border/50 bg-surface-2 px-2 py-1.5 font-mono text-[11px]',
+                      'min-w-0 flex-1 truncate rounded-md border border-border/50 bg-surface-2 px-2 py-1.5 font-mono text-label',
                       !child && 'border-dashed border-clay/40 text-clay',
                     )}
                   >
@@ -108,7 +108,7 @@ function Selected({ node, registry, fields, editor, isRoot }: Props & { node: Ex
                 key={name}
                 onClick={() => editor.setField(node.id, name)}
                 className={cn(
-                  'rounded-md border px-2 py-1 font-mono text-[11px] transition-colors',
+                  'rounded-md border px-2 py-1 font-mono text-label transition-colors',
                   name === node.name
                     ? 'border-primary/40 bg-foreground/[0.07]'
                     : 'border-border/50 hover:bg-foreground/[0.04]',
@@ -129,13 +129,13 @@ function Selected({ node, registry, fields, editor, isRoot }: Props & { node: Ex
                 key={other.name}
                 title={other.summary}
                 onClick={() => editor.replaceOp(node.id, other)}
-                className="rounded-md border border-border/50 px-2 py-1 font-mono text-[11px] transition-colors hover:bg-foreground/[0.04]"
+                className="rounded-md border border-border/50 px-2 py-1 font-mono text-label transition-colors hover:bg-foreground/[0.04]"
               >
                 {other.symbol ?? other.name}
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground sm:col-span-2">
+          <p className="text-label text-muted-foreground sm:col-span-2">
             Same shape, so the inputs stay where they are.
           </p>
         </Section>

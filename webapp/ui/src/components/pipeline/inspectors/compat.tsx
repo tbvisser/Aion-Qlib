@@ -1,16 +1,16 @@
 /**
  * The two lines every compatibility-aware control needs.
  *
- * Seven inspectors ask the same three questions of one field — what may it be
+ * Eight inspectors ask the same three questions of one field — what may it be
  * set to, is it currently wrong, and what are the ways out — and answering them
- * inline seven times is how six of them come to disagree with the seventh. The
+ * inline eight times is how seven of them come to disagree with the eighth. The
  * reading logic itself is in `lib/strategyOptions.ts`, which is plain `.ts` and
  * therefore testable; this is only the rendering of it.
  */
 import { Field, FieldProblem, type ChoiceOption } from '@/components/builder/FormControls'
 import type { StrategySpec } from '@/lib/api'
 import {
-  boundsFor, defectsFor, noteFor, optionsFor, quarantined, resolutions,
+  boundsFor, defectsFor, noteFor, optionsFor, resolutions,
 } from '@/lib/strategyOptions'
 import type { InspectorProps } from './types'
 
@@ -76,11 +76,6 @@ export function CompatField({
       />
     </Field>
   )
-}
-
-/** Whether a run would be refused because of this field. */
-export function isQuarantined(ctx: CompatCtx, field: keyof StrategySpec): boolean {
-  return quarantined(ctx.defects ?? []).has(field)
 }
 
 /**

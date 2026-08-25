@@ -6,6 +6,7 @@ import { JobProgress } from '@/components/JobProgress'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Panel } from '@/components/ui/panel'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { api, type ActivityItem, type ActivityKind } from '@/lib/api'
 import { formatStopwatch } from '@/lib/runDuration'
 import { RUN_PHASES, phaseIndex } from '@/lib/runPhases'
@@ -94,9 +95,9 @@ function LiveRow({ item, onChanged }: { item: ActivityItem; onChanged: () => voi
             'h-3.5 w-3.5 shrink-0',
             running ? 'text-primary' : 'text-muted-foreground/60',
           )} />
-          <span className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+          <MicroLabel className="truncate">
             {label}
-          </span>
+          </MicroLabel>
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
           {running
@@ -106,7 +107,7 @@ function LiveRow({ item, onChanged }: { item: ActivityItem; onChanged: () => voi
             <Button
               variant="ghost"
               size="sm"
-              className="h-5 px-1.5 text-[10px] text-muted-foreground hover:text-destructive"
+              className="h-5 px-1.5 text-micro text-muted-foreground hover:text-destructive"
               onClick={() => void cancel()}
               disabled={cancelling}
             >
@@ -120,14 +121,14 @@ function LiveRow({ item, onChanged }: { item: ActivityItem; onChanged: () => voi
         {item.kind === 'run' ? (
           <Link
             to={`/runs/${item.source_id}`}
-            className="min-w-0 truncate text-[13px] font-medium transition-colors hover:text-primary"
+            className="min-w-0 truncate text-body-sm font-medium transition-colors hover:text-primary"
           >
             {item.title}
           </Link>
         ) : (
-          <span className="min-w-0 truncate text-[13px] font-medium">{item.title}</span>
+          <span className="min-w-0 truncate text-body-sm font-medium">{item.title}</span>
         )}
-        <span className="tnum shrink-0 font-mono text-[11px] text-muted-foreground">
+        <span className="tnum shrink-0 font-mono text-label text-muted-foreground">
           {elapsed === null ? '—' : formatStopwatch(elapsed)}
           <span className="ml-1 text-muted-foreground/60">
             {running ? 'elapsed' : 'waiting'}
@@ -146,9 +147,9 @@ function LiveRow({ item, onChanged }: { item: ActivityItem; onChanged: () => voi
           running={running}
         />
       ) : (
-        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <MicroLabel as="div">
           {item.phase ?? 'Queued'}
-        </p>
+        </MicroLabel>
       )}
     </div>
   )
@@ -184,11 +185,11 @@ function StageTrack({ phase, running }: { phase: string | null; running: boolean
         ))}
       </div>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="min-w-0 truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <MicroLabel className="min-w-0 truncate">
           {current === null ? (phase ?? 'Queued') : RUN_PHASES[current]}
-        </span>
+        </MicroLabel>
         {current !== null && (
-          <span className="tnum shrink-0 font-mono text-[10px] text-muted-foreground/60">
+          <span className="tnum shrink-0 font-mono text-micro text-muted-foreground/60">
             {current + 1}/{RUN_PHASES.length}
           </span>
         )}

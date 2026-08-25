@@ -130,7 +130,7 @@ export function SkillList({
       </div>
 
       {loading ? (
-        <div className="text-xs text-muted-foreground py-2 px-3">Loading skills...</div>
+        <div className="text-xs text-muted-foreground py-2 px-3">Loading skills…</div>
       ) : skills.length === 0 ? (
         <div className="text-xs text-muted-foreground py-3 px-3 text-center">
           No skills yet. Click New Skill to create one.
@@ -283,13 +283,13 @@ function SkillNode({ skill, isSelectedSkill, selectedFileId, onSelectSkill, onSe
         <div className="flex items-center gap-1.5">
           <span className="text-sm truncate">{skill.name}</span>
           {skill.user_id === null && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-500 shrink-0">
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-micro font-medium text-primary shrink-0">
               <Globe className="h-2.5 w-2.5" />
               Global
             </span>
           )}
           {!skill.enabled && (
-            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shrink-0">
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-micro font-medium text-muted-foreground shrink-0">
               Disabled
             </span>
           )}
@@ -467,7 +467,7 @@ function SkillFileTree({
   return (
     <div className="ml-6 mr-2">
       {loading && (
-        <div className="text-xs text-muted-foreground py-1 px-3">Loading files...</div>
+        <div className="text-xs text-muted-foreground py-1 px-3">Loading files…</div>
       )}
       {creatingTopFolder && onSubmitTopFolderName && onCancelTopFolder && (
         <NewFolderInputRow
@@ -689,7 +689,7 @@ function SkillTreeNode({
                 disabled={deleting}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {deleting ? 'Deleting...' : 'Delete'}
+                {deleting ? 'Deleting…' : 'Delete'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -894,7 +894,7 @@ function SkillTreeNode({
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? 'Deleting...' : 'Delete'}
+              {deleting ? 'Deleting…' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

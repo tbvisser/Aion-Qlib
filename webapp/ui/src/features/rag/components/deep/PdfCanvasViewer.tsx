@@ -267,7 +267,7 @@ export function PdfCanvasViewer({ url, onError, targetPage, highlights = EMPTY_H
         overlay.dataset.testid = 'pdf-highlight-box'
         overlay.dataset.itemId = highlight.item_id || ''
         overlay.setAttribute('aria-hidden', 'true')
-        overlay.className = 'absolute rounded-sm border border-amber-500/80 bg-amber-300/35 shadow-[0_0_0_1px_rgba(245,158,11,0.18)]'
+        overlay.className = 'absolute rounded-sm border border-clay/80 bg-clay/35'
         overlay.style.left = `${box.left}px`
         overlay.style.top = `${box.top}px`
         overlay.style.width = `${box.width}px`

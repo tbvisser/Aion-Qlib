@@ -63,7 +63,7 @@ export function RailTabs<T extends string>({
             data-testid={`${testId ?? 'rail'}-tab-${tab.value}`}
             onClick={() => !off && onChange(tab.value)}
             className={cn(
-              'flex-1 border-b-2 px-2 py-2.5 font-mono text-[11px] uppercase tracking-wider transition-colors',
+              'flex-1 border-b-2 px-2 py-2.5 text-label uppercase tracking-wider transition-colors',
               off
                 ? 'cursor-not-allowed border-transparent text-muted-foreground/40'
                 : active
@@ -103,7 +103,7 @@ export function RailSection({
       <button
         onClick={() => setLocalOpen(!open)}
         aria-expanded={open}
-        className="flex w-full items-center gap-1.5 px-1 py-1.5 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-muted-foreground"
+        className="flex w-full items-center gap-1.5 px-1 py-1.5 text-left text-micro uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-muted-foreground"
       >
         <span className="min-w-0 flex-1 truncate">{label}</span>
         {count != null && <span className="shrink-0 tabular-nums">{count}</span>}
@@ -160,7 +160,7 @@ export function RailRow({
             : 'border-border/60 bg-surface-2 hover:bg-surface-3',
       )}
     >
-      <span className="min-w-0 flex-1 truncate text-[13px]">{label}</span>
+      <span className="min-w-0 flex-1 truncate text-body-sm">{label}</span>
       {badges}
     </button>
   )
@@ -200,15 +200,15 @@ export function RailTip({
       {/* Factor expressions run long and have no spaces to break on, so they
           are told to break anywhere rather than be clipped by the panel. */}
       {title && (
-        <p className="break-all font-mono text-[11px] leading-relaxed text-foreground">
+        <p className="break-all font-mono text-label leading-relaxed text-foreground">
           {title}
         </p>
       )}
-      {body && <p className="text-[11px] leading-relaxed text-popover-foreground">{body}</p>}
+      {body && <p className="text-label leading-relaxed text-popover-foreground">{body}</p>}
       {constraint && (
-        <p className="text-[11px] leading-relaxed text-clay">{constraint}</p>
+        <p className="text-label leading-relaxed text-clay">{constraint}</p>
       )}
-      {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-micro text-muted-foreground">{hint}</p>}
     </div>
   )
 }

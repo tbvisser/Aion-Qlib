@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
  * `destructive` is not offered here because an error is not a badge.
  */
 const badgeVariants = cva(
-  'inline-flex items-center rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider',
+  'inline-flex items-center rounded px-1.5 py-0.5 text-tiny uppercase tracking-wider',
   {
     variants: {
       variant: {

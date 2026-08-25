@@ -1,12 +1,12 @@
 /**
- * Where the seven stage cards sit: a narrow vertical stack with the hub above it.
+ * Where the eight stage cards sit: a narrow vertical stack with the hub above it.
  * Computed, never stored.
  *
  * `factorExpr/layout.ts` stores hand-placed positions because there the shape
  * is user-generated and unbounded, so "hand-placed wins" preserves a real
  * preference. None of that applies here:
  *
- *   - There is nothing to preserve. Seven nodes, fixed order, nothing to move.
+ *   - There is nothing to preserve. Eight nodes, fixed order, nothing to move.
  *   - There is nowhere to put them. `StrategySpec` is the wire contract,
  *     mirrored in `webapp/api/strategies.py`, persisted per strategy and
  *     carried by every template; a `positions` map would ship view state into
@@ -18,7 +18,7 @@
  *
  * ## Why a vertical stack
  *
- * Seven cards on a row was 1,988px wide. The ring that followed was compact but
+ * The cards on one row were 1,988px wide. The ring that followed was compact but
  * read as a geometric figure first and a pipeline second. A vertical stack keeps
  * the reading order explicit (top to bottom), makes each card narrower so the
  * whole column fits in a slim pane, and still leaves room for the hub above the
@@ -225,7 +225,7 @@ export function featureGridCentres(
 }
 
 /** The shape the chips take in each state. */
-export function featureChipCentres(
+function featureChipCentres(
   count: number,
   expanded: boolean,
   order: readonly StageId[] = STAGE_ORDER,

@@ -40,7 +40,7 @@ import { STAGES, STAGE_ORDER, type StageId } from './stages'
  * below are a fallback for a server too old to send paths rather than the
  * primary mechanism they used to be.
  */
-export const STAGE_BY_FIELD: ReadonlyMap<string, StageId> = new Map(
+const STAGE_BY_FIELD: ReadonlyMap<string, StageId> = new Map(
   STAGE_ORDER.flatMap((id) => STAGES[id].owns.map((f) => [f as string, id] as const)),
 )
 

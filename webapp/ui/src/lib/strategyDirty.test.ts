@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_STRATEGY } from '@/lib/api'
+import { DEFAULT_STRATEGY, type StoredStrategy } from '@/lib/api'
 import { dirtyFields, isDirty, saveState } from './strategyDirty'
 
 describe('isDirty', () => {
@@ -43,6 +43,30 @@ describe('isDirty', () => {
     const before = { ...DEFAULT_STRATEGY, features: [{ name: 'A', expression: '$close' }] }
     const after = { ...before, features: [{ name: 'A', expression: '$close' }] }
     expect(isDirty(after, before)).toBe(false)
+  })
+
+  /**
+   * After a save the baseline is the *server's* record, which carries id,
+   * timestamps, owner and visibility the edited spec never has. Those are
+   * bookkeeping, not edits: counting them made every strategy read
+   * "Unsaved edits" forever from the moment it was first saved.
+   */
+  it('ignores server bookkeeping when the baseline is a stored record', () => {
+    const stored: StoredStrategy = {
+      ...DEFAULT_STRATEGY,
+      id: 's1',
+      created_at: '2026-08-24T00:00:00Z',
+      updated_at: '2026-08-24T00:00:01Z',
+      user_id: 'u1',
+      visibility: 'private',
+    }
+    expect(isDirty(DEFAULT_STRATEGY, stored)).toBe(false)
+    // Opening a saved strategy seeds the spec from the stored record; a later
+    // save returns fresher timestamps. Still not an edit.
+    const resaved: StoredStrategy = { ...stored, updated_at: '2026-08-24T09:00:00Z' }
+    expect(isDirty(stored, resaved)).toBe(false)
+    // Real edits still show through.
+    expect(isDirty({ ...DEFAULT_STRATEGY, topk: 30 }, stored)).toBe(true)
   })
 })
 

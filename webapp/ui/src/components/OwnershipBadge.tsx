@@ -43,7 +43,7 @@ export function OwnershipBadge({
   if (!mine) {
     return (
       <span
-        className={`inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground ${className}`}
+        className={`inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-micro font-medium text-muted-foreground ${className}`}
         title="Shared with your workspace by a colleague. You can read it and run it, but only its owner can change it."
       >
         <Users className="h-3 w-3" />
@@ -54,7 +54,7 @@ export function OwnershipBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 ${className}`}
+      className={`inline-flex items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-micro font-medium text-primary ${className}`}
       title="Everyone in your workspace can see this. Only you can change it."
     >
       <Users className="h-3 w-3" />

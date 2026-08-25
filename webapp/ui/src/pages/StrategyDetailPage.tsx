@@ -3,8 +3,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Landmark, Loader2, Play, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { Notice } from '@/components/ui/notice'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { StrategyMacroReport } from '@/components/strategies/StrategyMacroReport'
 import { RunStatusIcon } from '@/components/runs/RunStatusIcon'
@@ -57,11 +60,9 @@ export function StrategyDetailPage() {
     return (
       <div className="p-6">
         <PageHeader title="Strategy" />
-        <Card className="mt-4 border-destructive/40">
-          <CardContent className="p-4 text-sm text-destructive">
-            {strategyError || 'Strategy not found.'}
-          </CardContent>
-        </Card>
+        <Notice tone="destructive" className="mt-4">
+          {strategyError || 'Strategy not found.'}
+        </Notice>
       </div>
     )
   }
@@ -128,7 +129,7 @@ export function StrategyDetailPage() {
                 <h3 className="text-sm font-medium">Latest run</h3>
                 <Link
                   to={`/runs/${latestSucceeded.id}`}
-                  className="font-mono text-[11px] text-primary hover:underline"
+                  className="font-mono text-label text-primary hover:underline"
                 >
                   {latestSucceeded.name} →
                 </Link>
@@ -188,7 +189,7 @@ function LinkedPortfolios({ portfolios }: { portfolios: Portfolio[] }) {
             </Link>
             <Link
               to={`/macro?portfolio=${portfolio.id}`}
-              className="inline-flex shrink-0 items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-primary"
+              className="inline-flex shrink-0 items-center gap-1 font-mono text-label text-muted-foreground hover:text-primary"
             >
               <Landmark className="h-3 w-3" /> Macro
             </Link>
@@ -210,7 +211,7 @@ function StrategyHeader({ strategy }: { strategy: StoredStrategy }) {
               {strategy.origin === 'official' ? 'Official' : 'Backtested'}
             </Badge>
           </div>
-          <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+          <p className="mt-1 font-mono text-label text-muted-foreground">
             {strategy.model} · {strategy.handler} · {strategy.universe} · {strategy.data_store}
             {' · '}vs {strategy.benchmark}
           </p>
@@ -234,7 +235,7 @@ function StrategyHeader({ strategy }: { strategy: StoredStrategy }) {
 function MetaTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border/50 p-3">
-      <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">{label}</div>
+      <MicroLabel as="div">{label}</MicroLabel>
       <div className="mt-1 text-xs">{value}</div>
     </div>
   )
@@ -247,73 +248,71 @@ function RunHistory({ runs, reports }: { runs: Run[]; reports: Record<string, Ru
         <CardTitle className="text-sm">Run history</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
-            <thead>
-              <tr className="text-left text-muted-foreground/70">
-                <th className="py-2 pr-4 font-mono font-normal uppercase tracking-wider">Status</th>
-                <th className="py-2 pr-4 font-normal">Name</th>
-                <th className="py-2 pr-4 font-mono font-normal uppercase tracking-wider">Period</th>
-                <th className="py-2 pr-4 font-mono font-normal uppercase tracking-wider text-right">IR</th>
-                <th className="py-2 pr-4 font-mono font-normal uppercase tracking-wider text-right">Ann. return</th>
-                <th className="py-2 pr-4 font-mono font-normal uppercase tracking-wider text-right">Max DD</th>
-                <th className="py-2 pr-4 font-mono font-normal uppercase tracking-wider text-right">Trades</th>
-                <th className="py-2 pr-4 font-normal"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {runs.map((run) => {
-                const report = reports[run.id]
-                const row = metricRow(run, report ?? undefined)
-                const ts = report?.trade_summary
-                return (
-                  <tr key={run.id} className="hover:bg-foreground/[0.02]">
-                    <td className="py-2 pr-4">
-                      <span className="flex items-center gap-1.5">
-                        <RunStatusIcon status={run.status} />
-                        <span className="font-mono text-[10px]">{run.status}</span>
-                      </span>
-                    </td>
-                    <td className="py-2 pr-4">
-                      <Link to={`/runs/${run.id}`} className="hover:text-primary hover:underline">
-                        {run.name}
-                      </Link>
-                    </td>
-                    <td className="py-2 pr-4 font-mono text-[10px] text-muted-foreground">
-                      {row.period ? `${row.period.start} → ${row.period.end}` : '—'}
-                    </td>
-                    <td className={cn('tnum py-2 pr-4 text-right', tone(row.ir))}>
-                      {row.ir == null ? '—' : row.ir.toFixed(3)}
-                    </td>
-                    <td className={cn('tnum py-2 pr-4 text-right', tone(row.annualised))}>
-                      {row.annualised == null ? '—' : `${(row.annualised * 100).toFixed(1)}%`}
-                    </td>
-                    <td className={cn('tnum py-2 pr-4 text-right', row.maxDrawdown == null ? '' : 'text-clay')}>
-                      {row.maxDrawdown == null ? '—' : `${(row.maxDrawdown * 100).toFixed(1)}%`}
-                    </td>
-                    <td className="tnum py-2 pr-4 text-right text-muted-foreground">
-                      {ts?.estimated_trades ?? estimateTrades(report?.daily?.turnover) ?? '—'}
-                    </td>
-                    <td className="py-2 pr-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-[11px]"
-                        onClick={async () => {
-                          await api.deleteRun(run.id)
-                          // Refresh handled by parent re-mount; simple reload here.
-                          window.location.reload()
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <Table className="text-xs">
+          <TableHead>
+            <tr>
+              <TableHeader>Status</TableHeader>
+              <TableHeader>Name</TableHeader>
+              <TableHeader>Period</TableHeader>
+              <TableHeader numeric>IR</TableHeader>
+              <TableHeader numeric>Ann. return</TableHeader>
+              <TableHeader numeric>Max DD</TableHeader>
+              <TableHeader numeric>Trades</TableHeader>
+              <TableHeader />
+            </tr>
+          </TableHead>
+          <TableBody>
+            {runs.map((run) => {
+              const report = reports[run.id]
+              const row = metricRow(run, report ?? undefined)
+              const ts = report?.trade_summary
+              return (
+                <TableRow key={run.id} className="hover:bg-foreground/[0.02]">
+                  <TableCell>
+                    <span className="flex items-center gap-1.5">
+                      <RunStatusIcon status={run.status} />
+                      <span className="font-mono text-micro">{run.status}</span>
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Link to={`/runs/${run.id}`} className="hover:text-primary hover:underline">
+                      {run.name}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="font-mono text-micro text-muted-foreground">
+                    {row.period ? `${row.period.start} → ${row.period.end}` : '—'}
+                  </TableCell>
+                  <TableCell numeric className={tone(row.ir)}>
+                    {row.ir == null ? '—' : row.ir.toFixed(3)}
+                  </TableCell>
+                  <TableCell numeric className={tone(row.annualised)}>
+                    {row.annualised == null ? '—' : `${(row.annualised * 100).toFixed(1)}%`}
+                  </TableCell>
+                  <TableCell numeric className={row.maxDrawdown == null ? '' : 'text-clay'}>
+                    {row.maxDrawdown == null ? '—' : `${(row.maxDrawdown * 100).toFixed(1)}%`}
+                  </TableCell>
+                  <TableCell numeric className="text-muted-foreground">
+                    {ts?.estimated_trades ?? estimateTrades(report?.daily?.turnover) ?? '—'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-label"
+                      onClick={async () => {
+                        await api.deleteRun(run.id)
+                        // Refresh handled by parent re-mount; simple reload here.
+                        window.location.reload()
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   )

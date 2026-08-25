@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
+import { cn } from '@/lib/utils'
+import { SkeletonText } from '@/components/ui/skeleton'
 import { SkillList } from '@/features/rag/components/skills/SkillList'
 import { SkillEditor } from '@/features/rag/components/skills/SkillEditor'
 import { SkillFilePreview } from '@/features/rag/components/skills/SkillFilePreview'
@@ -256,7 +258,7 @@ export function SkillsPage() {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Import feedback banner */}
         {importMessage && (
-          <div className={`px-4 py-2 text-sm ${importMessage.type === 'success' ? 'bg-green-500/10 text-green-600 border-b border-green-500/20' : 'bg-destructive/10 text-destructive border-b border-destructive/20'}`}>
+          <div className={cn('px-4 py-2 text-sm', importMessage.type === 'success' ? 'bg-primary/10 text-primary border-b border-primary/20' : 'bg-destructive/10 text-destructive border-b border-destructive/20')}>
             {importMessage.text}
           </div>
         )}
@@ -281,8 +283,8 @@ export function SkillsPage() {
               )}
             </>
           ) : urlSkillId && loading ? (
-            <div className="flex h-full w-full items-center justify-center">
-              <div className="text-muted-foreground">Loading...</div>
+            <div className="p-6">
+              <SkeletonText lines={4} />
             </div>
           ) : (
             <div className="relative flex-1">

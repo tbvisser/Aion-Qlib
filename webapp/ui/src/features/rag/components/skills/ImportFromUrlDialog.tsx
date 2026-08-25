@@ -75,7 +75,7 @@ export function ImportFromUrlDialog({ open, onOpenChange, onSubmit }: ImportFrom
             />
             <div className="text-xs text-muted-foreground space-y-1">
               <p>Accepts any of:</p>
-              <ul className="list-disc pl-4 space-y-0.5 font-mono text-[11px]">
+              <ul className="list-disc pl-4 space-y-0.5 font-mono text-label">
                 <li>https://www.skills.sh/anthropics/skills/docx</li>
                 <li>https://github.com/anthropics/skills/tree/main/document-skills/docx</li>
                 <li>npx skills add https://github.com/anthropics/skills --skill docx</li>

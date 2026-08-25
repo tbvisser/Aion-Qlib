@@ -32,7 +32,7 @@ export function DayDetail({
       title={agendaDayLabel(date, today)}
       hint={isoWeekday(date)}
       actions={sorted.length > 0 ? (
-        <span className="tnum font-mono text-[10px] text-muted-foreground/60">
+        <span className="tnum font-mono text-micro text-muted-foreground/60">
           {sorted.length}
         </span>
       ) : undefined}
@@ -56,7 +56,7 @@ export function DayDetail({
           />
         )}
         {beyondCoverage && (
-          <p className="border-t border-border/30 px-3 py-2 text-[10px] text-muted-foreground/60">
+          <p className="border-t border-border/30 px-3 py-2 text-micro text-muted-foreground/60">
             Only economic releases are shown this far back — the other lanes
             keep recent items only.
           </p>

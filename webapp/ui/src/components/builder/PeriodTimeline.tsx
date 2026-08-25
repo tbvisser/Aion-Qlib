@@ -55,7 +55,7 @@ export function PeriodTimeline({ spec, explain, className }: {
             )}
             style={{ left: `${band.leftPct}%`, width: `${band.widthPct}%` }}
           >
-            <span className="truncate px-1 font-mono text-[9px] uppercase tracking-wider text-foreground/70">
+            <span className="truncate px-1 font-mono text-tiny uppercase tracking-wider text-foreground/70">
               {band.widthPct > 12 ? band.label : ''}
             </span>
           </div>
@@ -81,7 +81,7 @@ export function PeriodTimeline({ spec, explain, className }: {
         ))}
       </div>
 
-      <div className="flex items-baseline justify-between font-mono text-[10px] text-muted-foreground/70">
+      <div className="flex items-baseline justify-between font-mono text-micro text-muted-foreground/70">
         <span>{chart.start}</span>
         {chart.clamped && <span className="text-clay">the run stops early</span>}
         <span>{chart.end}</span>

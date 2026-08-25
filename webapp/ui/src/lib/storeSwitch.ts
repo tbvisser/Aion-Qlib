@@ -35,6 +35,11 @@ export function selectableUniverses(store: DataStore | undefined): string[] {
  *               `unknown_benchmark` check is what reports it — guessing here
  *               would overwrite a deliberate choice with a blank.
  *   test_end    the new store's last safely-backtestable date, when it has one.
+ *   the window  every period date is clamped into the new store's calendar.
+ *               Moving only `test_end` could leave `test_end < test_start` —
+ *               or a train window entirely before the store's first bar — and
+ *               the failure then surfaced as a server warning one debounced
+ *               round-trip later instead of at the edit that caused it.
  */
 export function applyStore(
   spec: StrategySpec, stores: readonly DataStore[], key: string,
@@ -45,6 +50,15 @@ export function applyStore(
   const universes = selectableUniverses(next)
   const benchmarks = next.benchmarks ?? []
 
+  // ISO dates compare lexicographically. Dates already inside the calendar
+  // pass through untouched, so ordering is preserved; a window entirely
+  // outside collapses onto the bound, which the preview reports immediately.
+  const clamp = (date: string): string => {
+    if (next.calendar_start && date < next.calendar_start) return next.calendar_start
+    if (next.calendar_end && date > next.calendar_end) return next.calendar_end
+    return date
+  }
+
   return {
     ...spec,
     data_store: next.key,
@@ -52,6 +66,11 @@ export function applyStore(
     benchmark: benchmarks.length && !benchmarks.includes(spec.benchmark)
       ? benchmarks[0]
       : spec.benchmark,
+    train_start: clamp(spec.train_start),
+    train_end: clamp(spec.train_end),
+    valid_start: clamp(spec.valid_start),
+    valid_end: clamp(spec.valid_end),
+    test_start: clamp(spec.test_start),
     test_end: next.calendar_end ?? spec.test_end,
   }
 }

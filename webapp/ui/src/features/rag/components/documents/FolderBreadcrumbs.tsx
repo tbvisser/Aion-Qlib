@@ -44,7 +44,7 @@ export function FolderBreadcrumbs({ folderId, folderName, onNavigate, onFolderNa
   if (loading) {
     return (
       <h1 className="text-2xl font-semibold tracking-tight text-muted-foreground">
-        Loading...
+        Loading…
       </h1>
     )
   }

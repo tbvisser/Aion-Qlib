@@ -13,10 +13,27 @@ export default {
         serif: ['Hanken Grotesk', 'system-ui', 'sans-serif'],
         mono: ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
+      // The app's micro type scale, named after years of drift toward the same
+      // five arbitrary values (text-[10px] ×346, text-[11px] ×300, …). Plain
+      // strings, not [size, line-height] tuples: arbitrary text-[Npx] only set
+      // font-size and inherited line-height, so tuples would silently change
+      // leading at hundreds of call sites. No new arbitrary text-[Npx] — pick
+      // the nearest step.
+      fontSize: {
+        tiny: '9px',
+        micro: '10px',
+        label: '11px',
+        caption: '12px',
+        'body-sm': '13px',
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        // Card/Panel radius. Resolves to the same 12px as stock rounded-xl at
+        // --radius: 10px, but keeps every container on the ladder if upstream
+        // ever retunes --radius.
+        xl: 'calc(var(--radius) + 2px)',
       },
       colors: {
         background: 'hsl(var(--background))',
@@ -67,6 +84,8 @@ export default {
           1: 'hsl(var(--surface-1))',
           2: 'hsl(var(--surface-2))',
           3: 'hsl(var(--surface-3))',
+          // Sidebar chrome (see --surface-rail in index.css)
+          rail: 'hsl(var(--surface-rail))',
         },
       },
       boxShadow: {

@@ -181,7 +181,7 @@ export function FolderNode({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Globe className="h-4 w-4 text-blue-500 shrink-0" />
+                  <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
                 </TooltipTrigger>
                 <TooltipContent>Shared with all users</TooltipContent>
               </Tooltip>
@@ -209,7 +209,7 @@ export function FolderNode({
             className="text-xs text-muted-foreground py-1"
             style={{ paddingLeft: `${(level + 1) * 16 + 8}px` }}
           >
-            Loading...
+            Loading…
           </div>
         )}
         {children.map((child) => (

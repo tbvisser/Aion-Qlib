@@ -22,6 +22,8 @@
  * queued run says exactly that. Do not multiplex EventSources.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+import { useConfirmClick } from '@/hooks/useConfirmClick'
 import { Link } from 'react-router-dom'
 import {
   ChevronDown, ChevronUp, Columns2, ExternalLink, ListTree, Trash2,
@@ -32,6 +34,7 @@ import { RunLog } from '@/components/runs/RunLog'
 import { RunStatusIcon } from '@/components/runs/RunStatusIcon'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { isActive, useRunStream } from '@/hooks/useRunStream'
 import { useRunReports } from '@/hooks/useRunReports'
 import type { Run, RunReport } from '@/lib/api'
@@ -91,9 +94,12 @@ export function BacktestsPanel({
   // its numbers without each row opening its own request.
   const { reports } = useRunReports(open ? runs.slice(0, REPORT_LIMIT) : [])
 
+  // Persistence belongs to whoever owns the state: `useBacktestsOpen` already
+  // writes the key inside its setter, so writing it here too meant the flag
+  // and the live state could disagree whenever `onOpenChange` fired from
+  // anywhere but this button.
   const toggle = useCallback(() => {
     onOpenChange(!open)
-    window.localStorage.setItem(OPEN_KEY, open ? '0' : '1')
   }, [open, onOpenChange])
 
   // A newly started run expands its row and opens the panel. A run restored
@@ -123,7 +129,7 @@ export function BacktestsPanel({
         <ListTree className="h-4 w-4 text-muted-foreground" />
         Backtests
         {runs.length > 0 && (
-          <span className="tnum font-mono text-[10px] text-muted-foreground/70">{runs.length}</span>
+          <span className="tnum font-mono text-micro text-muted-foreground/70">{runs.length}</span>
         )}
         {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
@@ -131,14 +137,14 @@ export function BacktestsPanel({
       {open && (
         <div className="mt-2 min-h-0 space-y-4 overflow-y-auto rounded-xl border border-border/50 bg-card p-3 shadow-card">
           {groups.length === 0 ? (
-            <p className="px-1 py-4 text-[11px] text-muted-foreground">
+            <p className="px-1 py-4 text-label text-muted-foreground">
               Nothing run yet. Backtests started here land in this list.
             </p>
           ) : (
             // Said once, at the top, rather than in every column heading. All
             // three figures come from `excess_return_with_cost`, and repeating
             // the qualifier three times per row would crowd out the numbers.
-            <p className="-mb-1 px-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/50">
+            <p className="-mb-1 px-1 font-mono text-micro uppercase tracking-wider text-muted-foreground/50">
               excess of benchmark · net of cost
             </p>
           )}
@@ -151,19 +157,19 @@ export function BacktestsPanel({
               <div className="mb-1.5 flex items-baseline gap-2">
                 <span
                   title={group.label}
-                  className="min-w-0 flex-1 truncate text-[13px] font-medium"
+                  className="min-w-0 flex-1 truncate text-body-sm font-medium"
                 >
                   {group.label}
                 </span>
-                <span className="tnum shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+                <MicroLabel className="tnum shrink-0">
                   {group.runs.length} run{group.runs.length === 1 ? '' : 's'}
-                </span>
+                </MicroLabel>
                 {group.runs.filter((r) => r.status === 'succeeded').length >= 2 && (
                   <button
                     data-testid={`compare-${group.key}`}
                     onClick={() => setComparing(group.key)}
                     title="Put these attempts side by side"
-                    className="flex shrink-0 items-center gap-1 rounded-md border border-border/50 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors hover:bg-surface-3"
+                    className="flex shrink-0 items-center gap-1 rounded-md border border-border/50 px-1.5 py-0.5 font-mono text-micro uppercase tracking-wider transition-colors hover:bg-surface-3"
                   >
                     <Columns2 className="h-3 w-3" />
                     Compare
@@ -233,7 +239,6 @@ function RunRow({
   /** Present only on the one run this panel is streaming. */
   live?: LiveProps
 }) {
-  const [confirming, setConfirming] = useState(false)
   const done = run.status === 'succeeded'
   const active = isActive(run)
   const metrics = metricRow(run, report)
@@ -241,11 +246,7 @@ function RunRow({
 
   // Inline two-click, matching the rail's own delete idiom: a run is a result,
   // not authored work, and the row is too dense for a dialog.
-  useEffect(() => {
-    if (!confirming) return
-    const t = setTimeout(() => setConfirming(false), 4000)
-    return () => clearTimeout(t)
-  }, [confirming])
+  const { confirming, fire, disarm } = useConfirmClick()
 
   return (
     <div className="mb-1.5 overflow-hidden rounded-lg border border-border/50 bg-surface-2">
@@ -254,7 +255,7 @@ function RunRow({
             truncated to about two characters, which named nothing. */}
         <div className="flex w-14 shrink-0 items-center gap-1.5">
           <RunStatusIcon status={run.status} />
-          <span className="tnum text-[13px] font-medium">#{ordinal}</span>
+          <span className="tnum text-body-sm font-medium">#{ordinal}</span>
         </div>
 
         {done ? (
@@ -268,10 +269,10 @@ function RunRow({
           </>
         ) : (
           <div className="min-w-0 flex-1">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+            <MicroLabel as="div">
               {run.status}
-            </div>
-            <div className="truncate text-[13px] text-muted-foreground">
+            </MicroLabel>
+            <div className="truncate text-body-sm text-muted-foreground">
               {active ? run.phase : (run.universe ?? run.model ?? '—')}
             </div>
           </div>
@@ -282,7 +283,7 @@ function RunRow({
           disabled={!done}
           onClick={onOpenReport}
           className={cn(
-            'shrink-0 rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors',
+            'shrink-0 rounded-md border px-2 py-1 font-mono text-micro uppercase tracking-wider transition-colors',
             done
               ? 'border-primary/50 text-primary hover:bg-primary/10'
               : 'cursor-not-allowed border-transparent text-muted-foreground/40',
@@ -297,18 +298,14 @@ function RunRow({
         {!active && (
           <button
             data-testid={`backtest-delete-${run.id}`}
-            onClick={() => {
-              if (!confirming) { setConfirming(true); return }
-              setConfirming(false)
-              void onDelete()
-            }}
-            onMouseLeave={() => setConfirming(false)}
+            onClick={() => fire(() => void onDelete())}
+            onMouseLeave={disarm}
             title={confirming ? 'Click again to delete' : 'Delete this run'}
             className={cn('shrink-0 transition-colors',
                           confirming ? 'text-clay' : 'text-muted-foreground/50 hover:text-foreground')}
           >
             {confirming
-              ? <span className="font-mono text-[10px] uppercase tracking-wider">sure?</span>
+              ? <span className="font-mono text-micro uppercase tracking-wider">sure?</span>
               : <Trash2 className="h-3.5 w-3.5" />}
           </button>
         )}
@@ -336,12 +333,12 @@ function LiveBody({ run, live }: { run: Run; live: LiveProps }) {
     <div className="border-t border-border/50">
       <div className="flex items-center gap-2 px-3 py-1.5">
         <Elapsed run={run} />
-        <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <MicroLabel className="shrink-0">
           {run.status === 'queued' ? 'waiting for the running backtest' : 'usually a few minutes'}
-        </span>
+        </MicroLabel>
         {live.stalled && (
           <span
-            className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-clay"
+            className="shrink-0 font-mono text-micro uppercase tracking-wider text-clay"
             title="Lost the event stream; retrying. The backtest itself is unaffected."
           >
             reconnecting
@@ -350,7 +347,7 @@ function LiveBody({ run, live }: { run: Run; live: LiveProps }) {
         <Button
           variant="outline"
           size="sm"
-          className="ml-auto h-6 shrink-0 px-2 text-[10px]"
+          className="ml-auto h-6 shrink-0 px-2 text-micro"
           disabled={live.cancelling}
           onClick={live.cancel}
         >
@@ -371,7 +368,7 @@ function FinishedBody({ run, report, metrics, changed }: {
   changed: string | null
 }) {
   return (
-    <div className="space-y-1 border-t border-border/50 px-3 py-2 font-mono text-[10px]">
+    <div className="space-y-1 border-t border-border/50 px-3 py-2 font-mono text-micro">
       {/* What it was, first. "Experiment" and "Recorder" are mlflow's
           vocabulary, not the reader's, and they used to lead. */}
       <Detail
@@ -406,7 +403,7 @@ function FinishedBody({ run, report, metrics, changed }: {
       )}
 
       {run.error_hint && (
-        <p className="pt-1 font-sans text-[11px] leading-relaxed text-clay">{run.error_hint}</p>
+        <p className="pt-1 font-sans text-label leading-relaxed text-clay">{run.error_hint}</p>
       )}
       {run.error && (
         <details className="pt-1">
@@ -425,7 +422,7 @@ function FinishedBody({ run, report, metrics, changed }: {
       <div className="pt-1">
         <Link
           to={`/runs/${run.id}`}
-          className="inline-flex items-center gap-1 font-sans text-[11px] text-primary hover:underline"
+          className="inline-flex items-center gap-1 font-sans text-label text-primary hover:underline"
         >
           Open on the Runs page
           <ExternalLink className="h-3 w-3" />
@@ -499,12 +496,12 @@ function Metric({ run, report, name, value }: {
           : METRIC_LABEL[name]}
       className="min-w-0 flex-1"
     >
-      <div className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="truncate">
         {METRIC_HEAD[name]}
-      </div>
+      </MicroLabel>
       <div
         className={cn(
-          'tnum truncate font-mono text-[13px]',
+          'tnum truncate font-mono text-body-sm',
           // An implausible run's numbers read clay whatever their sign. A mint
           // `+7,532,752%` looks like the best backtest ever run; it is a broken
           // one, and the tooltip says which part broke.
@@ -548,7 +545,7 @@ function Elapsed({ run }: { run: Run }) {
   const mm = String(Math.floor(seconds / 60)).padStart(2, '0')
   const ss = String(seconds % 60).padStart(2, '0')
   return (
-    <span className="tnum shrink-0 font-mono text-[10px] text-muted-foreground">{mm}:{ss}</span>
+    <span className="tnum shrink-0 font-mono text-micro text-muted-foreground">{mm}:{ss}</span>
   )
 }
 

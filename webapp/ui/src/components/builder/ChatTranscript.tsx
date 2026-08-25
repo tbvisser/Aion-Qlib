@@ -11,7 +11,7 @@
  * Both surfaces render this now, so there is one answer to "what does an
  * in-flight turn look like" rather than two that drift.
  */
-import { useEffect, useRef } from 'react'
+import { Fragment, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ArrowUp, Square } from 'lucide-react'
@@ -22,20 +22,24 @@ import { ToolCard } from '@/components/chat/ToolCard'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import type { StrategySpec } from '@/lib/api'
-import { isProposal, type Proposal } from '@/lib/chat'
-import type { BuilderChat } from '@/hooks/useBuilderChat'
+import { isProposal, type Proposal, type ToolEvent } from '@/lib/chat'
+import type { ProposalChat } from '@/hooks/useProposalChat'
 import { cn } from '@/lib/utils'
 
-export function ChatTranscript({ chat, spec, onApply, primaryLabel, className }: {
-  chat: BuilderChat
-  /** The strategy on screen, for the proposal's change list. */
-  spec: StrategySpec
-  onApply: (spec: StrategySpec) => void
-  /** The proposal card's primary button. Differs between the two surfaces. */
-  primaryLabel?: string
+/**
+ * The message loop itself — user bubbles, markdown answers, the thinking mark,
+ * the error line, and the keep-scrolled-to-the-end behaviour — with the tool
+ * rendering left to the caller, because that is the only part the two builders
+ * disagree on. The keycard dock used to re-implement all of this by hand and
+ * had quietly lost markdown, error display and the auto-scroll in the fork.
+ */
+export function ChatMessages({ chat, renderTool, className }: {
+  chat: ProposalChat
+  /** Render one tool call. `key` is the stable tool-call key the applied/dismissed sets use. */
+  renderTool: (tool: ToolEvent, key: string) => React.ReactNode
   className?: string
 }) {
-  const { messages, streaming, error, applied, dismissed, markApplied, markDismissed } = chat
+  const { messages, streaming, error } = chat
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -57,25 +61,7 @@ export function ChatTranscript({ chat, spec, onApply, primaryLabel, className }:
                 // `${i}-${j}` key moved whenever the message list shifted, so
                 // an applied proposal could re-key onto a different one.
                 const key = t.id || `${i}-${j}`
-                if (t.name === 'propose_strategy' && isProposal(t.result)
-                    && !dismissed.has(key)) {
-                  return (
-                    <ProposalCard
-                      key={key}
-                      proposal={t.result as Proposal}
-                      current={spec}
-                      applied={applied.has(key)}
-                      primaryLabel={primaryLabel}
-                      onApply={() => {
-                        const proposal = t.result as Proposal
-                        markApplied(key, proposal)
-                        onApply(proposal.spec as unknown as StrategySpec)
-                      }}
-                      onDismiss={() => markDismissed(key)}
-                    />
-                  )
-                }
-                return <ToolCard key={key} tool={t} />
+                return <Fragment key={key}>{renderTool(t, key)}</Fragment>
               })}
               {m.content ? (
                 <div className="prose prose-sm max-w-none text-sm dark:prose-invert">
@@ -98,12 +84,51 @@ export function ChatTranscript({ chat, spec, onApply, primaryLabel, className }:
       ))}
 
       {error && (
-        <p className="rounded-lg border border-destructive/40 p-3 font-mono text-[11px] text-destructive">
+        <p className="rounded-lg border border-destructive/40 p-3 font-mono text-label text-destructive">
           {error}
         </p>
       )}
       <div ref={endRef} />
     </div>
+  )
+}
+
+export function ChatTranscript({ chat, spec, onApply, primaryLabel, className }: {
+  chat: ProposalChat
+  /** The strategy on screen, for the proposal's change list. */
+  spec: StrategySpec
+  onApply: (spec: StrategySpec) => void
+  /** The proposal card's primary button. Differs between the two surfaces. */
+  primaryLabel?: string
+  className?: string
+}) {
+  const { applied, dismissed, markApplied, markDismissed } = chat
+
+  return (
+    <ChatMessages
+      chat={chat}
+      className={className}
+      renderTool={(t, key) => {
+        if (t.name === 'propose_strategy' && isProposal(t.result)
+            && !dismissed.has(key)) {
+          return (
+            <ProposalCard
+              proposal={t.result as Proposal}
+              current={spec}
+              applied={applied.has(key)}
+              primaryLabel={primaryLabel}
+              onApply={() => {
+                const proposal = t.result as Proposal
+                markApplied(key, proposal)
+                onApply(proposal.spec as unknown as StrategySpec)
+              }}
+              onDismiss={() => markDismissed(key)}
+            />
+          )
+        }
+        return <ToolCard tool={t} />
+      }}
+    />
   )
 }
 

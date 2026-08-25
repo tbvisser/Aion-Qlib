@@ -57,10 +57,10 @@ const PDF_THUMBNAIL_INSET_Y_RATIO = 0.08
 
 function StatusIcon({ status }: { status: Document['status'] }) {
   const styles = {
-    pending: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300',
-    processing: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-300',
-    completed: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-300',
-    failed: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/20 dark:text-red-300',
+    pending: 'border-clay/30 bg-clay/10 text-clay',
+    processing: 'border-border/50 bg-muted text-muted-foreground',
+    completed: 'border-primary/20 bg-primary/10 text-primary',
+    failed: 'border-destructive/20 bg-destructive/10 text-destructive',
   }
   const labels = {
     pending: 'Pending',
@@ -80,9 +80,9 @@ function StatusIcon({ status }: { status: Document['status'] }) {
     <span
       aria-label={labels[status]}
       title={labels[status]}
-      className={`absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full border shadow-sm ${styles[status]}`}
+      className={cn('absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full border shadow-sm', styles[status])}
     >
-      <IconComponent className={`h-4 w-4 ${status === 'processing' ? 'animate-spin' : ''}`} aria-hidden="true" />
+      <IconComponent className={cn('h-4 w-4', status === 'processing' && 'animate-spin')} aria-hidden="true" />
     </span>
   )
 }
@@ -437,7 +437,7 @@ function DocumentThumbnail({ doc }: { doc: Document }) {
   return (
     <div
       ref={containerRef}
-      className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md bg-slate-100 transition-colors group-hover:bg-slate-200/70 dark:bg-surface-3 dark:group-hover:bg-muted/70"
+      className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md bg-muted/40 transition-colors group-hover:bg-muted/60"
     >
       {thumbnailUrl && imagePreview && renderState === 'ready' && (
         <img
@@ -640,7 +640,7 @@ export function DocumentList({
   const selectionActive = selectedIds.size > 0
 
   if (loading && documents.length === 0 && folders.length === 0) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>
+    return <p className="text-sm text-muted-foreground">Loading…</p>
   }
 
   const hasFilters = statusFilter !== 'all' || fileTypeFilter !== 'all'
@@ -673,7 +673,7 @@ export function DocumentList({
               onClick={() => onSelectFolder(folder.id, folder.name)}
               className="flex h-12 items-center gap-3 rounded-md border border-transparent bg-muted/60 px-3 text-left transition-colors hover:border-border hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
             >
-              <FolderIcon className="h-5 w-5 shrink-0 text-slate-600 dark:text-slate-300" />
+              <FolderIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
               <span className="min-w-0 truncate text-sm font-medium text-foreground" title={folder.name}>
                 {folder.name}
               </span>
@@ -699,7 +699,7 @@ export function DocumentList({
                   onChange={e => setSortBy(e.target.value as SortOption)}
                   className="px-3 py-1.5 text-sm border border-border/50 rounded-lg bg-surface-2 focus:outline-none focus:ring-2 focus:ring-ring/20 transition-colors"
                 >
-                  <option value="uploaded_desc">Date Uploaded</option>
+                  <option value="uploaded_desc">Date uploaded</option>
                   <option value="name_asc">Name A-Z</option>
                   <option value="name_desc">Name Z-A</option>
                 </select>
@@ -750,7 +750,7 @@ export function DocumentList({
                 }}
                 className="text-muted-foreground hover:text-foreground"
               >
-                Clear Filters
+                Clear filters
               </Button>
             )}
           </>
@@ -763,7 +763,7 @@ export function DocumentList({
             type="text"
             value={searchValue}
             onChange={e => onSearchChange(e.target.value)}
-            placeholder="Search documents..."
+            placeholder="Search documents…"
             aria-label="Search documents"
             className="pl-9 pr-8 h-9"
           />
@@ -860,11 +860,11 @@ export function DocumentList({
                           className="space-y-1 pt-1"
                           data-testid={`document-progress-${doc.id}`}
                         >
-                          <div className="flex min-w-0 items-center justify-between gap-2 text-[11px] leading-tight">
+                          <div className="flex min-w-0 items-center justify-between gap-2 text-label leading-tight">
                             <span
                               className={cn(
                                 'min-w-0 truncate',
-                                doc.status === 'failed' ? 'text-red-600 dark:text-red-300' : 'text-muted-foreground',
+                                doc.status === 'failed' ? 'text-destructive' : 'text-muted-foreground',
                               )}
                               title={progressMessage}
                             >
@@ -879,10 +879,10 @@ export function DocumentList({
                               className={cn(
                                 'h-full rounded-full transition-all duration-500',
                                 doc.status === 'failed'
-                                  ? 'bg-red-500'
+                                  ? 'bg-destructive'
                                   : doc.status === 'pending'
-                                    ? 'bg-amber-500'
-                                    : 'bg-blue-500',
+                                    ? 'bg-clay'
+                                    : 'bg-primary',
                               )}
                               style={{ width: `${progress}%` }}
                             />
@@ -935,10 +935,10 @@ export function DocumentList({
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-              Loading more...
+              Loading more…
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Scroll for more...</p>
+            <p className="text-sm text-muted-foreground">Scroll for more…</p>
           )}
         </div>
       )}

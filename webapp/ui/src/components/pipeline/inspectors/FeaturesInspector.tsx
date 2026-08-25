@@ -1,5 +1,5 @@
 /**
- * Stage 03 — what the model sees.
+ * Stage 04 — what the model sees.
  *
  * `handler` is here rather than with the learner because it *is* a feature set
  * — the old `LearnerLine` labelled it exactly that — and `feature_mode` is
@@ -48,13 +48,15 @@ export function FeaturesInspector(props: InspectorProps) {
       <Field label="Your columns" hint={columns.length ? undefined : 'None yet — the handler’s own set is used as it is.'}>
         {columns.length > 0 && (
           <div className="mb-2 space-y-1">
-            {columns.map((c) => (
+            {/* Not the name alone: duplicate names are a validated-but-present
+                draft state, and duplicate keys drop a row. */}
+            {columns.map((c, i) => (
               <div
-                key={c.name}
+                key={`${i}-${c.name}`}
                 className="flex items-baseline gap-2 rounded-lg border border-border/60 bg-surface-2 px-2.5 py-1.5"
               >
-                <span className="shrink-0 font-mono text-[11px] font-medium">{c.name}</span>
-                <span className="truncate font-mono text-[10px] text-muted-foreground/70" title={c.expression}>
+                <span className="shrink-0 font-mono text-label font-medium">{c.name}</span>
+                <span className="truncate font-mono text-micro text-muted-foreground/70" title={c.expression}>
                   {c.expression}
                 </span>
               </div>

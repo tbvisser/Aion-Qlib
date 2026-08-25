@@ -1,10 +1,10 @@
 /**
- * What the seven cards add up to, at the top of the vertical stack.
+ * What the eight cards add up to, at the top of the vertical stack.
  *
  * A dumb printer, like `StageNodeCard`: every number comes from `toHubNode`,
  * derived from the same badges the cards wear, so the hub cannot disagree with
  * the stack below it. Deliberately *not* a stage card -- `bg-surface-2` and
- * `rounded-2xl`, so it reads as a summary rather than an eighth stage.
+ * `rounded-2xl`, so it reads as a summary rather than a ninth stage.
  */
 import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
@@ -43,7 +43,7 @@ export const StageHubCard = memo(function StageHubCard({
         blocking === 0 ? 'border-border shadow-glow' : 'border-clay/40',
       )}
     >
-      <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground/60">
+      <span className="font-mono text-tiny uppercase tracking-[0.14em] text-muted-foreground/60">
         Strategy
       </span>
 
@@ -54,7 +54,7 @@ export const StageHubCard = memo(function StageHubCard({
         {name}
       </div>
 
-      <div className="tnum font-mono text-[10px] text-muted-foreground">
+      <div className="tnum font-mono text-micro text-muted-foreground">
         {ready} of {total} ready
       </div>
 

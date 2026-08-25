@@ -29,24 +29,14 @@ const WEEKDAY_TO_NUM: Record<string, number> = {
   Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
 }
 
-const MINS_PER_DAY = 24 * 60
-
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + m
 }
 
-function formatDuration(mins: number): string {
-  const h = Math.floor(mins / 60)
-  const m = mins % 60
-  return h > 0 ? `${h}h ${m}m` : `${m}m`
-}
-
 type MarketStatus = {
   localTime: string
   isOpen: boolean
-  /** e.g. "closes in 3h 12m" or "opens in 45m" */
-  nextChange: string
 }
 
 /**
@@ -74,51 +64,22 @@ export function computeMarketStatus(now: Date, ex: Exchange): MarketStatus {
   const isTradingDay = ex.days.includes(weekdayNum)
   const isOpen = isTradingDay && nowMin >= openMin && nowMin < closeMin
 
-  let nextChange: string
-  if (isOpen) {
-    nextChange = `closes in ${formatDuration(closeMin - nowMin)}`
-  } else if (isTradingDay && nowMin < openMin) {
-    nextChange = `opens in ${formatDuration(openMin - nowMin)}`
-  } else {
-    // Roll forward to the next trading day's open.
-    const minsUntilMidnight = MINS_PER_DAY - nowMin
-    let total = 0
-    for (let d = 1; d <= 7; d++) {
-      const candidate = (weekdayNum + d) % 7
-      if (ex.days.includes(candidate)) {
-        total = minsUntilMidnight + (d - 1) * MINS_PER_DAY + openMin
-        break
-      }
-    }
-    nextChange = `opens in ${formatDuration(total)}`
-  }
-
-  return { localTime, isOpen, nextChange }
+  return { localTime, isOpen }
 }
 
 function MarketCell({ ex, now }: { ex: Exchange; now: Date }) {
-  const { localTime, isOpen, nextChange } = computeMarketStatus(now, ex)
+  const { localTime, isOpen } = computeMarketStatus(now, ex)
   return (
-    <div className="flex flex-col items-center gap-1 rounded-lg border border-border/40 bg-card px-3 py-2">
-      <div className="flex items-center gap-1.5">
-        <span
-          className={cn(
-            'h-1.5 w-1.5 rounded-full',
-            isOpen ? 'bg-primary' : 'bg-muted-foreground/40',
-          )}
-        />
-        <span className="text-xs font-medium text-foreground">{ex.city}</span>
-      </div>
-      <span className="font-mono text-sm tabular-nums text-foreground">{localTime}</span>
+    <div className="flex items-center gap-2 px-3 py-1.5">
       <span
+        title={isOpen ? 'Open' : 'Closed'}
         className={cn(
-          'text-[10px] font-semibold uppercase tracking-wide',
-          isOpen ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground',
+          'h-2 w-2 shrink-0 rounded-full',
+          isOpen ? 'bg-primary' : 'bg-muted-foreground/30',
         )}
-      >
-        {isOpen ? 'Open' : 'Closed'}
-      </span>
-      <span className="font-mono text-[10px] tabular-nums text-muted-foreground">{nextChange}</span>
+      />
+      <span className="text-sm font-medium text-foreground">{ex.city}</span>
+      <span className="font-mono text-sm tabular-nums text-muted-foreground">{localTime}</span>
     </div>
   )
 }
@@ -132,17 +93,27 @@ export function MarketHoursWidget() {
   }, [])
 
   const cells = useMemo(
-    () => EXCHANGES.map((ex) => <MarketCell key={ex.key} ex={ex} now={now} />),
+    () =>
+      EXCHANGES.map((ex, i) => (
+        <div key={ex.key} className="flex items-center">
+          <MarketCell ex={ex} now={now} />
+          {i < EXCHANGES.length - 1 && (
+            <span className="h-3.5 w-px bg-border/60" aria-hidden="true" />
+          )}
+        </div>
+      )),
     [now],
   )
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-2 flex items-center justify-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="mb-1.5 flex items-center justify-center gap-1.5 text-micro uppercase tracking-wider text-muted-foreground/70">
         <Globe className="h-3.5 w-3.5" />
         Markets
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{cells}</div>
+      <div className="flex flex-wrap items-center justify-center rounded-xl border border-border/40 bg-card/50 px-2 py-1">
+        {cells}
+      </div>
     </div>
   )
 }

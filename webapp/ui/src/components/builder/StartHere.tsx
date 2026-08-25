@@ -24,6 +24,7 @@ import { ChatComposer, ChatTranscript } from './ChatTranscript'
 import { TemplateDetail } from './TemplateRail'
 import { AionMark } from '@/components/AionMark'
 import { Badge } from '@/components/ui/badge'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Panel } from '@/components/ui/panel'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { BuilderChat } from '@/hooks/useBuilderChat'
@@ -80,7 +81,7 @@ export function StartHere({ chat, configured, spec, onApply, onDismiss }: {
           /* Not a disabled textarea. An input you cannot type into explains
              nothing; the cards below still work, and this says why the other
              half does not. */
-          <p className="rounded-lg border border-clay/50 p-3 text-[12px] leading-relaxed text-muted-foreground">
+          <p className="rounded-lg border border-clay/50 p-3 text-caption leading-relaxed text-muted-foreground">
             Describing a strategy in words needs an OpenRouter key. Add
             <span className="font-mono"> OPENROUTER_API_KEY </span>
             to <span className="font-mono">webapp/.env</span> and restart the API.
@@ -90,7 +91,7 @@ export function StartHere({ chat, configured, spec, onApply, onDismiss }: {
             {!started && (
               <div className="flex items-start gap-2.5">
                 <AionMark alt="" className="mt-0.5 h-4" />
-                <p className="text-[13px] leading-relaxed">
+                <p className="text-body-sm leading-relaxed">
                   Describe what you want to trade. You get a proposal to look over —
                   nothing is saved or run until you use it.
                 </p>
@@ -128,7 +129,7 @@ export function StartHere({ chat, configured, spec, onApply, onDismiss }: {
                   <button
                     key={example}
                     onClick={() => submit(example)}
-                    className="rounded-md border border-border/50 px-2 py-1 text-[11px] transition-colors hover:bg-foreground/[0.04]"
+                    className="rounded-md border border-border/50 px-2 py-1 text-label transition-colors hover:bg-foreground/[0.04]"
                   >
                     {example}
                   </button>
@@ -143,7 +144,7 @@ export function StartHere({ chat, configured, spec, onApply, onDismiss }: {
             competing with the one you asked for. */}
         {!started && starters.length > 0 && (
           <div className="space-y-2 border-t border-border/50 pt-3">
-            <p className="text-[12px] text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               …or start from one of these and change it:
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -183,12 +184,12 @@ function StarterCard({ template, familyLabel, onUse }: {
           )}
         >
           <span className="flex items-center gap-1.5">
-            <span className="min-w-0 flex-1 truncate text-[13px]">{template.title}</span>
+            <span className="min-w-0 flex-1 truncate text-body-sm">{template.title}</span>
             {!template.runnable && <Badge variant="clay">blocked</Badge>}
           </span>
-          <span className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+          <MicroLabel className="truncate">
             {familyLabel}
-          </span>
+          </MicroLabel>
         </button>
       </PopoverTrigger>
       <PopoverContent side="right" align="start" className="w-96 p-3">

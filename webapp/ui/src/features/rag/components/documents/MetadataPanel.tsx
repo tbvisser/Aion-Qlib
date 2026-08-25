@@ -24,7 +24,7 @@ function MetadataValue({ fieldKey, value }: { fieldKey: string; value: unknown }
   const strVal = String(value)
   if (strVal.length <= 30 && fieldKey === 'document_type') {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-violet-500/15 text-violet-400 border border-violet-500/20">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground border border-border/50">
         {strVal}
       </span>
     )

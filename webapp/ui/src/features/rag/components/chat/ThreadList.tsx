@@ -314,7 +314,7 @@ export function ThreadList({
         )}
 
         {!isEditing && (
-          <span className="shrink-0 font-mono text-[11px] text-muted-foreground/70">
+          <span className="shrink-0 font-mono text-label text-muted-foreground/70">
             {formatRelativeStamp(thread.updated_at)}
           </span>
         )}
@@ -342,7 +342,7 @@ export function ThreadList({
               type="text"
               value={searchInput}
               onChange={(e) => setOwnSearchInput(e.target.value)}
-              placeholder="Search threads..."
+              placeholder="Search threads…"
               aria-label="Search threads"
               className="pl-9 pr-8 h-9 rounded-xl"
             />
@@ -363,7 +363,7 @@ export function ThreadList({
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex h-full items-center justify-center">
-            <div className="text-muted-foreground text-sm">Loading...</div>
+            <div className="text-muted-foreground text-sm">Loading…</div>
           </div>
         ) : visibleThreads.length === 0 ? (
           <div className="p-4 text-center text-sm text-muted-foreground">
@@ -390,7 +390,7 @@ export function ThreadList({
                 ) : loadingMore ? (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    Loading more...
+                    Loading more…
                   </div>
                 ) : null}
               </div>
@@ -429,7 +429,7 @@ export function ThreadList({
             disabled={deletingSelectedThread}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {deletingSelectedThread ? 'Deleting...' : 'Delete'}
+            {deletingSelectedThread ? 'Deleting…' : 'Delete'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

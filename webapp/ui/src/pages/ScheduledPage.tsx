@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { IndexHeader } from '@/components/layout/IndexHeader'
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Switch } from '@/components/ui/switch'
 import {
   DropdownMenu,
@@ -23,6 +24,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Notice } from '@/components/ui/notice'
+import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import { TaskDialog } from '@/components/scheduled/TaskDialog'
 import { OutputPreview } from '@/components/scheduled/OutputPreview'
 import { useScheduledTasks } from '@/hooks/useScheduledTasks'
@@ -149,8 +153,8 @@ const KIND_LABELS: Record<ScheduledTask['kind'], string> = {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  ok: 'text-emerald-600',
-  skipped: 'text-amber-600',
+  ok: 'text-primary',
+  skipped: 'text-clay',
   error: 'text-destructive',
 }
 
@@ -255,28 +259,24 @@ export function ScheduledPage() {
       />
 
       <div className="min-h-0 flex-1 flex">
-        <div className="flex w-80 shrink-0 flex-col border-r border-border/50">
+        <div className="flex w-72 shrink-0 flex-col border-r border-border/50">
           {error && (
-            <div className="border-b border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+            <Notice tone="destructive" className="m-2">
               {error}
-            </div>
+            </Notice>
           )}
 
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
             {loading && (
-              <div className="flex flex-col items-center py-8 text-center">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
-                <p className="mt-2 text-xs text-muted-foreground">Loading…</p>
+              <div className="space-y-2 p-1">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <Skeleton key={i} className="h-12 rounded-lg" />
+                ))}
               </div>
             )}
 
             {!loading && visibleTasks.length === 0 && tasks.length === 0 && !needle && (
-              <div className="flex flex-col items-center py-8 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/50">
-                  <Timer className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <p className="mt-3 text-xs text-muted-foreground">No scheduled tasks yet.</p>
-              </div>
+              <EmptyState icon={Timer} title="No scheduled tasks yet." className="m-1 p-6" />
             )}
 
             {!loading && visibleTasks.length > 0 && (
@@ -301,7 +301,7 @@ export function ScheduledPage() {
                           <p className="text-xs text-muted-foreground">
                             {KIND_LABELS[task.kind]} · {task.cadence}
                           </p>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-label text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
                               {task.next_run
@@ -336,9 +336,9 @@ export function ScheduledPage() {
 
           {!loading && visibleSuggestions.length > 0 && (
             <div className="border-t border-border/50 p-3">
-              <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+              <MicroLabel as="div" className="mb-2">
                 Worth scheduling first
-              </p>
+              </MicroLabel>
               <div className="space-y-2">
                 {visibleSuggestions.map((suggestion) => {
                   const Icon = suggestion.icon
@@ -351,7 +351,7 @@ export function ScheduledPage() {
                       <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <div className="min-w-0">
                         <p className="text-xs font-medium">{suggestion.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{suggestion.cadence}</p>
+                        <p className="text-micro text-muted-foreground">{suggestion.cadence}</p>
                       </div>
                     </button>
                   )
@@ -370,14 +370,13 @@ export function ScheduledPage() {
               onRemove={remove}
             />
           ) : (
-            <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50">
-                <Timer className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <p className="mt-4 text-sm font-medium">Select a scheduled task</p>
-              <p className="text-xs text-muted-foreground">
-                Its schedule, params and latest output will appear here.
-              </p>
+            <div className="flex h-full items-center justify-center p-8">
+              <EmptyState
+                icon={Timer}
+                title="Select a scheduled task"
+                description="Its schedule, params and latest output will appear here."
+                className="w-full max-w-sm"
+              />
             </div>
           )}
         </div>
@@ -424,9 +423,9 @@ function TaskDetail({
         </div>
         <div className="flex items-center gap-2">
           {task.is_demo ? (
-            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+            <MicroLabel>
               Demo
-            </span>
+            </MicroLabel>
           ) : (
             <>
               <Switch

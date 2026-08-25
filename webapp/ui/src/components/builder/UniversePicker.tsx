@@ -114,7 +114,7 @@ export function UniversePicker({ value, onChange, store, universes }: {
                 )}
               >
                 <span className="min-w-0 truncate">{name}</span>
-                <span className="shrink-0 tnum text-[10px] text-muted-foreground">
+                <span className="shrink-0 tnum text-micro text-muted-foreground">
                   {info ? info.count.toLocaleString() : '·'}
                 </span>
               </button>
@@ -151,7 +151,7 @@ export function UniversePicker({ value, onChange, store, universes }: {
                 </div>
               ))}
               {total !== null && total > members.length && (
-                <p className="px-1 pt-1 text-[10px] text-muted-foreground">
+                <p className="px-1 pt-1 text-micro text-muted-foreground">
                   showing {members.length} of {total.toLocaleString()}
                 </p>
               )}
@@ -181,13 +181,13 @@ function Peek({ universe }: { universe?: StoreUniverse }) {
       {universe.sample.map((symbol) => (
         <span
           key={symbol}
-          className="rounded border border-border/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+          className="rounded border border-border/50 px-1.5 py-0.5 font-mono text-micro text-muted-foreground"
         >
           {symbol}
         </span>
       ))}
       {rest > 0 && (
-        <span className="px-1 py-0.5 font-mono text-[10px] text-muted-foreground/70">
+        <span className="px-1 py-0.5 font-mono text-micro text-muted-foreground/70">
           +{rest.toLocaleString()} more
         </span>
       )}

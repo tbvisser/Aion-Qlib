@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Download, RotateCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import {
   Dialog,
   DialogContent,
@@ -138,7 +139,7 @@ export function RefreshDataDialog({ onFinished }: { onFinished?: () => void }) {
                 onChange={(e) => setUniverseSize(Number(e.target.value) || 1)}
                 className="h-8 font-mono text-xs"
               />
-              <p className="text-[11px] text-muted-foreground">Top N by recent dollar volume.</p>
+              <p className="text-label text-muted-foreground">Top N by recent dollar volume.</p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ingest-start" className="text-xs">
@@ -151,7 +152,7 @@ export function RefreshDataDialog({ onFinished }: { onFinished?: () => void }) {
                 onChange={(e) => setStart(e.target.value)}
                 className="h-8 font-mono text-xs"
               />
-              <p className="text-[11px] text-muted-foreground">Earlier costs more requests.</p>
+              <p className="text-label text-muted-foreground">Earlier costs more requests.</p>
             </div>
           </div>
         )}
@@ -238,9 +239,9 @@ function Callout({ tone, children }: { tone: 'warn' | 'error'; children: React.R
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="dt">
         {label}
-      </dt>
+      </MicroLabel>
       <dd className="tnum truncate font-mono text-sm">{value}</dd>
     </div>
   )

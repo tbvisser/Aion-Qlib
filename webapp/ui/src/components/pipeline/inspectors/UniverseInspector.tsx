@@ -1,5 +1,5 @@
 /**
- * Stage 02 — which names the strategy may hold, and what it is measured against.
+ * Stage 03 — which names the strategy may hold, and what it is measured against.
  *
  * Benchmark sits here rather than with the store because it is the same kind of
  * question — which symbols — off the same `DataStore` object, and a store

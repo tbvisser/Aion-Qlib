@@ -1,9 +1,9 @@
 /**
- * Stage 05 — what fits the signal.
+ * Stage 06 — what fits the signal.
  *
  * One field, deliberately. `LearnerLine`, which this replaces, spent a popover
  * and a docblock arguing that the model is "a setting with a default, not the
- * first decision"; a card at position 05 makes the same argument structurally
+ * first decision"; a card at position 06 makes the same argument structurally
  * and needs no popover to do it.
  *
  * Which model *wins* is ML Studio's question, asked across several at once.
@@ -17,7 +17,7 @@ import { CompatField, choiceOptions } from './compat'
 import type { InspectorProps } from './types'
 
 export function LearnerInspector(props: InspectorProps) {
-  const { spec, setSpec, models, notes } = props
+  const { spec, setSpec, models } = props
 
   // `/models` lists only what imports on this machine, so a model whose backend
   // is missing never appeared here at all — and a spec carrying one (a
@@ -40,13 +40,9 @@ export function LearnerInspector(props: InspectorProps) {
         />
       </CompatField>
 
-      {notes.map((note) => (
-        <p key={note} className="text-[11px] leading-relaxed text-muted-foreground">{note}</p>
-      ))}
-
       <Link
         to="/lab/ml-studio"
-        className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+        className="inline-flex items-center gap-1 text-label text-primary hover:underline"
       >
         Sweep several models at once in ML Studio
         <ArrowUpRight className="h-3 w-3" />

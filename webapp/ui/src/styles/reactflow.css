@@ -28,12 +28,13 @@
   border-color: hsl(var(--primary));
 }
 
-/* A *filled* slot on an expression card, and its output dot. Small and inert on
-   the same reasoning as the pipeline's handles below: FactorCanvas sets
-   `nodesConnectable={false}`, so a 9px dot that lit mint under the pointer was
-   advertising a connection nobody can make. Cards are still joined by dropping
-   a block into a slot, never by dragging between dots. */
-.react-flow__handle.aion-expr-handle {
+/* A *filled* slot on an expression card, and its output dot -- and the
+   pipeline's stage handles, which are inert for the same reason: neither
+   canvas is connectable, so a 9px dot that lit mint under the pointer was
+   advertising a connection nobody can make. Cards are still joined by
+   dropping a block into a slot, never by dragging between dots. */
+.react-flow__handle.aion-expr-handle,
+.react-flow__handle.aion-stage-handle {
   width: 6px;
   height: 6px;
   background: hsl(var(--border));
@@ -107,16 +108,8 @@
 
 /* -- The strategy pipeline ------------------------------------------------- */
 
-/* Smaller and inert, against the expression canvas's 9px live handles. Nothing
-   on the pipeline is connectable, and a dot you cannot use must not look like
-   one you can. */
-.react-flow__handle.aion-stage-handle {
-  width: 6px;
-  height: 6px;
-  background: hsl(var(--border));
-  border-color: hsl(var(--border));
-  pointer-events: none;
-}
+/* Stage handles share `.aion-expr-handle`'s rule in the expression section
+   above -- same inert 6px dot, one body instead of two drifting copies. */
 
 .react-flow__node.selected .aion-stage-card {
   box-shadow: 0 0 0 1px hsl(var(--ring)), 0 0 20px -5px hsl(var(--ring) / 0.3);
@@ -142,38 +135,48 @@
    the override a later base rule would freeze the edge at rest -- and a mint
    hover would make a phase edge lie about its family. Brighter same-hue is the
    honest hover. */
-.react-flow__edge.aion-edge-phase-data .react-flow__edge-path { stroke: hsl(var(--type-release) / 0.55); stroke-width: 2; }
-.react-flow__edge.aion-edge-phase-data:hover .react-flow__edge-path,
-.react-flow__edge.aion-edge-phase-data.selected .react-flow__edge-path { stroke: hsl(var(--type-release) / 0.9); stroke-width: 2; }
+/* One rule stamped once, not four times: each phase class only picks the hue,
+   and the shared pair below turns it into the resting and hover strokes. The
+   attribute selector carries the same class-level specificity as the literal
+   class did, so the source-order tie against the generic mint hover rule is
+   decided exactly as before. */
+.react-flow__edge.aion-edge-phase-data { --phase-hue: var(--type-release); }
+.react-flow__edge.aion-edge-phase-shape { --phase-hue: var(--type-process); }
+.react-flow__edge.aion-edge-phase-fit { --phase-hue: var(--type-notification); }
 
-.react-flow__edge.aion-edge-phase-shape .react-flow__edge-path { stroke: hsl(var(--type-process) / 0.55); stroke-width: 2; }
-.react-flow__edge.aion-edge-phase-shape:hover .react-flow__edge-path,
-.react-flow__edge.aion-edge-phase-shape.selected .react-flow__edge-path { stroke: hsl(var(--type-process) / 0.9); stroke-width: 2; }
+.react-flow__edge.aion-edge-phase-execute { --phase-hue: var(--type-trade); }
 
-.react-flow__edge.aion-edge-phase-fit .react-flow__edge-path { stroke: hsl(var(--type-notification) / 0.55); stroke-width: 2; }
-.react-flow__edge.aion-edge-phase-fit:hover .react-flow__edge-path,
-.react-flow__edge.aion-edge-phase-fit.selected .react-flow__edge-path { stroke: hsl(var(--type-notification) / 0.9); stroke-width: 2; }
+.react-flow__edge[class*='aion-edge-phase-'] .react-flow__edge-path {
+  stroke: hsl(var(--phase-hue) / 0.55);
+  stroke-width: 2;
+}
+.react-flow__edge[class*='aion-edge-phase-']:hover .react-flow__edge-path,
+.react-flow__edge[class*='aion-edge-phase-'].selected .react-flow__edge-path {
+  stroke: hsl(var(--phase-hue) / 0.9);
+  stroke-width: 2;
+}
 
-.react-flow__edge.aion-edge-phase-execute .react-flow__edge-path { stroke: hsl(var(--type-trade) / 0.55); stroke-width: 2; }
-.react-flow__edge.aion-edge-phase-execute:hover .react-flow__edge-path,
-.react-flow__edge.aion-edge-phase-execute.selected .react-flow__edge-path { stroke: hsl(var(--type-trade) / 0.9); stroke-width: 2; }
-
-/* -- The ring -------------------------------------------------------------- */
+/* -- Hub spokes and feature tethers ---------------------------------------- */
 
 /* The spoke's anchor: the node's own centre.
  *
- * A radial layout has no fixed sides, and a *third* per-angle handle collides
- * with `in` or `out` on three of the seven cards -- the radial and tangential
- * bearings are only ~64 degrees apart, and card aspect pushes them onto the same
- * side. A centre anchor plus a `straight` edge is a true radius at every bearing
- * with no angle maths at all, and since edges paint beneath nodes, all that shows
- * is the segment crossing the gap.
+ * Spokes and tethers leave a card at whatever bearing the layout puts their
+ * far end, so no fixed-side handle fits, and a third per-bearing handle would
+ * collide with `in` or `out` on several cards. A centre anchor plus a
+ * `straight` edge points true at every bearing with no angle maths at all,
+ * and since edges paint beneath nodes, all that shows is the segment crossing
+ * the gap.
  *
  * `opacity: 0`, never `display: none`: React Flow measures handles with
  * getBoundingClientRect, which a display:none box has none of, so the anchor
  * would silently measure at the node's top-left and every spoke would converge
  * on a corner. (The same trap as `invisible` vs `hidden` on the canvas panes.)
- * `min-width`/`min-height` are overridden because base.css floors handles at 5px. */
+ * `min-width`/`min-height` are overridden because base.css floors handles at 5px.
+ *
+ * The keycard canvas's inert add-next handle shares the body: it exists so a
+ * dashed guide edge has somewhere to route, and must never intercept the
+ * pointer -- the same invisibility, for the same reasons. */
+.react-flow__handle.aion-keycard-handle-inert,
 .react-flow__handle.aion-core-handle {
   width: 1px;
   height: 1px;
@@ -242,15 +245,17 @@
   stroke-width: 2.5;
 }
 
+/* Clay, not destructive: a blocked edge is a config verdict, matching the
+   node card's border and the inspector's notice. */
 .react-flow__edge.aion-keycard-edge .aion-keycard-edge-defect {
-  stroke: hsl(var(--destructive));
+  stroke: hsl(var(--clay));
   stroke-width: 2;
   stroke-dasharray: 4 3;
 }
 
 .react-flow__edge.aion-keycard-edge:hover .aion-keycard-edge-defect,
 .react-flow__edge.aion-keycard-edge.selected .aion-keycard-edge-defect {
-  stroke: hsl(var(--destructive));
+  stroke: hsl(var(--clay));
 }
 
 /* n8n-style handles: small grey dots that scale and tint on hover/connect. */
@@ -309,19 +314,8 @@
   opacity: 0.35;
 }
 
-/* Inert handle used by ephemeral add-next pseudo-nodes. It must exist so React
-   Flow can route the dashed guide edge to it, but it should never intercept
-   pointer events or show a connection cursor. */
-.react-flow__handle.aion-keycard-handle-inert {
-  width: 1px;
-  height: 1px;
-  min-width: 0;
-  min-height: 0;
-  border: 0;
-  background: transparent;
-  opacity: 0;
-  pointer-events: none;
-}
+/* The inert add-next handle shares `.aion-core-handle`'s rule in the spokes
+   section above -- one invisible-anchor body, not two drifting copies. */
 
 /* The invisible anchor that lets users drag an existing edge to reconnect it.
    React Flow draws a small circle at each endpoint; enlarge it and keep the

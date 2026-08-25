@@ -30,7 +30,7 @@ import { useExpressionCheck } from '@/hooks/useExpressionCheck'
 import { useFactorLibrary } from '@/hooks/useFactorLibrary'
 import { useFeatureSet } from '@/hooks/useFeatureSet'
 import { useOperators } from '@/hooks/useOperators'
-import { type FeatureColumn as SpecFeature, type FeatureMode, type StoredStrategy,
+import { type FeatureMode, type SpecFeature, type StoredStrategy,
          type StrategySpec } from '@/lib/api'
 import { baseColumns } from '@/lib/factorExpr/baseColumns'
 import { fromSpecFeatures, type FeatureDraft, type FeatureIssue }
@@ -78,6 +78,13 @@ export interface FeatureSetSnapshot {
    */
   activeName?: string
   issues: FeatureIssue[]
+  /**
+   * Saved columns whose expressions would not parse, so they are not on the
+   * canvas. The page appends them back into `spec.features` untouched: the
+   * canvas must never silently delete a feature it could not draw, because the
+   * user would save over it and lose it for good.
+   */
+  unparsed: { name: string; expression: string }[]
 }
 
 /**
@@ -156,14 +163,23 @@ export function FactorCanvas({
   // runnable/dead judgement varies by store, and that lives on the rows.
   const base = useMemo(() => baseColumns(handler, indicators), [handler, indicators])
 
+  // Read once, at mount; later changes arrive through `revision`. A ref rather
+  // than a memo because `fromSpecFeatures` mints ids, and StrictMode re-running
+  // a memo would mint a second set.
+  const seeded = useRef<ReturnType<typeof fromSpecFeatures> | null>(null)
+  if (seeded.current === null) {
+    seeded.current = fromSpecFeatures(initialFeatures, FALLBACK_REGISTRY,
+                                      () => nextId('col'))
+  }
+  /** Saved columns that would not parse; kept so a save cannot drop them. */
+  const [unparsed, setUnparsed] = useState<{ name: string; expression: string }[]>(
+    () => seeded.current?.failures ?? [])
+
   const seed = useCallback((): FeatureColumn[] => {
-    const { columns } = fromSpecFeatures(initialFeatures, FALLBACK_REGISTRY,
-                                         () => nextId('col'))
+    const columns = seeded.current?.columns ?? []
     return columns.length
       ? columns
       : [{ id: nextId('col'), name: 'F1', expr: initialExpression() }]
-    // Read once, at mount; later changes arrive through `revision`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const editor = useFeatureSet(seed, { registry, mode, base, handler })
@@ -183,23 +199,33 @@ export function FactorCanvas({
    */
   const check = useExpressionCheck(editor.expression, store)
   const issues = useMemo(() => {
-    if (!active || !check.result || check.result.ok) return clientIssues
-    return [
-      ...clientIssues,
-      ...check.result.defects.map((defect): FeatureIssue => ({
-        columnId: active.id,
-        level: 'error',
-        code: 'server-defect',
-        message: defect.message,
-      })),
-    ]
-  }, [clientIssues, check.result, active])
+    const serverIssues = !active || !check.result || check.result.ok
+      ? []
+      : check.result.defects.map((defect): FeatureIssue => ({
+          columnId: active.id,
+          level: 'error',
+          code: 'server-defect',
+          message: defect.message,
+        }))
+    // A warning, not an error: the column is preserved in the spec untouched,
+    // so nothing about the run changes — but whoever saved it should hear
+    // that it cannot be edited here.
+    const unparsedIssues = unparsed.map((f): FeatureIssue => ({
+      columnId: null,
+      level: 'warning',
+      code: 'unparsed',
+      message: `“${f.name}” could not be drawn (${f.expression}). It is kept `
+        + 'in the strategy unchanged, but cannot be edited on this canvas.',
+    }))
+    return [...clientIssues, ...serverIssues, ...unparsedIssues]
+  }, [clientIssues, check.result, active, unparsed])
 
   useEffect(() => {
     onChange?.({
       features: drafts, active: editor.expression, activeName: active?.name, issues,
+      unparsed,
     })
-  }, [drafts, editor.expression, active?.name, issues, onChange])
+  }, [drafts, editor.expression, active?.name, issues, unparsed, onChange])
 
   /**
    * Re-seed when the spec was replaced from outside.
@@ -212,9 +238,17 @@ export function FactorCanvas({
   useEffect(() => {
     if (revision === seededAt.current) return
     seededAt.current = revision
-    const { columns: next } = fromSpecFeatures(initialFeatures, registry,
-                                               () => nextId('col'))
-    if (next.length) editor.reseed(next)
+    const { columns: next, failures } = fromSpecFeatures(initialFeatures, registry,
+                                                         () => nextId('col'))
+    // Unconditionally, empty included. Skipping the empty case left the
+    // previous strategy's columns on the canvas, and the sync effect then
+    // wrote them into the newly opened spec — a strategy with no custom
+    // features silently inherited another one's. Empty reseeds to the same
+    // starter column a fresh mount gets.
+    editor.reseed(next.length
+      ? next
+      : [{ id: nextId('col'), name: 'F1', expr: initialExpression() }])
+    setUnparsed(failures)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision])
 
@@ -306,7 +340,7 @@ export function FactorCanvas({
           onActivate={editor.activate}
           onRename={editor.rename}
           onAdd={() => editor.add()}
-          onRemove={editor.remove}
+          onRemove={editor.removeColumn}
           onModeChange={(m) => onModeChange?.(m)}
         />
 
@@ -393,7 +427,7 @@ export function FactorCanvas({
                 canRemove={columns.length > 1}
                 onRename={(name) => editor.rename(active.id, name)}
                 onDuplicate={() => editor.duplicate(active.id)}
-                onRemove={() => editor.remove(active.id)}
+                onRemove={() => editor.removeColumn(active.id)}
                 measure={measure}
                 check={check}
               />

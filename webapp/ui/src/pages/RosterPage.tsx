@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Notice } from '@/components/ui/notice'
+import { SkeletonText } from '@/components/ui/skeleton'
 import {
   NameCell, SourceBadge, type Column,
 } from '@/components/database/CatalogBrowser'
@@ -15,7 +16,7 @@ import { useRegistryFacets, useRegistrySearch, useRegistrySummary } from '@/hook
 import {
   ROSTER_TABS, rosterTabSpec, type RosterTab,
 } from '@/lib/roster'
-import { cn } from '@/lib/utils'
+import { TabNav } from '@/components/ui/tab-nav'
 import type { RegistryEntity } from '@/lib/api'
 
 /**
@@ -60,7 +61,11 @@ export function RosterPage() {
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-          <TabNav active={tab} onChange={setTab} />
+          <TabNav
+            tabs={ROSTER_TABS.map((spec) => ({ key: spec.tab, label: spec.label }))}
+            active={tab}
+            onChange={setTab}
+          />
 
           <div className="flex min-h-0 flex-1 flex-col">
             {error && (
@@ -69,9 +74,7 @@ export function RosterPage() {
               </div>
             )}
             {loading && !summary && (
-              <div className="px-6 pt-4 text-[12px] text-muted-foreground">
-                Reaching the backends…
-              </div>
+              <SkeletonText lines={3} className="max-w-md px-6 pt-4" />
             )}
 
             {tab === 'authored' ? (
@@ -98,7 +101,7 @@ export function RosterPage() {
                       {
                         key: 'agents', label: 'Agents', width: 'w-[10%]', numeric: true,
                         render: (e) => (
-                          <span className="font-mono text-[11px] tabular-nums">
+                          <span className="font-mono text-label tabular-nums">
                             {String(e.payload.agent_count ?? '—')}
                           </span>
                         ),
@@ -106,7 +109,7 @@ export function RosterPage() {
                       detail('Takes', (e) => {
                         const variables = Array.isArray(e.payload.variables) ? e.payload.variables : []
                         return (
-                          <span className="truncate font-mono text-[11px] text-muted-foreground">
+                          <span className="truncate font-mono text-label text-muted-foreground">
                             {variables.map((v) => (v as { name?: string }).name).filter(Boolean).join(', ') || '—'}
                           </span>
                         )
@@ -144,7 +147,7 @@ export function RosterPage() {
                           : phases ? `${phases} phases`
                             : tools !== null ? `${tools} tools` : '—'
                         return (
-                          <span className="truncate font-mono text-[11px] text-muted-foreground">{text}</span>
+                          <span className="truncate font-mono text-label text-muted-foreground">{text}</span>
                         )
                       }),
                     ]}
@@ -175,7 +178,7 @@ export function RosterPage() {
                       SOURCE,
                       family('Kind', 'w-[14%]'),
                       detail('Description', (e) => (
-                        <span className="truncate text-[11px] text-muted-foreground">{e.summary ?? '—'}</span>
+                        <span className="truncate text-label text-muted-foreground">{e.summary ?? '—'}</span>
                       )),
                     ]}
                     useData={useRegistrySearch}
@@ -208,12 +211,12 @@ export function RosterPage() {
                           const schema = e.payload.input_schema as { properties?: object } | undefined
                           const count = schema?.properties ? Object.keys(schema.properties).length : 0
                           return count
-                            ? <span className="font-mono text-[11px] tabular-nums">{count}</span>
+                            ? <span className="font-mono text-label tabular-nums">{count}</span>
                             : <span className="text-muted-foreground/50">—</span>
                         },
                       },
                       detail('Description', (e) => (
-                        <span className="truncate text-[11px] text-muted-foreground">{e.summary ?? '—'}</span>
+                        <span className="truncate text-label text-muted-foreground">{e.summary ?? '—'}</span>
                       )),
                     ]}
                     useData={useRegistrySearch}
@@ -244,30 +247,6 @@ export function RosterPage() {
   )
 }
 
-function TabNav({ active, onChange }: { active: RosterTab; onChange: (tab: RosterTab) => void }) {
-  return (
-    <div className="sticky top-0 z-20 border-b border-border/50 bg-background/80 px-6 py-2 backdrop-blur">
-      <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-border/50 p-0.5">
-        {ROSTER_TABS.map((spec) => (
-          <button
-            key={spec.tab}
-            type="button"
-            onClick={() => onChange(spec.tab)}
-            className={cn(
-              'shrink-0 rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors',
-              active === spec.tab
-                ? 'bg-foreground/[0.07] text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {spec.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function rosterTabFromParam(raw: string | null | undefined): RosterTab {
   const TAB_KEYS = new Set(ROSTER_TABS.map((t) => t.tab))
   return raw && TAB_KEYS.has(raw as RosterTab) ? (raw as RosterTab) : 'overview'
@@ -288,7 +267,7 @@ const SOURCE: Column<RegistryEntity> = {
 const family = (label: string, width: string): Column<RegistryEntity> => ({
   key: 'family', label, width,
   render: (e) => (
-    <span className="truncate text-[11px] text-muted-foreground">{e.family ?? '—'}</span>
+    <span className="truncate text-label text-muted-foreground">{e.family ?? '—'}</span>
   ),
 })
 

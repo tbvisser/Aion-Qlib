@@ -131,7 +131,7 @@ export function MacroSeriesChart({
         </LineChart>
       </ResponsiveContainer>
 
-      <div className="mt-2 space-y-0.5 font-mono text-[10px] text-muted-foreground/70">
+      <div className="mt-2 space-y-0.5 font-mono text-micro text-muted-foreground/70">
         {mode === 'level' && series.length > 1 && (
           <div className="text-clay">
             Levels share one axis — switch to indexed or z-score to compare series

@@ -188,8 +188,11 @@ export function featureSetReducer(state: FeatureSetState,
     case 'reseed':
       // A set pushed in from outside -- a saved strategy loaded, a proposal
       // applied -- is a new document, not an edit. Undoing across that boundary
-      // would resurrect columns from a different strategy.
-      return initialFeatureSet(action.columns.length ? action.columns : columns)
+      // would resurrect columns from a different strategy. Taken verbatim,
+      // empty included: quietly keeping the old columns on an empty reseed is
+      // how one strategy's features leaked into another. Callers decide what
+      // an empty document should hold instead.
+      return initialFeatureSet(action.columns)
 
     case 'undo': {
       if (!state.past.length) return state

@@ -124,7 +124,7 @@ export function KeycardComposer({
               type="button"
               onClick={() => setModelDialogOpen(true)}
               title="Model configuration"
-              className="inline-flex max-w-[14rem] items-center gap-1 rounded-lg px-2 py-1 text-[13px] transition-colors hover:bg-surface-3"
+              className="inline-flex max-w-[14rem] items-center gap-1 rounded-lg px-2 py-1 text-body-sm transition-colors hover:bg-surface-3"
             >
               <span className="truncate font-medium text-foreground/90">
                 {modelConfig.model || 'Server default'}
@@ -209,7 +209,7 @@ function ModeToggle({ active, onChange, disabled }: ModeToggleProps) {
           disabled={disabled}
           aria-pressed={active === value}
           className={cn(
-            'rounded-md px-2.5 py-1 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+            'rounded-md px-2.5 py-1 text-body-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
             active === value
               ? 'bg-surface-3 text-foreground shadow-sm'
               : 'text-muted-foreground hover:text-foreground',

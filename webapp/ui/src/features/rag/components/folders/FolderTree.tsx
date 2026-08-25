@@ -123,7 +123,7 @@ export function FolderTree({
       </a>
 
       {loading ? (
-        <div className="text-xs text-muted-foreground py-2 px-3">Loading folders...</div>
+        <div className="text-xs text-muted-foreground py-2 px-3">Loading folders…</div>
       ) : (
         <>
           {/* Root folders */}
