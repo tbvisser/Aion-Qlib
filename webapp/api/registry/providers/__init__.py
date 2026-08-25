@@ -20,23 +20,29 @@ from . import (
     scalability_agent, vibe_playbooks, vibe_skills, vibe_swarms, vibe_tools,
 )
 
-PROVIDERS: tuple[Provider, ...] = (
-    # In-process: these answer even when every service is down.
-    chat_profiles.PROVIDER,
-    chat_tools_provider.PROVIDER,
-    repo_skills.PROVIDER,
-    # Background worker (one /health probe).
-    scalability_agent.PROVIDER,
-    # Sidecar.
-    vibe_swarms.PROVIDER,
-    vibe_skills.PROVIDER,
-    vibe_tools.PROVIDER,
-    vibe_playbooks.PROVIDER,
-    # Vendored RAG backend.
-    rag_registry.AGENTS_PROVIDER,
-    rag_registry.TOOLS_PROVIDER,
-)
 
-BY_NAME: dict[str, Provider] = {p.name: p for p in PROVIDERS}
+def providers() -> tuple[Provider, ...]:
+    """All roster providers, including optional ones gated by settings."""
+    from ...config import get_settings
 
-__all__ = ["PROVIDERS", "BY_NAME"]
+    out: list[Provider] = [
+        chat_profiles.PROVIDER,
+        chat_tools_provider.PROVIDER,
+        repo_skills.PROVIDER,
+        scalability_agent.PROVIDER,
+    ]
+    if get_settings().hermes_gateway_enabled:
+        from . import hermes_gateway
+        out.append(hermes_gateway.PROVIDER)
+    out.extend([
+        vibe_swarms.PROVIDER,
+        vibe_skills.PROVIDER,
+        vibe_tools.PROVIDER,
+        vibe_playbooks.PROVIDER,
+        rag_registry.AGENTS_PROVIDER,
+        rag_registry.TOOLS_PROVIDER,
+    ])
+    return tuple(out)
+
+
+__all__ = ["providers"]

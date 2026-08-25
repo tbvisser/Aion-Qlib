@@ -1,6 +1,7 @@
 # AION platform: API, UI, and the sidecars the API talks to.
 #
 #   docker compose up -d          # api + ui + rag + vibe + agent
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d aion-mcp hermes-gateway
 #   docker compose exec api bash  # shell in the backend (qlib is already here)
 #
 # Project name aion-qlib matches infra/supabase/ so Docker Desktop groups

@@ -82,7 +82,7 @@ INDEXED_KINDS: tuple[str, ...] = tuple(
 #: upstream so provenance survives into the UI badge. `rag` is the vendored
 #: Aion-RAG backend, which owns the harnesses, the sub-agents and the live tool
 #: registry.
-SOURCES: tuple[str, ...] = ("qlib", "curated", "vibe", "aion", "eodhd", "rag")
+SOURCES: tuple[str, ...] = ("qlib", "curated", "vibe", "aion", "eodhd", "rag", "hermes")
 
 #: Links the harvest recomputes every run. Anything not in here is user-set and
 #: is preserved across a rebuild -- see `harvest.swap`.

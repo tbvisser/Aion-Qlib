@@ -538,6 +538,19 @@ export const api = {
 
   vibeHealth: () => request<VibeHealth>('/vibe/health'),
 
+  /** Optional Hermes gateway sidecar (compose hermes-gateway). */
+  hermesHealth: () => request<HermesHealth>('/hermes/health'),
+
+  /** Tier-1 MCP tool confirmations (Hermes / aion-mcp). */
+  mcpConfirmations: () => request<McpConfirmationList>('/mcp/confirmations'),
+  mcpConfirmationApprove: (id: string) =>
+    request<Record<string, unknown>>(`/mcp/confirmations/${encodeURIComponent(id)}/approve`, { method: 'POST' }),
+  mcpConfirmationReject: (id: string) =>
+    request<{ status: string }>(`/mcp/confirmations/${encodeURIComponent(id)}/reject`, { method: 'POST' }),
+
+  /** Mint a user-scoped aion-mcp Bearer token (1h). */
+  hermesMcpToken: () =>
+    request<HermesMcpToken>('/hermes/mcp-token', { method: 'POST' }),
   /** Generic allowlisted MCP tool call; typed wrappers below are preferred. */
   vibeMcpCall: <T = unknown>(tool: string, args: Record<string, unknown>) =>
     request<{ tool: string; result: T }>('/vibe/mcp/call', {
@@ -926,7 +939,7 @@ export type CatalogKind =
   | RosterKind
 
 /** `rag` is the vendored Aion-RAG backend: harnesses, sub-agents, its tools. */
-export type CatalogSource = 'qlib' | 'curated' | 'vibe' | 'aion' | 'eodhd' | 'rag'
+export type CatalogSource = 'qlib' | 'curated' | 'vibe' | 'aion' | 'eodhd' | 'rag' | 'hermes'
 
 /** Rels a person may set. Everything else is derived and wiped on reindex. */
 export type CatalogUserRel = 'documented_by' | 'supersedes' | 'related_to'
@@ -2506,6 +2519,37 @@ export interface MacroLensList {
 export interface VibeHealth {
   status: 'ok' | 'unreachable'
   detail?: string
+}
+
+export interface HermesHealth {
+  status: 'ok' | 'unreachable' | 'disabled'
+  enabled: boolean
+  detail?: string
+  mcp_servers?: string[]
+  gateway?: Record<string, unknown>
+}
+
+export interface HermesMcpToken {
+  token: string
+  expires_at: number
+  user_id: string
+  org_id: string
+  usage: string
+}
+
+export interface McpConfirmation {
+  id: string
+  tool: string
+  arguments: Record<string, unknown>
+  user_id: string
+  org_id: string
+  created_at: number
+  summary: string
+  source: string
+}
+
+export interface McpConfirmationList {
+  confirmations: McpConfirmation[]
 }
 
 /** alpha_zoo tool envelope: { status: "ok", result: T }. */

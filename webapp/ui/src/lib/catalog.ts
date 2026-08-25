@@ -120,6 +120,7 @@ export const SOURCE_LABELS: Record<CatalogSource, string> = {
   aion: 'Aion',
   eodhd: 'EODHD',
   rag: 'RAG',
+  hermes: 'Hermes',
 }
 
 export function sourceLabel(source: string): string {

@@ -10,6 +10,7 @@ import {
 import { RosterOverview } from '@/components/roster/RosterOverview'
 import { RosterDetail } from '@/components/roster/RosterDetail'
 import { AgentConsolePanel } from '@/components/roster/AgentConsolePanel'
+import { McpConfirmationsPanel } from '@/components/roster/McpConfirmationsPanel'
 import { RosterCatalogDashboard } from '@/components/roster/RosterCatalogDashboard'
 import { SkillsPage } from '@/features/rag/pages/SkillsPage'
 import { useRegistryFacets, useRegistrySearch, useRegistrySummary } from '@/hooks/useRegistry'
@@ -160,12 +161,18 @@ export function RosterPage() {
                     blurb={
                       <>
                         Everything that runs on its own: this API's chat profiles, the sidecar's scheduled
-                        playbooks, and the RAG backend's harness and sub-agents. A profile is a prompt plus
-                        a tool list — and the tools it does <em>not</em> have are its safety model, not an
-                        instruction.
+                        playbooks, the RAG backend's harness and sub-agents, and optionally the Hermes
+                        gateway when <code className="font-mono text-label">HERMES_GATEWAY_ENABLED=true</code>.
+                        A profile is a prompt plus a tool list — and the tools it does <em>not</em> have are its
+                        safety model, not an instruction.
                       </>
                     }
-                    extra={<AgentConsolePanel />}
+                    extra={(
+                      <>
+                        <AgentConsolePanel />
+                        <McpConfirmationsPanel />
+                      </>
+                    )}
                   />
                 )}
 
