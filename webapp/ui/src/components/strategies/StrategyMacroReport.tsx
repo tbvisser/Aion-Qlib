@@ -6,6 +6,8 @@ import {
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { MicroLabel } from '@/components/ui/micro-label'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { MetricTile } from '@/components/MetricTile'
 import { PositionsTimeline } from '@/components/strategies/PositionsTimeline'
 import { api, type MacroLinkage, type RunReport, type StoredStrategy } from '@/lib/api'
@@ -66,15 +68,15 @@ export function StrategyMacroReport({
     <div className="space-y-8">
       {sanity.implausible && (
         <div className="space-y-2 rounded-lg border border-clay/40 bg-clay/5 px-4 py-3">
-          <div className="font-mono text-[10px] uppercase tracking-wider text-clay">
+          <div className="font-mono text-micro uppercase tracking-wider text-clay">
             Implausible result
           </div>
-          <div className="text-[13px] text-muted-foreground">
+          <div className="text-body-sm text-muted-foreground">
             The run finished cleanly, but these numbers cannot be read as a result.
           </div>
           <ul className="space-y-1">
             {sanity.reasons.map((reason) => (
-              <li key={reason} className="text-[13px] leading-snug text-muted-foreground">
+              <li key={reason} className="text-body-sm leading-snug text-muted-foreground">
                 {reason}
               </li>
             ))}
@@ -186,7 +188,7 @@ export function StrategyMacroReport({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 px-2 text-[11px]"
+                    className="h-6 px-2 text-label"
                     onClick={() => setShowAllTrades((v) => !v)}
                   >
                     {showAllTrades ? 'Show top 50' : `Show all ${trades.turnoverDays.length}`}
@@ -194,26 +196,24 @@ export function StrategyMacroReport({
                 )}
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-xs">
-                    <thead>
-                      <tr className="text-left text-muted-foreground/70">
-                        <th className="py-2 pr-4 font-mono font-normal uppercase tracking-wider">Date</th>
-                        <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">Turnover</th>
-                        <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">Est. round-trips</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/50">
-                      {trades.turnoverDays.slice(0, showAllTrades ? undefined : 50).map((row) => (
-                        <tr key={row.date} className="hover:bg-foreground/[0.02]">
-                          <td className="py-1.5 pr-4 font-mono text-[10px]">{row.date}</td>
-                          <td className="tnum py-1.5 pr-4 text-right">{(row.turnover * 100).toFixed(2)}%</td>
-                          <td className="tnum py-1.5 pr-4 text-right text-muted-foreground">{row.roundTrips}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <Table className="text-xs">
+                  <TableHead>
+                    <tr>
+                      <TableHeader>Date</TableHeader>
+                      <TableHeader numeric>Turnover</TableHeader>
+                      <TableHeader numeric>Est. round-trips</TableHeader>
+                    </tr>
+                  </TableHead>
+                  <TableBody>
+                    {trades.turnoverDays.slice(0, showAllTrades ? undefined : 50).map((row) => (
+                      <TableRow key={row.date} className="hover:bg-foreground/[0.02]">
+                        <TableCell className="py-1.5 pr-4 font-mono text-micro">{row.date}</TableCell>
+                        <TableCell numeric className="py-1.5 pr-4">{(row.turnover * 100).toFixed(2)}%</TableCell>
+                        <TableCell numeric className="py-1.5 pr-4 text-muted-foreground">{row.roundTrips}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
 
@@ -278,8 +278,8 @@ function MacroAttribution({ runId }: { runId: string }) {
     return () => { live = false }
   }, [runId])
 
-  if (loading) return <p className="text-[11px] text-muted-foreground">Loading macro attribution…</p>
-  if (error || !data) return <p className="text-[11px] text-muted-foreground">No macro attribution available for this run.</p>
+  if (loading) return <p className="text-label text-muted-foreground">Loading macro attribution…</p>
+  if (error || !data) return <p className="text-label text-muted-foreground">No macro attribution available for this run.</p>
 
   const drivers = data.drivers
     .filter((d) => d.available && (d.pearson != null || d.spearman != null))
@@ -291,86 +291,80 @@ function MacroAttribution({ runId }: { runId: string }) {
     <div className="space-y-4">
       {drivers.length > 0 && (
         <Panel label="Top macro drivers">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="text-left text-muted-foreground/70">
-                  <th className="py-2 pr-4 font-mono font-normal uppercase tracking-wider">Driver</th>
-                  <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">Pearson</th>
-                  <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">Spearman</th>
-                  <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">Beta / sd</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {drivers.map((d) => (
-                  <tr key={d.key} className="hover:bg-foreground/[0.02]">
-                    <td className="py-1.5 pr-4">{d.label} <span className="text-[10px] text-muted-foreground">({d.group})</span></td>
-                    <td className={cn('tnum py-1.5 pr-4 text-right', tone(d.pearson))}>{fmt4(d.pearson)}</td>
-                    <td className={cn('tnum py-1.5 pr-4 text-right', tone(d.spearman))}>{fmt4(d.spearman)}</td>
-                    <td className={cn('tnum py-1.5 pr-4 text-right', tone(d.beta_per_sd))}>{fmt4(d.beta_per_sd)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table className="text-xs">
+            <TableHead>
+              <tr>
+                <TableHeader>Driver</TableHeader>
+                <TableHeader numeric>Pearson</TableHeader>
+                <TableHeader numeric>Spearman</TableHeader>
+                <TableHeader numeric>Beta / sd</TableHeader>
+              </tr>
+            </TableHead>
+            <TableBody>
+              {drivers.map((d) => (
+                <TableRow key={d.key} className="hover:bg-foreground/[0.02]">
+                  <TableCell className="py-1.5 pr-4">{d.label} <span className="text-micro text-muted-foreground">({d.group})</span></TableCell>
+                  <TableCell numeric className={cn('py-1.5 pr-4', tone(d.pearson))}>{fmt4(d.pearson)}</TableCell>
+                  <TableCell numeric className={cn('py-1.5 pr-4', tone(d.spearman))}>{fmt4(d.spearman)}</TableCell>
+                  <TableCell numeric className={cn('py-1.5 pr-4', tone(d.beta_per_sd))}>{fmt4(d.beta_per_sd)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Panel>
       )}
 
       {betas.length > 0 && (
         <Panel label="Factor-model betas">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="text-left text-muted-foreground/70">
-                  <th className="py-2 pr-4 font-mono font-normal uppercase tracking-wider">Factor</th>
-                  <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">Beta</th>
-                  <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">t-stat</th>
-                  <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">p-value</th>
-                  <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">VIF</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {betas.map((b) => (
-                  <tr key={b.key} className="hover:bg-foreground/[0.02]">
-                    <td className="py-1.5 pr-4">{b.label} <span className="text-[10px] text-muted-foreground">({b.group})</span></td>
-                    <td className={cn('tnum py-1.5 pr-4 text-right', tone(b.beta))}>{fmt4(b.beta)}</td>
-                    <td className="tnum py-1.5 pr-4 text-right text-muted-foreground">{fmt4(b.t_stat)}</td>
-                    <td className="tnum py-1.5 pr-4 text-right text-muted-foreground">{fmt4(b.p_value)}</td>
-                    <td className="tnum py-1.5 pr-4 text-right text-muted-foreground">{b.vif == null ? '—' : b.vif.toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table className="text-xs">
+            <TableHead>
+              <tr>
+                <TableHeader>Factor</TableHeader>
+                <TableHeader numeric>Beta</TableHeader>
+                <TableHeader numeric>t-stat</TableHeader>
+                <TableHeader numeric>p-value</TableHeader>
+                <TableHeader numeric>VIF</TableHeader>
+              </tr>
+            </TableHead>
+            <TableBody>
+              {betas.map((b) => (
+                <TableRow key={b.key} className="hover:bg-foreground/[0.02]">
+                  <TableCell className="py-1.5 pr-4">{b.label} <span className="text-micro text-muted-foreground">({b.group})</span></TableCell>
+                  <TableCell numeric className={cn('py-1.5 pr-4', tone(b.beta))}>{fmt4(b.beta)}</TableCell>
+                  <TableCell numeric className="py-1.5 pr-4 text-muted-foreground">{fmt4(b.t_stat)}</TableCell>
+                  <TableCell numeric className="py-1.5 pr-4 text-muted-foreground">{fmt4(b.p_value)}</TableCell>
+                  <TableCell numeric className="py-1.5 pr-4 text-muted-foreground">{b.vif == null ? '—' : b.vif.toFixed(2)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Panel>
       )}
 
       {regimes.length > 0 && (
         <Panel label="Performance by macro regime">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="text-left text-muted-foreground/70">
-                  <th className="py-2 pr-4 font-mono font-normal uppercase tracking-wider">Regime</th>
-                  <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">Days</th>
-                  <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">Ann. return</th>
-                  <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">Ann. vol</th>
-                  <th className="py-2 pr-4 text-right font-mono font-normal uppercase tracking-wider">Sharpe</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {regimes.map((b) => (
-                  <tr key={b.regime} className="hover:bg-foreground/[0.02]">
-                    <td className="py-1.5 pr-4">{b.label}</td>
-                    <td className="tnum py-1.5 pr-4 text-right text-muted-foreground">{b.days}</td>
-                    <td className={cn('tnum py-1.5 pr-4 text-right', tone(b.ann_return))}>{fmtPct(b.ann_return)}</td>
-                    <td className="tnum py-1.5 pr-4 text-right text-muted-foreground">{fmtPct(b.ann_vol)}</td>
-                    <td className="tnum py-1.5 pr-4 text-right text-muted-foreground">{fmt4(b.sharpe)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table className="text-xs">
+            <TableHead>
+              <tr>
+                <TableHeader>Regime</TableHeader>
+                <TableHeader numeric>Days</TableHeader>
+                <TableHeader numeric>Ann. return</TableHeader>
+                <TableHeader numeric>Ann. vol</TableHeader>
+                <TableHeader numeric>Sharpe</TableHeader>
+              </tr>
+            </TableHead>
+            <TableBody>
+              {regimes.map((b) => (
+                <TableRow key={b.regime} className="hover:bg-foreground/[0.02]">
+                  <TableCell className="py-1.5 pr-4">{b.label}</TableCell>
+                  <TableCell numeric className="py-1.5 pr-4 text-muted-foreground">{b.days}</TableCell>
+                  <TableCell numeric className={cn('py-1.5 pr-4', tone(b.ann_return))}>{fmtPct(b.ann_return)}</TableCell>
+                  <TableCell numeric className="py-1.5 pr-4 text-muted-foreground">{fmtPct(b.ann_vol)}</TableCell>
+                  <TableCell numeric className="py-1.5 pr-4 text-muted-foreground">{fmt4(b.sharpe)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Panel>
       )}
     </div>
@@ -409,7 +403,7 @@ function HeroBanner({ report, strategy }: { report: RunReport; strategy: StoredS
             <div className="text-xs font-medium text-muted-foreground">Latest run</div>
             <div className="text-lg">{report.run.name}</div>
           </div>
-          <div className="font-mono text-[11px] text-muted-foreground">
+          <div className="font-mono text-label text-muted-foreground">
             {strategy.model} · {strategy.handler} · {strategy.universe} · vs {strategy.benchmark}
           </div>
         </div>
@@ -426,6 +420,7 @@ function HeroBanner({ report, strategy }: { report: RunReport; strategy: StoredS
   )
 }
 
+/** MetricTile in the report's flush grid cell — same formatting, same tones. */
 function HeroMetric({
   label, value, text, digits = 2, percent, negative, suffix, large,
 }: {
@@ -438,42 +433,30 @@ function HeroMetric({
   suffix?: string
   large?: boolean
 }) {
-  const suffix_ = suffix ?? ''
-  const display =
-    text ??
-    (value == null || !Number.isFinite(value)
-      ? '—'
-      : percent
-        ? `${(value * 100).toFixed(digits === 2 ? 1 : digits)}%${suffix_}`
-        : `${value.toFixed(digits)}${suffix_}`)
-
-  const tone =
-    value == null || !Number.isFinite(value) || text
-      ? ''
-      : negative
-        ? 'text-clay'
-        : value > 0
-          ? 'text-primary'
-          : value < 0
-            ? 'text-clay'
-            : ''
-
   return (
-    <div className="bg-card px-5 py-4">
-      <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">{label}</div>
-      <div className={cn('tnum mt-1 font-mono', large ? 'text-2xl' : 'text-lg', tone)}>{display}</div>
-    </div>
+    <MetricTile
+      bare
+      label={label}
+      value={value}
+      text={text}
+      digits={digits}
+      percent={percent}
+      negative={negative}
+      suffix={suffix}
+      hero={large}
+      className="bg-card px-5 py-4"
+    />
   )
 }
 
 function SectionTitle({ n, title, caption }: { n: string; title: string; caption?: string }) {
   return (
     <div className="mb-3 flex items-baseline gap-3 border-b border-border/40 pb-2">
-      <span className="flex h-5 w-5 items-center justify-center rounded bg-muted font-mono text-[10px] text-muted-foreground/70">
+      <span className="flex h-5 w-5 items-center justify-center rounded bg-muted font-mono text-micro text-muted-foreground/70">
         {n}
       </span>
       <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
-      {caption && <span className="min-w-0 truncate text-[11px] text-muted-foreground">{caption}</span>}
+      {caption && <span className="min-w-0 truncate text-label text-muted-foreground">{caption}</span>}
     </div>
   )
 }
@@ -481,9 +464,9 @@ function SectionTitle({ n, title, caption }: { n: string; title: string; caption
 function Panel({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border/50 p-3">
-      <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="mb-1">
         {label}
-      </div>
+      </MicroLabel>
       {children}
     </div>
   )
@@ -621,22 +604,20 @@ function IndicatorTable({ report, annualTurnover, estimatedTrades }: { report: R
     rows.push({ label: key, value, digits: 4 })
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-xs">
-        <tbody className="divide-y divide-border/50">
-          {rows.map((r) => (
-            <tr key={r.label} className="hover:bg-foreground/[0.02]">
-              <td className="py-2 pr-4 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
-                {r.label}
-              </td>
-              <td className={cn('tnum py-2 pr-4 text-right', r.negative ? 'text-clay' : '')}>
-                {formatValue(r.value, r.percent, r.digits, r.suffix)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Table className="text-xs">
+      <TableBody>
+        {rows.map((r) => (
+          <TableRow key={r.label} className="hover:bg-foreground/[0.02]">
+            <TableCell className="font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
+              {r.label}
+            </TableCell>
+            <TableCell numeric className={cn(r.negative ? 'text-clay' : '')}>
+              {formatValue(r.value, r.percent, r.digits, r.suffix)}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   )
 }
 
@@ -659,15 +640,15 @@ function Positions({ runId }: { runId: string }) {
     return () => { live = false }
   }, [runId])
 
-  if (error) return <p className="text-[11px] text-muted-foreground">No predictions recorded.</p>
-  if (!data) return <p className="text-[11px] text-muted-foreground">Loading positions…</p>
-  if (!data.top.length) return <p className="text-[11px] text-muted-foreground">Nothing scored on {data.date}.</p>
+  if (error) return <p className="text-label text-muted-foreground">No predictions recorded.</p>
+  if (!data) return <p className="text-label text-muted-foreground">Loading positions…</p>
+  if (!data.top.length) return <p className="text-label text-muted-foreground">Nothing scored on {data.date}.</p>
 
   return (
     <div className="rounded-lg border border-border/50">
-      <div className="border-b border-border/50 px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="border-b border-border/50 px-3 py-2">
         {data.date} · top {data.top.length}
-      </div>
+      </MicroLabel>
       <div className="max-h-80 divide-y divide-border/50 overflow-y-auto">
         {data.top.map((row, i) => (
           <div key={row.instrument} className="flex items-baseline gap-3 px-3 py-1.5 font-mono text-xs">
@@ -703,25 +684,23 @@ function SpecTable({ strategy }: { strategy: StoredStrategy }) {
       {strategy.description && (
         <p className="max-w-3xl text-sm text-muted-foreground">{strategy.description}</p>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-xs">
-          <tbody className="divide-y divide-border/50">
-            {rows.map((r) => (
-              <tr key={r.label} className="hover:bg-foreground/[0.02]">
-                <td className="py-2 pr-4 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
-                  {r.label}
-                </td>
-                <td className="py-2 pr-4 text-right">{r.value}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Table className="text-xs">
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={r.label} className="hover:bg-foreground/[0.02]">
+              <TableCell className="font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
+                {r.label}
+              </TableCell>
+              <TableCell className="text-right">{r.value}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
       {strategy.features && strategy.features.length > 0 && (
         <div>
-          <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+          <MicroLabel as="div" className="mb-2">
             Custom features ({strategy.feature_mode})
-          </div>
+          </MicroLabel>
           <div className="space-y-1">
             {strategy.features.map((f) => (
               <div key={f.name} className="rounded border border-border/50 px-3 py-1.5 font-mono text-xs">

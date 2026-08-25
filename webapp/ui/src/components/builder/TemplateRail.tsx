@@ -12,11 +12,14 @@
  * and `available_models`: say why something is unavailable rather than quietly
  * offering a shorter list.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Check, Trash2, X } from 'lucide-react'
+
+import { useConfirmClick } from '@/hooks/useConfirmClick'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { RailRow, RailSection } from '@/components/ui/rail'
 import { useTemplates } from '@/hooks/useTemplates'
@@ -74,8 +77,8 @@ export function TemplateRail({
 
   return (
     <>
-      {loading && <p className="px-1 py-6 text-[11px] text-muted-foreground">Loading templates…</p>}
-      {error && <p className="px-1 py-2 text-[11px] text-destructive">{error}</p>}
+      {loading && <p className="px-1 py-6 text-label text-muted-foreground">Loading templates…</p>}
+      {error && <p className="px-1 py-2 text-label text-destructive">{error}</p>}
 
       {templates.length > 0 && (
         <RailSection label="Templates" count={templates.length} open={needle ? true : undefined}>
@@ -110,7 +113,7 @@ export function TemplateRail({
       )}
 
       {nothing && (
-        <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">
+        <p className="px-2 py-6 text-center text-label text-muted-foreground">
           {needle ? `Nothing matches “${needle}”.` : 'Nothing to start from yet.'}
         </p>
       )}
@@ -172,7 +175,7 @@ export function TemplateDetail({ template, onUse }: {
   onUse: () => void
 }) {
   return (
-    <div className="space-y-3 text-[11px] leading-relaxed">
+    <div className="space-y-3 text-label leading-relaxed">
       <div className="flex items-start gap-2">
         <span className="min-w-0 flex-1 text-sm font-medium">{template.title}</span>
         {/* The most important click a new user makes, so it is the app's
@@ -189,7 +192,7 @@ export function TemplateDetail({ template, onUse }: {
       </div>
 
       {template.tags.length > 0 && (
-        <div className="font-mono text-[10px] text-muted-foreground/70">
+        <div className="font-mono text-micro text-muted-foreground/70">
           {template.tags.join(' · ')}
         </div>
       )}
@@ -199,7 +202,7 @@ export function TemplateDetail({ template, onUse }: {
       {!template.runnable && (
         <div className="space-y-1">
           {template.blocked_by.map((d, i) => (
-            <p key={i} className="font-mono text-[10px] text-clay">{d.message}</p>
+            <p key={i} className="font-mono text-micro text-clay">{d.message}</p>
           ))}
         </div>
       )}
@@ -209,12 +212,12 @@ export function TemplateDetail({ template, onUse }: {
 
       {template.assumed && template.assumed.length > 0 && (
         <div>
-          <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+          <MicroLabel as="div" className="mb-1">
             Filled in for you
-          </div>
+          </MicroLabel>
           <div className="space-y-0.5">
             {template.assumed.map((a) => (
-              <div key={a.path} className="flex gap-2 font-mono text-[10px]">
+              <div key={a.path} className="flex gap-2 font-mono text-micro">
                 <span className="shrink-0 text-muted-foreground/70">{a.path}</span>
                 <span className="shrink-0">{String(a.value)}</span>
                 <span className="min-w-0 flex-1 truncate text-muted-foreground/70">{a.why}</span>
@@ -245,15 +248,9 @@ function SavedRow({ strategy, current, starter, onOpen, onDelete }: {
   onOpen: (strategy: StoredStrategy) => void
   onDelete: (strategy: StoredStrategy) => void
 }) {
-  const [confirming, setConfirming] = useState(false)
-
   // A misclick on a trash icon should not destroy work. The second click is the
   // confirmation, and moving away from the row cancels it.
-  useEffect(() => {
-    if (!confirming) return
-    const t = setTimeout(() => setConfirming(false), 4000)
-    return () => clearTimeout(t)
-  }, [confirming])
+  const { confirming, fire, disarm } = useConfirmClick()
 
   return (
     <RailRow
@@ -273,10 +270,9 @@ function SavedRow({ strategy, current, starter, onOpen, onDelete }: {
           title={confirming ? 'Click again to delete' : `Delete “${strategy.name}”`}
           onClick={(e) => {
             e.stopPropagation()
-            if (confirming) onDelete(strategy)
-            else setConfirming(true)
+            fire(() => onDelete(strategy))
           }}
-          onMouseLeave={() => setConfirming(false)}
+          onMouseLeave={disarm}
           className={cn(
             'rounded p-1 transition-colors',
             confirming
@@ -285,17 +281,17 @@ function SavedRow({ strategy, current, starter, onOpen, onDelete }: {
           )}
         >
           {confirming
-            ? <span className="px-0.5 font-mono text-[10px] uppercase">sure?</span>
+            ? <span className="px-0.5 font-mono text-micro uppercase">sure?</span>
             : <Trash2 className="h-3.5 w-3.5" />}
         </button>
       }
       tooltip={
         <div className="space-y-1">
-          <p className="text-[11px]">{strategy.name}</p>
-          <p className="font-mono text-[10px] text-muted-foreground">
+          <p className="text-label">{strategy.name}</p>
+          <p className="font-mono text-micro text-muted-foreground">
             {strategy.model} · {strategy.handler} · {strategy.universe}
           </p>
-          <p className="font-mono text-[10px] text-muted-foreground">
+          <p className="font-mono text-micro text-muted-foreground">
             {strategy.test_start} → {strategy.test_end}
           </p>
         </div>

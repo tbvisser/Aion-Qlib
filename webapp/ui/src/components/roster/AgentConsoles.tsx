@@ -58,14 +58,14 @@ export function AgentConsoles() {
                   'inline-block h-2 w-2 shrink-0 rounded-full',
                   health === null
                     ? 'animate-subtle-pulse bg-muted-foreground/40'
-                    : online ? 'bg-emerald-500' : 'bg-destructive',
+                    : online ? 'bg-primary' : 'bg-destructive',
                 )}
               />
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-label text-muted-foreground">
                 {health === null ? 'checking…' : online ? 'online' : 'offline'}
               </span>
             </div>
-            <p className="mt-1 text-[12px] text-muted-foreground">
+            <p className="mt-1 text-caption text-muted-foreground">
               The sidecar's own UI, where its multi-turn sessions and swarm runs live. The
               teams and tools listed below are the definitions; this is where they execute.
               {/* The distinction worth stating: both exist on purpose, and people
@@ -82,7 +82,7 @@ export function AgentConsoles() {
         </div>
 
         {!online && health !== null && (
-          <p className="rounded-md bg-muted p-2 font-mono text-[11px] text-muted-foreground">
+          <p className="rounded-md bg-muted p-2 font-mono text-label text-muted-foreground">
             infra\stack.ps1 up
           </p>
         )}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { PortfolioContribution } from '@/lib/api'
 import { formatPercent } from '@/lib/macroFormat'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
 type SortKey = 'symbol' | 'weight' | 'total_return' | 'contribution'
@@ -34,45 +35,47 @@ export function HoldingsTable({ rows }: { rows: PortfolioContribution[] }) {
   const maxWeight = Math.max(...rows.map((r) => Math.abs(r.weight ?? 0)), 1e-9)
 
   const header = (key: SortKey, label: string, right = false) => (
-    <th
-      className={cn('cursor-pointer py-1 font-normal hover:text-foreground',
-        right ? 'pl-2 text-right' : 'pr-2')}
-      onClick={() => setSort((s) => ({ key, dir: s.key === key && s.dir === -1 ? 1 : -1 }))}
-    >
-      {label}{sort.key === key ? (sort.dir === -1 ? ' ↓' : ' ↑') : ''}
-    </th>
+    <TableHeader numeric={right}>
+      <button
+        type="button"
+        className="cursor-pointer hover:text-foreground"
+        onClick={() => setSort((s) => ({ key, dir: s.key === key && s.dir === -1 ? 1 : -1 }))}
+      >
+        {label}{sort.key === key ? (sort.dir === -1 ? ' ↓' : ' ↑') : ''}
+      </button>
+    </TableHeader>
   )
 
   return (
-    <table className="w-full">
-      <thead>
-        <tr className="border-b border-border/50 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+    <Table>
+      <TableHead>
+        <tr>
           {header('symbol', 'Symbol')}
-          <th className="py-1 pr-2 font-normal">Class</th>
+          <TableHeader>Class</TableHeader>
           {header('weight', 'Weight', true)}
           {header('total_return', 'Return', true)}
           {header('contribution', 'Contribution', true)}
         </tr>
-      </thead>
-      <tbody>
+      </TableHead>
+      <TableBody>
         {sorted.map((row) => (
-          <tr
+          <TableRow
             key={row.symbol}
             data-testid={`holding-${row.symbol}`}
-            className="border-b border-border/30 last:border-0 hover:bg-foreground/[0.04]"
+            className="hover:bg-foreground/[0.04]"
           >
-            <td className="py-1.5 pr-2">
+            <TableCell className="py-1.5 pr-2">
               <span className="font-mono text-xs">{row.symbol}</span>
               {row.name && (
-                <span className="ml-2 truncate text-[10px] text-muted-foreground">
+                <span className="ml-2 truncate text-micro text-muted-foreground">
                   {row.name}
                 </span>
               )}
-            </td>
-            <td className="py-1.5 pr-2 font-mono text-[10px] uppercase text-muted-foreground/70">
+            </TableCell>
+            <TableCell className="py-1.5 pr-2 font-mono text-micro uppercase text-muted-foreground/70">
               {row.asset_class ?? '—'}
-            </td>
-            <td className="py-1.5 pl-2 text-right">
+            </TableCell>
+            <TableCell className="py-1.5 pl-2 text-right">
               <div className="relative inline-block w-20">
                 <div
                   className="absolute inset-y-0 right-0 rounded-sm bg-primary/25"
@@ -82,20 +85,20 @@ export function HoldingsTable({ rows }: { rows: PortfolioContribution[] }) {
                   {row.weight == null ? '—' : `${(row.weight * 100).toFixed(1)}%`}
                 </span>
               </div>
-            </td>
-            <td className={cn('tnum py-1.5 pl-2 text-right font-mono text-xs',
+            </TableCell>
+            <TableCell numeric className={cn('py-1.5 pl-2 text-xs',
               (row.total_return ?? 0) > 0 ? 'text-primary'
                 : (row.total_return ?? 0) < 0 ? 'text-clay' : '')}>
               {formatPercent(row.total_return)}
-            </td>
-            <td className={cn('tnum py-1.5 pl-2 text-right font-mono text-xs',
+            </TableCell>
+            <TableCell numeric className={cn('py-1.5 pl-2 text-xs',
               (row.contribution ?? 0) > 0 ? 'text-primary'
                 : (row.contribution ?? 0) < 0 ? 'text-clay' : '')}>
               {formatPercent(row.contribution)}
-            </td>
-          </tr>
+            </TableCell>
+          </TableRow>
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   )
 }

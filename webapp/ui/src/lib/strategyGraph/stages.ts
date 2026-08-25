@@ -1,5 +1,5 @@
 /**
- * The seven stages a strategy is drawn as, and which spec fields each owns.
+ * The eight stages a strategy is drawn as, and which spec fields each owns.
  *
  * The spec is the source of truth and the graph is derived from it on every
  * render. Nothing is written back -- not even positions. This mirrors the rule
@@ -18,12 +18,12 @@ export type StageId =
   | 'context' | 'store' | 'universe' | 'features' | 'periods' | 'learner' | 'portfolio' | 'costs'
 
 /**
- * Four phases over seven stages.
+ * Four phases over eight stages.
  *
  * `index.css` reserves five `--type-*` hues for identity and says they are
- * never verdicts, so there is no sixth or seventh to hand out. Rather than
+ * never verdicts, so there are not enough to give each stage its own. Rather than
  * invent one, adjacent stages share a phase colour -- which says more than
- * seven arbitrary hues would, and is the opposite of what a node editor
+ * eight arbitrary hues would, and is the opposite of what a node editor
  * usually does.
  */
 export type StagePhase = 'data' | 'shape' | 'fit' | 'execute'
@@ -46,7 +46,7 @@ export interface StageDef {
    * Load-bearing: it drives warning routing, and `stages.test.ts` asserts the
    * union covers every `StrategySpec` key except `name`. That assertion is what
    * breaks the day a field is added to the spec and forgotten here -- the exact
-   * failure mode of exploding one form into seven panels.
+   * failure mode of exploding one form into eight panels.
    */
   owns: readonly (keyof StrategySpec)[]
 }

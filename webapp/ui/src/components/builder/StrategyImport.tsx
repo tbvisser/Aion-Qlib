@@ -38,25 +38,38 @@ export function StrategyImport({ onApply }: { onApply: (spec: StrategySpec) => v
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
+  // Retires any parse still in flight: two fast drops must resolve to the
+  // later one, and a dialog closed mid-parse must not repopulate itself.
+  const parseSeq = useRef(0)
+
   const reset = useCallback(() => {
+    parseSeq.current++
     setText(''); setParsed(null); setError(null); setDragging(false)
   }, [])
 
   const parse = useCallback(async (source: string) => {
+    const mine = ++parseSeq.current
     setBusy(true)
     try {
-      setParsed(await api.importStrategy(source))
+      const result = await api.importStrategy(source)
+      if (mine !== parseSeq.current) return
+      setParsed(result)
       setError(null)
     } catch (e) {
+      if (mine !== parseSeq.current) return
       setParsed(null)
       setError(e instanceof Error ? e.message : 'Could not read that file')
     } finally {
-      setBusy(false)
+      if (mine === parseSeq.current) setBusy(false)
     }
   }, [])
 
   const take = useCallback(async (file: File) => {
     if (file.size > MAX_BYTES) {
+      // Also retire any previous result: a size-rejected file must not leave
+      // the last file's preview standing beside this one's error.
+      parseSeq.current++
+      setParsed(null)
       setError(`That file is ${Math.round(file.size / 1024)} KB. A strategy is a few.`)
       return
     }
@@ -132,7 +145,7 @@ export function StrategyImport({ onApply }: { onApply: (spec: StrategySpec) => v
             spellCheck={false}
             placeholder="…or paste the file here"
             className="w-full rounded-lg border border-border/50 bg-surface-2 p-2.5
-                       font-mono text-[11px] leading-relaxed"
+                       font-mono text-label leading-relaxed"
           />
 
           {error && <Notice tone="destructive" icon={false}>{error}</Notice>}
@@ -162,7 +175,7 @@ export function StrategyImport({ onApply }: { onApply: (spec: StrategySpec) => v
               )}
 
               {parsed.unknown_fields.length > 0 && (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-label text-muted-foreground">
                   Ignored, not part of a strategy:{' '}
                   <span className="font-mono">{parsed.unknown_fields.join(', ')}</span>
                 </p>
@@ -182,7 +195,7 @@ export function StrategyImport({ onApply }: { onApply: (spec: StrategySpec) => v
                   ))}
                 </Notice>
               ) : (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-label text-muted-foreground">
                   Everything resolves against this machine. Ready to run.
                 </p>
               )}

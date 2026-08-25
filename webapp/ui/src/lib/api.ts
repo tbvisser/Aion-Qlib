@@ -12,6 +12,7 @@
  * app would 401.
  */
 import { authHeaders } from '@/lib/authFetch'
+import type { FeatureMode } from '@/lib/factorExpr/featureSet'
 
 /**
  * FastAPI's array-form validation detail, as sentences that name the field.
@@ -536,6 +537,7 @@ export const api = {
   // arrive as vibe's own envelope: { ok/status, data/result, ... }.
 
   vibeHealth: () => request<VibeHealth>('/vibe/health'),
+
   /** Generic allowlisted MCP tool call; typed wrappers below are preferred. */
   vibeMcpCall: <T = unknown>(tool: string, args: Record<string, unknown>) =>
     request<{ tool: string; result: T }>('/vibe/mcp/call', {
@@ -1302,13 +1304,22 @@ export interface StrategyImport {
   options: Record<string, FieldOptions>
 }
 
-export interface FeatureColumn {
+/**
+ * One custom feature as the spec carries it. Not `FeatureColumn` — that name
+ * belongs to the factor canvas's richer editing shape (`{id, name, expr}` in
+ * `lib/factorExpr/featureSetReducer`), and two different shapes under one name
+ * forced every file touching both into local aliases.
+ */
+export interface SpecFeature {
   /** Becomes a pandas column name. Must not repeat a handler column's name. */
   name: string
   expression: string
 }
 
-export type FeatureMode = 'extend' | 'replace'
+// One definition, in the module that owns the concept. This was a second
+// identical declaration, and consumers had split roughly evenly between the
+// two — the same name meaning the same thing from two import paths.
+export type { FeatureMode } from '@/lib/factorExpr/featureSet'
 
 export interface StrategySpec {
   name: string
@@ -1338,7 +1349,7 @@ export interface StrategySpec {
    * distinguishable from `[]`, which the backend normalises to null so that
    * deleting the last card is the same strategy rather than a different config.
    */
-  features: FeatureColumn[] | null
+  features: SpecFeature[] | null
   /** Whether `features` are added to the handler's own, or replace them. */
   feature_mode: FeatureMode
   /** Whether this is a live/official fund strategy or a research backtest. */

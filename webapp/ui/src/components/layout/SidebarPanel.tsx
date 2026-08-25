@@ -6,6 +6,7 @@ import { useInbox } from '@/hooks/useInbox'
 import { useTheme } from '@/hooks/useTheme'
 import { UserMenu } from '@/components/UserMenu'
 import { Input } from '@/components/ui/input'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Segmented } from '@/components/ui/segmented'
 import {
   allNavSections,
@@ -142,7 +143,7 @@ export function SidebarPanel({
         {item.key === 'inbox' && unreadCount > 0 && (
           <span
             data-testid="sidebar-inbox-badge"
-            className="ml-auto shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] font-medium text-primary"
+            className="ml-auto shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 font-mono text-micro font-medium text-primary"
           >
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
@@ -150,7 +151,7 @@ export function SidebarPanel({
         {isSoon && (
           <span
             data-testid="sidebar-nav-soon"
-            className="ml-auto shrink-0 rounded bg-foreground/[0.06] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70"
+            className="ml-auto shrink-0 rounded bg-foreground/[0.06] px-1.5 py-0.5 text-micro font-medium uppercase tracking-wider text-muted-foreground/70"
           >
             Soon
           </span>
@@ -164,7 +165,7 @@ export function SidebarPanel({
       {!options?.hideHeading && (
         <p
           data-testid="sidebar-section-heading"
-          className="px-2.5 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70"
+          className="px-2.5 pb-1 pt-1 text-label font-medium uppercase tracking-wider text-muted-foreground/70"
         >
           {section.heading}
         </p>
@@ -176,11 +177,13 @@ export function SidebarPanel({
   return (
     <div
       data-testid="sidebar-panel"
-      className="flex w-[260px] flex-col border-r border-border/50 bg-[#F5F3EE] dark:bg-surface-1"
+      className="flex w-[260px] flex-col border-r border-border/50 bg-surface-rail"
     >
       {/* Header: the wordmark goes home; the two controls beside it collapse
           the panel and open the nav search. */}
-      <div className="flex items-center justify-between border-b border-border/50 py-4 pl-[18px] pr-3">
+      {/* h-[68px] matches PageHeader's total (py-5 + text-lg line) so the
+          sidebar border meets every page's header border. */}
+      <div className="flex h-[68px] items-center justify-between border-b border-border/50 pl-[18px] pr-3">
         <a
           data-testid="sidebar-home"
           href="/dashboard"
@@ -312,9 +315,9 @@ export function SidebarPanel({
         {shellMode === 'code' && !query.trim() && (
           <div className="mt-4 px-2">
             <div className="flex items-center justify-between px-2.5 pb-1">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+              <MicroLabel as="div" className="text-label">
                 Recents
-              </p>
+              </MicroLabel>
               <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground/50" />
             </div>
             <p className="px-2.5 py-6 text-center text-xs text-muted-foreground/70">

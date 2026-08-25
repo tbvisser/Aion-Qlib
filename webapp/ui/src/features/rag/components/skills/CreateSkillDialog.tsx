@@ -90,7 +90,7 @@ export function CreateSkillDialog({ open, onOpenChange, onSkillCreated }: Create
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Skill</DialogTitle>
+          <DialogTitle>Create skill</DialogTitle>
           <DialogDescription>
             Define a new skill with instructions the AI will follow when activated.
           </DialogDescription>
@@ -146,7 +146,7 @@ export function CreateSkillDialog({ open, onOpenChange, onSkillCreated }: Create
               id="skill-instructions"
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              placeholder="Enter the instructions the AI should follow..."
+              placeholder="Enter the instructions the AI should follow…"
               className="font-mono"
               rows={8}
             />
@@ -176,7 +176,7 @@ export function CreateSkillDialog({ open, onOpenChange, onSkillCreated }: Create
               Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Creating...' : 'Create Skill'}
+              {submitting ? 'Creating…' : 'Create skill'}
             </Button>
           </div>
         </form>

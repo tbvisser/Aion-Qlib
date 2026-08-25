@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { MacroRefreshButton } from '@/components/MacroRefreshButton'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useAgendaCalendar, useMonthCalendar } from '@/hooks/useMacro'
 import { countByDate, gridRange, monthGridWeeks } from '@/lib/agenda'
@@ -88,7 +89,7 @@ export function AgendaWidget() {
           {badgeCount > 0 && (
             <span
               data-testid="dashboard-calendar-count"
-              className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[9px] font-medium text-primary-foreground"
+              className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-tiny font-medium text-primary-foreground"
             >
               {badgeCount > 99 ? '99+' : badgeCount}
             </span>
@@ -102,12 +103,12 @@ export function AgendaWidget() {
             aria-hidden
             className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/50 via-border to-transparent"
           />
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+          <MicroLabel>
             {monthLabel(month)}
-          </span>
+          </MicroLabel>
           <div className="flex items-center gap-1">
             {calendar?.available && calendar.stale && (
-              <span className="mr-1 font-mono text-[10px] text-clay">stale</span>
+              <span className="mr-1 font-mono text-micro text-clay">stale</span>
             )}
             <MiniNav
               disabled={month <= minMonth}
@@ -147,7 +148,7 @@ export function AgendaWidget() {
                 {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
                   <div
                     key={`${d}${i}`}
-                    className="text-center font-mono text-[9px] uppercase text-muted-foreground/50"
+                    className="text-center font-mono text-tiny uppercase text-muted-foreground/50"
                   >
                     {d}
                   </div>
@@ -168,9 +169,9 @@ export function AgendaWidget() {
               </div>
 
               <div className="mt-3">
-                <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+                <MicroLabel as="div" className="mb-1">
                   {agendaDayLabel(selectedDay, today)}
-                </div>
+                </MicroLabel>
                 {dayReleases.length === 0 ? (
                   <p className="py-1 text-xs text-muted-foreground">
                     No releases on this day.
@@ -244,7 +245,7 @@ function MiniCell({ date, inMonth, isToday, isSelected, count, onSelect }: {
       )}
     >
       <span className={cn(
-        'tnum font-mono text-[10px] leading-none',
+        'tnum font-mono text-micro leading-none',
         isToday ? 'font-medium text-primary'
           : inMonth ? 'text-foreground/80' : 'text-muted-foreground/40',
       )}>
@@ -280,18 +281,18 @@ function AgendaRow({ row, today }: { row: MacroRelease; today: string }) {
   const awaiting = row.actual == null && row.date < today
   return (
     <div className="flex items-baseline gap-2 border-b border-border/30 py-1 text-xs last:border-0">
-      <span className="tnum w-10 shrink-0 font-mono text-[11px] text-type-release">
+      <span className="tnum w-10 shrink-0 font-mono text-label text-type-release">
         {row.time ?? '—'}
       </span>
       <span className="min-w-0 truncate">
         {row.type}
         {row.comparison && (
-          <span className="ml-1 font-mono text-[9px] uppercase text-muted-foreground/60">
+          <span className="ml-1 font-mono text-tiny uppercase text-muted-foreground/60">
             {row.comparison}
           </span>
         )}
       </span>
-      <span className="tnum ml-auto shrink-0 font-mono text-[11px]">
+      <span className="tnum ml-auto shrink-0 font-mono text-label">
         {row.actual != null ? (
           <span className={cn(row.surprise != null
             && (row.surprise > 0 ? 'text-primary'

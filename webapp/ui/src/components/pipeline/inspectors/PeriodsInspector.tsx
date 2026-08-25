@@ -1,5 +1,5 @@
 /**
- * Stage 04 — train, validate, test.
+ * Stage 05 — train, validate, test.
  *
  * Between Features and Learner because that is where qlib applies the split:
  * `fit_start_time`/`fit_end_time` land on the handler's processors, so the
@@ -54,7 +54,7 @@ export function PeriodsInspector(props: InspectorProps) {
           is told, and a backtest that quietly stops before the date on the form
           is the kind of difference that gets attributed to the strategy. */}
       {clamped && (
-        <p className="text-[11px] leading-relaxed text-clay">
+        <p className="text-label leading-relaxed text-clay">
           This store can only be backtested to {explain?.effective_test_end}; the run will end
           there rather than on {spec.test_end}.
         </p>

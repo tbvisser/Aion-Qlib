@@ -13,7 +13,9 @@
  * the measurement chart room.
  */
 import { Copy, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
+import { useConfirmClick } from '@/hooks/useConfirmClick'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Panel } from '@/components/ui/panel'
@@ -51,26 +53,45 @@ export function FeatureInspector({
   // in a second place with a second voice.
   const mine = issues.filter((i) => i.columnId === column.id)
 
+  // The tab's contract — Enter or blur commits, Escape cancels — for the same
+  // field one click away. This input used to commit on every keystroke with no
+  // way out, so the two surfaces disagreed about how renaming works.
+  const [nameDraft, setNameDraft] = useState(column.name)
+  useEffect(() => { setNameDraft(column.name) }, [column.id, column.name])
+  const commitName = () => {
+    if (nameDraft !== column.name) onRename(nameDraft)
+  }
+
+  const del = useConfirmClick()
+
   return (
     <div className="space-y-4">
       <Panel title="Feature column">
         <div className="space-y-2">
           <label className="block space-y-1">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+            <span className="font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
               Name
             </span>
             <Input
-              value={column.name}
+              value={nameDraft}
               data-testid="feature-name"
-              onChange={(e) => onRename(e.target.value)}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={commitName}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitName()
+                if (e.key === 'Escape') setNameDraft(column.name)
+              }}
               className={cn('h-8 font-mono text-xs',
                             mine.some((i) => i.level === 'error') && 'border-destructive/60')}
             />
           </label>
 
+          {/* Code alone collides: every server defect arrives as
+              `server-defect`, and a duplicate key silently drops the second
+              message. */}
           {mine.map((issue) => (
-            <p key={issue.code}
-               className={cn('text-[11px] leading-relaxed',
+            <p key={`${issue.code}:${issue.message}`}
+               className={cn('text-label leading-relaxed',
                              issue.level === 'error' ? 'text-destructive' : 'text-clay')}>
               {issue.message}
             </p>
@@ -78,7 +99,7 @@ export function FeatureInspector({
 
           {/* Same radius as the `Renders as` block in `NodeInspector`: it is the
               same expression, printed in the same rail, one selection apart. */}
-          <pre className="overflow-x-auto rounded-lg bg-surface-2 p-2 font-mono text-[10px] leading-relaxed">
+          <pre className="overflow-x-auto rounded-lg bg-surface-2 p-2 font-mono text-micro leading-relaxed">
             {expression || '—'}
           </pre>
 
@@ -86,7 +107,7 @@ export function FeatureInspector({
               app shows: how much history the column needs before it means
               anything, and whether it reads any future at all. */}
           {check?.result?.ok && (
-            <p className="font-mono text-[10px] leading-relaxed text-muted-foreground/70">
+            <p className="font-mono text-micro leading-relaxed text-muted-foreground/70">
               checked against {measure?.store ?? 'this store'}
               {check.result.longest_back_rolling != null
                 && ` · needs ${check.result.longest_back_rolling} days of history`}
@@ -94,7 +115,7 @@ export function FeatureInspector({
             </p>
           )}
           {check?.checking && (
-            <p className="font-mono text-[10px] text-muted-foreground/70">checking…</p>
+            <p className="font-mono text-micro text-muted-foreground/70">checking…</p>
           )}
         </div>
       </Panel>
@@ -106,20 +127,25 @@ export function FeatureInspector({
           <Copy className="h-4 w-4" />
           Duplicate
         </Button>
+        {/* Two-click, like every other delete outside a dialog: a whole
+            column is authored work and went on the first click before. */}
         <Button
           variant="ghost"
           size="sm"
-          onClick={onRemove}
+          onClick={() => del.fire(onRemove)}
+          onMouseLeave={del.disarm}
           disabled={!canRemove}
-          title={canRemove ? 'Remove this column'
-                           : 'A feature set needs at least one column'}
+          className={cn(del.confirming && 'text-clay')}
+          title={!canRemove ? 'A feature set needs at least one column'
+                            : del.confirming ? 'Click again to delete'
+                                             : 'Remove this column'}
         >
           <Trash2 className="h-4 w-4" />
-          Delete
+          {del.confirming ? 'sure?' : 'Delete'}
         </Button>
       </div>
 
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-label leading-relaxed text-muted-foreground">
         Pick a card to change it, or add a block from the left. A block lands in the
         selected card’s empty slot, or wraps it when there is none.
       </p>

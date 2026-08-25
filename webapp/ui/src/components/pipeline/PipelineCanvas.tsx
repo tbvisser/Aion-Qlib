@@ -1,5 +1,5 @@
 /**
- * The strategy, drawn as its seven stages in a vertical stack with a hub above.
+ * The strategy, drawn as its eight stages in a vertical stack with a hub above.
  *
  * The spec is the source of truth and this graph is derived from it on every
  * render -- nothing is written back, not even positions. That is the same rule
@@ -61,7 +61,7 @@ const PHASE_DOT: Record<StagePhase, string> = {
 /**
  * Fit-to-view, floored.
  *
- * `fitView` was rejected while the pipeline was a row: seven cards was ~2,000px,
+ * `fitView` was rejected while the pipeline was a row: the cards were ~2,000px,
  * which fitted into a pane at about 0.6 zoom, where a 10px mono eyebrow is
  * unreadable. The vertical stack is a narrow column, so the arithmetic is
  * different -- it fits at zoom 1 in every pane this app sees except the
@@ -83,16 +83,16 @@ const FIT: FitViewOptions = {
  * The overview when nothing is selected, the card itself when something is, and
  * the features card with its chips while the fan is open.
  *
- * The ring is centred on the origin, so there is no static `defaultViewport` that
- * works: the pane has to be told where the centre is once it has been measured.
- * Selecting a stage pans to it without changing the zoom; clicking the pane
- * clears the selection and the whole ring comes back.
+ * The stack is centred on the origin, so there is no static `defaultViewport`
+ * that works: the pane has to be told where the centre is once it has been
+ * measured. Selecting a stage pans to it without changing the zoom; clicking
+ * the pane clears the selection and the whole stack comes back.
  *
- * Expanded outranks both, because it is the thing you just asked to look at. It
- * frames the fan rather than the picture: the ring plus a full grid would have
- * to be shown at zoom 0.54, well under the floor where the cards stop being
- * readable, while the fan alone never needs less than 0.91 at any count. On
- * collapse the other two rules take over unchanged.
+ * Expanded outranks both, because it is the thing you just asked to look at.
+ * It frames the grid rather than the picture: the whole stack plus a full grid
+ * would sit well under the zoom floor where the cards stop being readable,
+ * while the grid alone stays legible at any count. On collapse the other two
+ * rules take over unchanged.
  */
 function ViewportDirector({
   selected, expanded, chipCount,
@@ -228,13 +228,14 @@ export function PipelineCanvas({
       >
         <Background variant={BackgroundVariant.Lines} gap={24} color="hsl(var(--border) / 0.5)" />
         {/* Bottom-left because `BacktestsPanel` is absolutely positioned at
-            top-right in the same box, and the ring leaves the corners empty. */}
+            top-right in the same box, and the centred stack leaves the corners
+            empty. */}
         <Controls showInteractive={false} position="bottom-left" />
         <Panel position="bottom-right" className="flex items-center gap-3">
           {PHASE_ORDER.map((phase) => (
             <span key={phase} className="flex items-center gap-1.5">
               <span aria-hidden className={cn('h-1.5 w-1.5 rounded-full', PHASE_DOT[phase])} />
-              <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground/60">
+              <span className="font-mono text-tiny uppercase tracking-wider text-muted-foreground/60">
                 {PHASE_LABELS[phase]}
               </span>
             </span>

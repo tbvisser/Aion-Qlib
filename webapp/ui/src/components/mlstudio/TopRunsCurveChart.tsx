@@ -109,7 +109,7 @@ export function TopRunsCurveChart({
               className="h-2 w-2 rounded-full"
               style={{ background: COMPARE_COLORS[i % COMPARE_COLORS.length] }}
             />
-            <span className="max-w-[160px] truncate font-mono text-[10px] text-muted-foreground">
+            <span className="max-w-[160px] truncate font-mono text-micro text-muted-foreground">
               {run.name}
             </span>
           </div>

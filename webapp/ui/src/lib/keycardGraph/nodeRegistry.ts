@@ -10,6 +10,7 @@
  * form.
  */
 import type { KeycardNodeCategory, KeycardPort, KeycardPortType } from '@/lib/api'
+import { KEYCARD_HUES } from './palette'
 
 export type NodeCategory =
   | 'Data'
@@ -42,21 +43,25 @@ export interface NodeCategoryInfo {
   id: NodeCategory
   label: string
   icon: string
+  /**
+   * A hue reference from `palette.ts` (`var(--kc-*)`), not a paintable
+   * colour — wrap it in `solid()` or `wash()` at the point of use.
+   */
   color: string
 }
 
 export const NODE_CATEGORY_INFO: Record<NodeCategory, NodeCategoryInfo> = {
-  Data: { id: 'Data', label: 'Data', icon: 'database', color: '#60a5fa' },
-  Schedule: { id: 'Schedule', label: 'When to trade', icon: 'calendar-clock', color: '#34d399' },
-  Rules: { id: 'Rules', label: 'Trading rules', icon: 'filter', color: '#a78bfa' },
-  Execution: { id: 'Execution', label: 'Trading execution', icon: 'trending-up', color: '#f97316' },
-  Management: { id: 'Management', label: 'Trading management', icon: 'list-filter', color: '#f43f5e' },
-  Variables: { id: 'Variables', label: 'Variables', icon: 'sigma', color: '#fbbf24' },
-  'Chart Drawings': { id: 'Chart Drawings', label: 'Chart drawings', icon: 'candlestick-chart', color: '#22d3ee' },
-  Features: { id: 'Features', label: 'Features', icon: 'sigma', color: '#a78bfa' },
-  Model: { id: 'Model', label: 'Model', icon: 'cpu', color: '#34d399' },
-  Portfolio: { id: 'Portfolio', label: 'Portfolio', icon: 'briefcase', color: '#fbbf24' },
-  Output: { id: 'Output', label: 'Output', icon: 'file-text', color: '#94a3b8' },
+  Data: { id: 'Data', label: 'Data', icon: 'database', color: KEYCARD_HUES.blue },
+  Schedule: { id: 'Schedule', label: 'When to trade', icon: 'calendar-clock', color: KEYCARD_HUES.emerald },
+  Rules: { id: 'Rules', label: 'Trading rules', icon: 'filter', color: KEYCARD_HUES.violet },
+  Execution: { id: 'Execution', label: 'Trading execution', icon: 'trending-up', color: KEYCARD_HUES.orange },
+  Management: { id: 'Management', label: 'Trading management', icon: 'list-filter', color: KEYCARD_HUES.rose },
+  Variables: { id: 'Variables', label: 'Variables', icon: 'sigma', color: KEYCARD_HUES.amber },
+  'Chart Drawings': { id: 'Chart Drawings', label: 'Chart drawings', icon: 'candlestick-chart', color: KEYCARD_HUES.cyan },
+  Features: { id: 'Features', label: 'Features', icon: 'sigma', color: KEYCARD_HUES.violet },
+  Model: { id: 'Model', label: 'Model', icon: 'cpu', color: KEYCARD_HUES.emerald },
+  Portfolio: { id: 'Portfolio', label: 'Portfolio', icon: 'briefcase', color: KEYCARD_HUES.amber },
+  Output: { id: 'Output', label: 'Output', icon: 'file-text', color: KEYCARD_HUES.slate },
 }
 
 const PORTS: Record<string, KeycardPort[]> = {

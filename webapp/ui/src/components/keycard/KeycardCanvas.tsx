@@ -7,6 +7,7 @@ import {
   useReactFlow,
   type Connection,
   type EdgeChange,
+  type EdgeRemoveChange,
   type NodeChange,
   type NodeDimensionChange,
   type NodePositionChange,
@@ -47,7 +48,6 @@ interface Props {
   selectedNodeId: string | null
   onSelectNode: (id: string | null) => void
   onChange: (next: KeycardSpec) => void
-  onNodeDoubleClick?: (nodeId: string) => void
 }
 
 export function KeycardCanvas({
@@ -57,7 +57,6 @@ export function KeycardCanvas({
   selectedNodeId,
   onSelectNode,
   onChange,
-  onNodeDoubleClick,
 }: Props) {
   const { screenToFlowPosition } = useReactFlow()
   const [connecting, setConnecting] = useState<{ portType: KeycardPortType; seeking: 'source' | 'target' } | null>(null)
@@ -147,7 +146,6 @@ export function KeycardCanvas({
         metaByType,
         defects,
         selectedNodeId,
-        onNodeDoubleClick,
         handleCreateNode,
         handleReplaceStartNode,
         handleReplaceAddNext,
@@ -164,45 +162,24 @@ export function KeycardCanvas({
         return { ...n, measured: { width: dim.width, height: dim.height } }
       })
     },
-    [spec, metaByType, defects, selectedNodeId, onNodeDoubleClick, handleCreateNode, handleReplaceStartNode, handleReplaceAddNext, connecting, nodeDimensions],
+    [spec, metaByType, defects, selectedNodeId, handleCreateNode, handleReplaceStartNode, handleReplaceAddNext, connecting, nodeDimensions],
   )
-  const edges = useMemo<KeycardFlowEdge[]>(() => {
-    const routed = new Map<string, KeycardDefect[]>()
-    for (const d of defects) {
-      const match = /^edges\[([^\]]+)\]/.exec(d.path)
-      if (!match) continue
-      const list = routed.get(match[1]) ?? []
-      list.push(d)
-      routed.set(match[1], list)
-    }
-    return toFlowEdges(spec, metaByType).map((e) => ({
-      ...e,
-      animated: (routed.get(e.id) ?? []).length === 0,
-      data: { keycardEdge: e.data!.keycardEdge, defects: routed.get(e.id) ?? [] },
-    }))
-  }, [spec, metaByType, defects])
+  // Defect routing and the animated/defective distinction live in
+  // `toFlowEdges` itself now — this used to re-implement both on top of it.
+  const edges = useMemo<KeycardFlowEdge[]>(
+    () => toFlowEdges(spec, metaByType, defects),
+    [spec, metaByType, defects])
 
+  // One pass over every change kind, no early returns: React Flow batches
+  // changes, and returning after the position (or remove) branch used to drop
+  // a selection change riding in the same batch — clicking a node mid-drag
+  // selected nothing.
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     const removedIds = new Set(
       changes
         .filter((c): c is NodeRemoveChange => c.type === 'remove')
         .map((c) => c.id),
     )
-    if (removedIds.size > 0) {
-      setNodeDimensions((prev) => {
-        const next = new Map(prev)
-        for (const id of removedIds) next.delete(id)
-        return next
-      })
-      onChange({
-        ...spec,
-        nodes: spec.nodes.filter((n) => !removedIds.has(n.id)),
-        edges: spec.edges.filter(
-          (e) => !removedIds.has(e.source) && !removedIds.has(e.target),
-        ),
-      })
-      return
-    }
 
     const dimensionChanges = changes.filter(
       (c): c is NodeDimensionChange & { dimensions: { width: number; height: number } } =>
@@ -211,9 +188,10 @@ export function KeycardCanvas({
         typeof c.dimensions.width === 'number' &&
         typeof c.dimensions.height === 'number',
     )
-    if (dimensionChanges.length > 0) {
+    if (removedIds.size > 0 || dimensionChanges.length > 0) {
       setNodeDimensions((prev) => {
         const next = new Map(prev)
+        for (const id of removedIds) next.delete(id)
         for (const c of dimensionChanges) {
           next.set(c.id, { width: c.dimensions.width, height: c.dimensions.height })
         }
@@ -228,15 +206,26 @@ export function KeycardCanvas({
         typeof c.position.x === 'number' &&
         typeof c.position.y === 'number',
     )
-    if (positionChanges.length > 0) {
-      onChange({
-        ...spec,
-        nodes: spec.nodes.map((n) => {
+    if (removedIds.size > 0 || positionChanges.length > 0) {
+      let nodes = spec.nodes
+      if (positionChanges.length > 0) {
+        nodes = nodes.map((n) => {
           const change = positionChanges.find((c) => c.id === n.id)
           return change ? { ...n, position: { x: change.position.x, y: change.position.y } } : n
-        }),
+        })
+      }
+      if (removedIds.size > 0) {
+        nodes = nodes.filter((n) => !removedIds.has(n.id))
+      }
+      onChange({
+        ...spec,
+        nodes,
+        edges: removedIds.size > 0
+          ? spec.edges.filter(
+              (e) => !removedIds.has(e.source) && !removedIds.has(e.target),
+            )
+          : spec.edges,
       })
-      return
     }
 
     const selectChanges = changes.filter(
@@ -251,10 +240,12 @@ export function KeycardCanvas({
   }, [spec, onChange, onSelectNode])
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+    // A remove change is `{ id, type }` — there is no `.item` on it. Reading
+    // one through a cast made every edge deletion throw.
     const removedIds = new Set(
       changes
-        .filter((c) => c.type === 'remove')
-        .map((c) => ((c as unknown) as { item: { id: string } }).item.id),
+        .filter((c): c is EdgeRemoveChange => c.type === 'remove')
+        .map((c) => c.id),
     )
     if (removedIds.size === 0) return
     onChange({
@@ -432,7 +423,6 @@ export function KeycardCanvas({
         onReconnectEnd={onReconnectEnd}
         onPaneClick={() => onSelectNode(null)}
         onNodeClick={(_, node) => onSelectNode(node.id)}
-        onNodeDoubleClick={(_, node) => onNodeDoubleClick?.(node.id)}
         onDragOver={onDragOver}
         onDrop={onDrop}
         fitView

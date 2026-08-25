@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, type MacroCalendar } from '@/lib/api'
-import { aggregateAlerts, type MacroAlertPoint } from '@/lib/macroAlerts'
+import { api, type MacroCalendar, type MacroSnapshot } from '@/lib/api'
+import { aggregateAlerts, aggregateMarketAlerts, blendAlerts, type MacroAlertPoint } from '@/lib/macroAlerts'
 import { addDaysIso, todayIso } from '@/lib/macroFormat'
 
 const HORIZON_DAYS = 14
+const MARKET_WEIGHT = 0.65
 
 export function useMacroAlerts(enabled = true) {
   const [alerts, setAlerts] = useState<MacroAlertPoint[]>([])
@@ -26,11 +27,15 @@ export function useMacroAlerts(enabled = true) {
     const from = todayIso()
     const to = addDaysIso(from, HORIZON_DAYS)
 
-    void api
-      .macroCalendar({ from, to, limit: 1000 })
-      .then((calendar: MacroCalendar) => {
+    void Promise.all([
+      api.macroCalendar({ from, to, limit: 1000 }),
+      api.macroSnapshot(),
+    ])
+      .then(([calendar, snapshot]: [MacroCalendar, MacroSnapshot]) => {
         if (id !== reqId.current) return
-        setAlerts(aggregateAlerts(calendar, HORIZON_DAYS))
+        const calendarAlerts = aggregateAlerts(calendar, HORIZON_DAYS)
+        const marketAlerts = aggregateMarketAlerts(snapshot)
+        setAlerts(blendAlerts(calendarAlerts, marketAlerts, MARKET_WEIGHT))
         setError(null)
       })
       .catch((err) => {

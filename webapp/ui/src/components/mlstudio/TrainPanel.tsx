@@ -24,6 +24,7 @@ import { Link } from 'react-router-dom'
 import { Layers, Play } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Panel } from '@/components/ui/panel'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -155,7 +156,7 @@ export function TrainPanel({ runs, onLaunched }: {
   if (strategies && strategies.length === 0) {
     return (
       <Panel title="Train" hint="a saved strategy, against several learners">
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
+        <p className="text-body-sm leading-relaxed text-muted-foreground">
           Nothing saved yet. This page trains strategies that already exist —{' '}
           <Link to="/lab/builder" className="text-primary hover:underline">
             build and save one first
@@ -189,14 +190,14 @@ export function TrainPanel({ runs, onLaunched }: {
               </SelectContent>
             </Select>
             {strategy && (
-              <p className="mt-1 font-mono text-[10px] text-muted-foreground/70">
+              <p className="mt-1 font-mono text-micro text-muted-foreground/70">
                 {strategy.universe} · {strategy.data_store} · {strategy.test_start} → {strategy.test_end}
               </p>
             )}
           </Labelled>
 
           <Labelled label="Everything else stays put">
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <p className="text-label leading-relaxed text-muted-foreground">
               The universe, the windows, the portfolio rules and the costs come from the saved
               strategy and are identical across every run — which is what makes the results
               comparable. Change those in the Builder.
@@ -227,7 +228,7 @@ export function TrainPanel({ runs, onLaunched }: {
               {combinations.map(({ model, handler }) => {
                 const found = coverage[`${model}::${handler}`]
                 return (
-                  <div key={`${model}::${handler}`} className="flex items-baseline gap-2 px-2.5 py-1.5 text-[11px]">
+                  <div key={`${model}::${handler}`} className="flex items-baseline gap-2 px-2.5 py-1.5 text-label">
                     <span className="w-40 shrink-0 truncate font-mono">{model} / {handler}</span>
                     <span className="min-w-0 flex-1 text-muted-foreground">
                       {coverageLine(found)}
@@ -240,7 +241,7 @@ export function TrainPanel({ runs, onLaunched }: {
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-label leading-relaxed text-muted-foreground">
             {/* The queue is the server's, and it labels the waiting runs. Saying
                 so here means the phase text confirms the panel rather than
                 contradicting it. */}
@@ -269,7 +270,7 @@ export function TrainPanel({ runs, onLaunched }: {
         </div>
 
         {overCap && (
-          <p className="text-[11px] leading-relaxed text-clay">
+          <p className="text-label leading-relaxed text-clay">
             {combinations.length} combinations is more than {MAX_SWEEP}. They run one after
             another, so that is a long wait for results you cannot look at until the end —
             untick a few and sweep again afterwards.
@@ -278,11 +279,11 @@ export function TrainPanel({ runs, onLaunched }: {
 
         {failures.length > 0 && (
           <div className="space-y-0.5 rounded-lg border border-destructive/40 p-2.5">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-destructive">
+            <div className="font-mono text-micro uppercase tracking-wider text-destructive">
               {failures.length} did not start
             </div>
             {failures.map((f) => (
-              <p key={f} className="font-mono text-[11px] text-destructive">{f}</p>
+              <p key={f} className="font-mono text-label text-destructive">{f}</p>
             ))}
           </div>
         )}
@@ -294,9 +295,9 @@ export function TrainPanel({ runs, onLaunched }: {
 function Labelled({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div">
         {label}
-      </div>
+      </MicroLabel>
       {children}
     </div>
   )
@@ -339,7 +340,7 @@ function TickList({ label, options, picked, onChange, testId }: {
                   : [...picked, option.value])
               }}
               className={cn(
-                'rounded-md border px-2 py-1 font-mono text-[11px] transition-colors',
+                'rounded-md border px-2 py-1 font-mono text-label transition-colors',
                 on ? 'border-primary/50 bg-primary/10' : 'border-border/50 hover:bg-foreground/[0.04]',
                 held && 'cursor-not-allowed',
               )}

@@ -46,7 +46,7 @@ export function StrategyListTab({ strategies, loading }: StrategyListTabProps) {
               className="block rounded-lg border border-border/50 bg-card p-3 transition-shadow hover:shadow-card"
             >
               <div className="truncate text-sm font-medium">{strategy.name}</div>
-              <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+              <div className="mt-0.5 font-mono text-micro text-muted-foreground">
                 {strategy.model} · {strategy.handler} · {strategy.universe}
               </div>
               <div className="mt-2 flex flex-wrap gap-1">
@@ -72,7 +72,7 @@ export function StrategyListTab({ strategies, loading }: StrategyListTabProps) {
 function FeatureBadge({ active, label }: { active: boolean; label: string }) {
   return (
     <span className={cn(
-      'inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px]',
+      'inline-flex items-center rounded-md border px-1.5 py-0.5 text-micro',
       active
         ? 'border-primary/30 bg-primary/10 text-foreground'
         : 'border-border/50 bg-foreground/[0.02] text-muted-foreground',

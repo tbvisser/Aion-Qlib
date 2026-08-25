@@ -54,7 +54,11 @@ import {
 import { cn } from '@/lib/utils'
 import type { KeycardNodeCategory, KeycardNodeTypeMeta, KeycardPortType } from '@/lib/api'
 
-import { inputPortHandleTop, outputPortHandleTop, PORT_COLORS, type KeycardFlowNode } from '@/lib/keycardGraph/keycardFlow'
+import {
+  inputPortHandleTop, outputPortHandleTop, KEYCARD_NODE_HEIGHT, KEYCARD_NODE_WIDTH,
+  PORT_COLORS, type KeycardFlowNode,
+} from '@/lib/keycardGraph/keycardFlow'
+import { NEUTRAL_HUE, solid, wash } from '@/lib/keycardGraph/palette'
 
 const ICONS: Record<string, LucideIcon> = {
   database: Database,
@@ -175,24 +179,23 @@ function summarizeConfig(type: string, config: Record<string, unknown>): { title
   return { title, subtitle }
 }
 
-const GREY_COLOR = '#9ca3af'
-
-/** n8n node dimensions. Keep in sync with keycardFlow.ts. */
-const NODE_WIDTH = 160
-const NODE_HEIGHT = 56
+// The card reads the same numbers the layout uses, so the two can never
+// disagree — this used to be a second copy with a "keep in sync" comment.
+const NODE_WIDTH = KEYCARD_NODE_WIDTH
+const NODE_HEIGHT = KEYCARD_NODE_HEIGHT
 
 export const KeycardNode = memo(function KeycardNode({ data, selected }: NodeProps<KeycardFlowNode>) {
   const { keycardNode, meta, defects } = data
   const info = nodeInfo(keycardNode.type)
   const category = (meta?.category ?? info?.category ?? 'Data') as NodeCategory
-  const categoryInfo = NODE_CATEGORY_INFO[category] ?? { color: GREY_COLOR, label: category }
+  const categoryInfo = NODE_CATEGORY_INFO[category] ?? { color: NEUTRAL_HUE, label: category }
   const Icon = getIcon(meta?.icon ?? info?.icon)
 
   const complete = useMemo(
     () => isNodeConfigComplete(keycardNode, meta ?? info),
     [keycardNode, meta, info],
   )
-  const nodeColor = complete ? categoryInfo.color : GREY_COLOR
+  const nodeColor = complete ? categoryInfo.color : NEUTRAL_HUE
 
   const blocking = useMemo(() => defects.filter((d) => d.severity === 'blocking'), [defects])
 
@@ -215,13 +218,12 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
         blocking.length > 0 ? 'border-clay/60' : 'border-border/60',
         (selected || data.selected) && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
       )}
-      onDoubleClick={() => data.onDoubleClick?.(keycardNode.id)}
       data-testid={`keycard-node-${keycardNode.id}`}
     >
       {/* Coloured icon strip — n8n places the brand icon on a solid left tile. */}
       <span
         className="flex w-11 shrink-0 items-center justify-center"
-        style={{ backgroundColor: nodeColor }}
+        style={{ backgroundColor: solid(nodeColor) }}
       >
         <Icon className="h-4 w-4 text-white" />
       </span>
@@ -237,16 +239,17 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
         {subtitle && (
           <div
             title={subtitle}
-            className="min-w-0 truncate text-[10px] leading-snug text-muted-foreground"
+            className="min-w-0 truncate text-micro leading-snug text-muted-foreground"
           >
             {subtitle}
           </div>
         )}
       </div>
 
-      {/* Status dot */}
+      {/* Status dot. Clay, matching the border above: a blocking defect is a
+          config verdict, and this card already speaks clay for it. */}
       {blocking.length > 0 && (
-        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-destructive" />
+        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-clay" />
       )}
       {!complete && blocking.length === 0 && (
         <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
@@ -276,7 +279,7 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
             style={{
               top,
               left: -4,
-              borderColor: portColor,
+              borderColor: solid(portColor),
             }}
           >
             <span
@@ -313,7 +316,7 @@ export const KeycardNode = memo(function KeycardNode({ data, selected }: NodePro
               style={{
                 top,
                 right: -4,
-                borderColor: portColor,
+                borderColor: solid(portColor),
               }}
             >
               <span
@@ -410,7 +413,7 @@ export function AddNodeMenu({
 
   return (
     <div className="flex max-h-[70vh] w-60 flex-col">
-      <div className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+      <div className="mb-1.5 px-1 text-micro font-medium uppercase tracking-wider text-muted-foreground">
         {title}
       </div>
       <div className="relative mb-2">
@@ -437,14 +440,14 @@ export function AddNodeMenu({
             id: category.id,
             label: category.label,
             icon: 'box',
-            color: '#9ca3af',
+            color: NEUTRAL_HUE,
           }
           const CatIcon = getIcon(catInfo.icon)
           return (
             <div key={category.id}>
               <div
-                className="mb-1 flex items-center gap-1.5 px-1 text-[10px] font-medium uppercase tracking-wider"
-                style={{ color: catInfo.color }}
+                className="mb-1 flex items-center gap-1.5 px-1 text-micro font-medium uppercase tracking-wider"
+                style={{ color: solid(catInfo.color) }}
               >
                 <CatIcon className="h-3 w-3" />
                 {catInfo.label}
@@ -467,20 +470,20 @@ export function AddNodeMenu({
                       >
                         <span
                           className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded"
-                          style={{ background: `${catInfo.color}15`, color: catInfo.color }}
+                          style={{ background: wash(catInfo.color), color: solid(catInfo.color) }}
                         >
                           <ChildIcon className="h-3 w-3" />
                         </span>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="truncate text-[11px] font-medium">{child.label}</span>
+                            <span className="truncate text-label font-medium">{child.label}</span>
                             {compatible && (
-                              <span className="rounded bg-primary/10 px-1 py-0 text-[9px] text-primary">
+                              <span className="rounded bg-primary/10 px-1 py-0 text-tiny text-primary">
                                 fits
                               </span>
                             )}
                           </div>
-                          <div className="line-clamp-2 text-[10px] text-muted-foreground/80">
+                          <div className="line-clamp-2 text-micro text-muted-foreground/80">
                             {child.description}
                           </div>
                         </div>
@@ -525,7 +528,7 @@ function StartNodeView({
             </span>
             <div className="flex min-w-0 flex-1 flex-col items-start px-2.5 py-1 text-left">
               <span className="truncate text-xs font-semibold">Add trigger</span>
-              <span className="truncate text-[10px] text-muted-foreground">Click to start</span>
+              <span className="truncate text-micro text-muted-foreground">Click to start</span>
             </div>
           </button>
         </PopoverTrigger>

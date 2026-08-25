@@ -91,4 +91,34 @@ describe('applyStore', () => {
     const untouched = { ...next, data_store: 'us', universe: 'top500', test_end: DEFAULT_STRATEGY.test_end }
     expect(untouched).toEqual(DEFAULT_STRATEGY)
   })
+
+  /**
+   * Moving only `test_end` could leave `test_end < test_start`, or a train
+   * window entirely before the store's first bar — an invalid window the user
+   * only heard about from the server, one debounced round-trip later.
+   */
+  it('clamps the whole window into the new store calendar', () => {
+    const late = [store({
+      key: 'crypto_365',
+      calendar_start: '2020-06-01',
+      calendar_end: '2021-12-31',
+    })]
+    const next = applyStore(DEFAULT_STRATEGY, late, 'crypto_365')
+    // DEFAULT trains 2010–2019, entirely before this store begins.
+    expect(next.train_start).toBe('2020-06-01')
+    expect(next.train_end).toBe('2020-06-01')
+    expect(next.valid_start).toBe('2020-06-01')
+    expect(next.valid_end).toBe('2021-12-31')
+    expect(next.test_start).toBe('2021-12-31')
+    expect(next.test_end).toBe('2021-12-31')
+    // No inversions anywhere.
+    expect(next.test_start <= next.test_end).toBe(true)
+    expect(next.train_start <= next.train_end).toBe(true)
+  })
+
+  it('leaves dates already inside the calendar untouched', () => {
+    const next = applyStore(DEFAULT_STRATEGY, STORES, 'crypto_365')
+    expect(next.train_start).toBe(DEFAULT_STRATEGY.train_start)
+    expect(next.valid_end).toBe(DEFAULT_STRATEGY.valid_end)
+  })
 })

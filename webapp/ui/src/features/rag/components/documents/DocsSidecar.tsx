@@ -63,10 +63,10 @@ function getFileTypeIcon(fileType: string | undefined) {
 
 function StatusBadge({ status }: { status: Document['status'] }) {
   const styles: Record<Document['status'], string> = {
-    pending: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-    processing: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-    completed: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    failed: 'bg-red-500/15 text-red-400 border-red-500/30',
+    pending: 'bg-clay/15 text-clay border-clay/30',
+    processing: 'bg-muted text-muted-foreground border-border/50',
+    completed: 'bg-primary/15 text-primary border-primary/30',
+    failed: 'bg-destructive/15 text-destructive border-destructive/30',
   }
   const labels: Record<Document['status'], string> = {
     pending: 'Pending',
@@ -424,7 +424,7 @@ export function DocsSidecar({ document: doc, onClose, onDeleted }: DocsSidecarPr
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? 'Deleting...' : 'Delete'}
+              {deleting ? 'Deleting…' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

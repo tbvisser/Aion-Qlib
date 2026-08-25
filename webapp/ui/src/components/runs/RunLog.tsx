@@ -39,7 +39,7 @@ export function RunLog({ lines, className }: { lines: string[]; className?: stri
         ref={ref}
         data-testid="run-log"
         onScroll={onScroll}
-        className="h-full overflow-auto rounded-lg bg-surface-2 p-3 font-mono text-[10px] leading-relaxed"
+        className="h-full overflow-auto rounded-lg bg-surface-2 p-3 font-mono text-micro leading-relaxed"
       >
         {lines.join('\n') || 'Waiting for output…'}
       </pre>
@@ -47,7 +47,7 @@ export function RunLog({ lines, className }: { lines: string[]; className?: stri
       {!following && (
         <button
           onClick={jump}
-          className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full border border-border/50 bg-card px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground shadow-card transition-colors hover:text-foreground"
+          className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full border border-border/50 bg-card px-2.5 py-1 font-mono text-micro uppercase tracking-wider text-muted-foreground shadow-card transition-colors hover:text-foreground"
         >
           <ArrowDownToLine className="h-3 w-3" />
           Jump to latest

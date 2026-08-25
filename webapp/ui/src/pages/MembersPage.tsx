@@ -7,9 +7,13 @@
  * admin has to copy.
  */
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Copy, Loader2, Trash2, UserPlus } from 'lucide-react'
+import { Check, Copy, Trash2, UserPlus } from 'lucide-react'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Input } from '@/components/ui/input'
+import { SkeletonText } from '@/components/ui/skeleton'
 
 import { Button } from '@/components/ui/button'
+import { Notice } from '@/components/ui/notice'
 import { useAuth } from '@/hooks/useAuth'
 import { useOrg } from '@/hooks/useOrg'
 import { api, type OrgInvite, type OrgMember, type OrgRole } from '@/lib/api'
@@ -85,27 +89,24 @@ export function MembersPage() {
 
   if (orgLoading || loading) {
     return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
+      <div className="p-6">
+        <SkeletonText lines={4} className="max-w-md" />
       </div>
     )
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-8">
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold">{current?.name ?? 'Workspace'}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {members.length} {members.length === 1 ? 'person' : 'people'}. Everyone
-          keeps their own strategies, runs and portfolios private unless they
-          share them with the workspace.
-        </p>
-      </header>
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <PageHeader
+        title={current?.name ?? 'Workspace'}
+        description={`${members.length} ${members.length === 1 ? 'person' : 'people'}. Everyone keeps their own strategies, runs and portfolios private unless they share them with the workspace.`}
+      />
+      <div className="mx-auto w-full max-w-3xl p-6">
 
       {error && (
-        <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <Notice tone="destructive" className="mb-4">
           {error}
-        </div>
+        </Notice>
       )}
 
       <section className="mb-8 rounded-xl border border-border/60">
@@ -144,18 +145,18 @@ export function MembersPage() {
         <section>
           <h2 className="mb-2 text-sm font-medium">Invite someone</h2>
           <div className="flex gap-2">
-            <input
+            <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') void invite() }}
               placeholder="colleague@company.com"
-              className="h-9 min-w-0 flex-1 rounded-lg border border-border/60 bg-background px-3 text-sm outline-none focus:border-foreground/30"
+              className="h-9 min-w-0 flex-1"
             />
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as OrgRole)}
-              className="h-9 rounded-lg border border-border/60 bg-background px-2 text-sm outline-none"
+              className="h-9 rounded-lg border border-border/50 bg-background px-2 text-sm outline-none"
             >
               <option value="member">Member</option>
               <option value="admin">Admin</option>
@@ -185,7 +186,7 @@ export function MembersPage() {
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => void copy(inv.token)}>
                     {copied === inv.token ? (
-                      <><Check className="mr-1.5 h-3.5 w-3.5 text-emerald-500" />Copied</>
+                      <><Check className="mr-1.5 h-3.5 w-3.5 text-primary" />Copied</>
                     ) : (
                       <><Copy className="mr-1.5 h-3.5 w-3.5" />Copy link</>
                     )}
@@ -196,6 +197,7 @@ export function MembersPage() {
           )}
         </section>
       )}
+      </div>
     </div>
   )
 }

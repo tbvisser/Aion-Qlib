@@ -135,7 +135,7 @@ function SummaryCard({
           )}
 
           {summary.restart_required && (
-            <p className="rounded-lg bg-amber-500/10 p-2 text-xs text-amber-700">
+            <p className="rounded-lg bg-clay/10 p-2 text-xs text-clay">
               The store was rebuilt, but the API process needs a restart to serve it.
             </p>
           )}
@@ -402,7 +402,7 @@ function FetchedOutputCard({ task }: { task: ScheduledTask }) {
             </p>
           )}
           {job.restart_required && (
-            <p className="rounded-lg bg-amber-500/10 p-2 text-xs text-amber-700">
+            <p className="rounded-lg bg-clay/10 p-2 text-xs text-clay">
               The store was rebuilt, but the API process needs a restart to serve it.
             </p>
           )}
@@ -486,7 +486,7 @@ function Metric({
       <div
         className={cn(
           'text-sm font-semibold',
-          tone === 'good' && 'text-emerald-600',
+          tone === 'good' && 'text-primary',
           tone === 'bad' && 'text-destructive',
         )}
       >
@@ -511,7 +511,7 @@ function StatusDot({ status }: { status: string }) {
     <span
       className={cn(
         'h-2 w-2 rounded-full',
-        status === 'done' || status === 'succeeded' ? 'bg-emerald-500' : undefined,
+        status === 'done' || status === 'succeeded' ? 'bg-primary' : undefined,
         status === 'running' ? 'bg-primary' : undefined,
         status === 'error' || status === 'failed' ? 'bg-destructive' : undefined,
       )}

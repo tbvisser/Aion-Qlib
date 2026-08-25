@@ -12,6 +12,7 @@
 import { Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { useConfirmClick } from '@/hooks/useConfirmClick'
 import { Segmented } from '@/components/ui/segmented'
 import type { FeatureIssue, FeatureMode } from '@/lib/factorExpr/featureSet'
 import type { FeatureColumn } from '@/lib/factorExpr/featureSetReducer'
@@ -68,7 +69,7 @@ export function FeatureTabs({
                   onCancel={() => setEditing(null)}
                 />
               ) : (
-                <span className="font-mono text-[11px]">{column.name}</span>
+                <span className="font-mono text-label">{column.name}</span>
               )}
 
               {issue && (
@@ -81,13 +82,7 @@ export function FeatureTabs({
               )}
 
               {columns.length > 1 && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onRemove(column.id) }}
-                  title={`Remove ${column.name}`}
-                  className="opacity-0 transition-opacity group-hover:opacity-60 hover:!opacity-100"
-                >
-                  <X className="h-3 w-3" />
-                </button>
+                <TabClose name={column.name} onRemove={() => onRemove(column.id)} />
               )}
             </div>
           )
@@ -104,7 +99,7 @@ export function FeatureTabs({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <span className="font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
           {columns.length} {columns.length === 1 ? 'feature' : 'features'}
         </span>
         {/* The app's own switch rather than a copy of its classes. What the copy
@@ -132,11 +127,38 @@ export function FeatureTabs({
         />
         {/* Same treatment as the count on the other side of the switch: two mono
             micro-labels in one bar reading differently is just a seam. */}
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <span className="font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
           {mode === 'extend' ? `+ ${handler} (${baseCount})` : `${handler} label only`}
         </span>
       </div>
     </div>
+  )
+}
+
+/**
+ * The tab's ✕, behind the same two-click "sure?" the rails use for deletes.
+ * A whole column is authored work; it used to go on the first click, with less
+ * protection than a run result got.
+ */
+function TabClose({ name, onRemove }: { name: string; onRemove: () => void }) {
+  const { confirming, fire, disarm } = useConfirmClick()
+
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); fire(onRemove) }}
+      onMouseLeave={disarm}
+      title={confirming ? 'Click again to remove' : `Remove ${name}`}
+      className={cn(
+        'transition-opacity',
+        confirming
+          ? 'text-clay opacity-100'
+          : 'opacity-0 group-hover:opacity-60 hover:!opacity-100',
+      )}
+    >
+      {confirming
+        ? <span className="font-mono text-micro uppercase">sure?</span>
+        : <X className="h-3 w-3" />}
+    </button>
   )
 }
 
@@ -161,7 +183,7 @@ function NameInput({ value, onCommit, onCancel }: {
         if (e.key === 'Escape') onCancel()
       }}
       size={Math.max(draft.length, 4)}
-      className="rounded border border-border bg-transparent px-1 font-mono text-[11px] outline-none"
+      className="rounded border border-border bg-transparent px-1 font-mono text-label outline-none"
     />
   )
 }

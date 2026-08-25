@@ -201,7 +201,7 @@ export function DocumentTextView({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find in text..."
+            placeholder="Find in text…"
             className="h-8 w-full rounded-md border border-border/60 bg-background/70 pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
             data-testid="docs-sidecar-text-search"
           />
@@ -246,7 +246,7 @@ export function DocumentTextView({
             className="scroll-mt-20"
           >
             <div className={pageFrameClass}>
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="mb-2 text-label font-semibold uppercase tracking-wide text-muted-foreground">
                 Page {page.page_no}
               </div>
               {/* Render each page as a white sheet with generous padding and a

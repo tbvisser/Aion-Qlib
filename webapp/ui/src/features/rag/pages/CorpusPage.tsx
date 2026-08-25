@@ -6,6 +6,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { useDebouncedValue } from '@/features/rag/hooks/useDebouncedValue'
 import { getDocumentChunks, listDocuments, type ChunkInfo } from '@/features/rag/lib/api'
 import type { Document } from '@/features/rag/types'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { Input } from '@/components/ui/input'
 
 // Read-only inspector over the ingested corpus: which documents exist and how
 // each one was cut into chunks. No mutations live here — uploading, deleting
@@ -14,10 +16,10 @@ import type { Document } from '@/features/rag/types'
 const LIMIT = 100
 
 const STATUS_DOT: Record<Document['status'], string> = {
-  pending: 'bg-amber-500',
-  processing: 'bg-blue-500',
-  completed: 'bg-emerald-500',
-  failed: 'bg-red-500',
+  pending: 'bg-clay',
+  processing: 'bg-muted-foreground',
+  completed: 'bg-primary',
+  failed: 'bg-destructive',
 }
 
 // The collapsed row shows the first line or two of the chunk, with blank lines
@@ -25,7 +27,7 @@ const STATUS_DOT: Record<Document['status'], string> = {
 function chunkPreview(content: string): string {
   const lines = content.split('\n').map(line => line.trim()).filter(Boolean)
   const preview = lines.slice(0, 2).join(' ')
-  return preview.length > 220 ? `${preview.slice(0, 220)}...` : preview
+  return preview.length > 220 ? `${preview.slice(0, 220)}…` : preview
 }
 
 function sectionPath(meta: Record<string, unknown> | null): string | null {
@@ -125,25 +127,27 @@ export function CorpusPage() {
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-1 overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <PageHeader title="Corpus inspector" description="Inspect how documents were chunked for retrieval." />
+      <div className="flex min-h-0 flex-1 overflow-hidden">
       <aside className="flex w-72 shrink-0 flex-col overflow-y-auto border-r border-border/50">
         <div className="sticky top-0 z-10 bg-background/95 p-3 backdrop-blur">
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <input
+            <Input
               type="text"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filter documents"
               aria-label="Filter documents"
               data-testid="corpus-filter"
-              className="w-full rounded-lg border border-border/50 bg-transparent py-1.5 pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/50"
+              className="pl-8 pr-3 h-8 text-sm"
             />
           </div>
         </div>
 
         {loading ? (
-          <div className="px-3 py-2 text-xs text-muted-foreground">Loading corpus...</div>
+          <div className="px-3 py-2 text-xs text-muted-foreground">Loading corpus…</div>
         ) : documents.length === 0 ? (
           <div className="px-3 py-3 text-center text-xs text-muted-foreground">
             Nothing ingested yet. Upload via /documents.
@@ -203,7 +207,7 @@ export function CorpusPage() {
           <div className="flex h-full items-center justify-center p-8">
             <div className="max-w-sm text-center">
               <Layers3 className="mx-auto h-8 w-8 text-muted-foreground/60" />
-              <h1 className="mt-3 text-lg font-semibold">Corpus inspector</h1>
+              <p className="mt-3 text-base font-semibold text-foreground">Corpus inspector</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {urlDocumentId
                   ? hasMore
@@ -218,9 +222,9 @@ export function CorpusPage() {
         ) : (
           <div className="space-y-6 p-4 animate-fade-in sm:p-6 lg:p-8">
             <div>
-              <h1 className="truncate text-2xl font-semibold tracking-tight" title={selectedDocument.filename}>
+              <h2 className="truncate text-xl font-semibold tracking-tight" title={selectedDocument.filename}>
                 {selectedDocument.filename}
-              </h1>
+              </h2>
               <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <span className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT[selectedDocument.status])} />
@@ -304,6 +308,7 @@ export function CorpusPage() {
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   )

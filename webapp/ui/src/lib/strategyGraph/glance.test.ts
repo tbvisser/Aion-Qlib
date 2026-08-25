@@ -38,12 +38,10 @@ describe('every stage', () => {
 })
 
 describe('store', () => {
-  it('leads with the store, and groups the calendar length as computed', () => {
+  it('leads with the store, with the calendar length as detail', () => {
     const g = stageGlance('store', spec(), { store: store() })
     expect(g.headline).toBe('us')
-    expect(find(g.detail, 'days')).toMatchObject({
-      value: '4,102 trading days', computed: true,
-    })
+    expect(find(g.detail, 'days')).toMatchObject({ value: '4,102 trading days' })
   })
 
   it('flags an unbuilt store in clay rather than claiming a day count', () => {
@@ -63,9 +61,9 @@ describe('universe', () => {
     expect(stageGlance('universe', spec()).headline).toBe('top500 vs SPY')
   })
 
-  it('shows the count as a computed detail', () => {
+  it('shows the count as a detail', () => {
     const g = stageGlance('universe', spec(), { universeCount: 500 })
-    expect(find(g.detail, 'count')).toMatchObject({ value: '500 names', computed: true })
+    expect(find(g.detail, 'count')).toMatchObject({ value: '500 names' })
   })
 
   it('says nothing rather than "null names" when the count is unknown', () => {

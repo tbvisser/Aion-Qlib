@@ -3,10 +3,13 @@ import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Input } from '@/components/ui/input'
 import { Notice } from '@/components/ui/notice'
 import { sourceLabel } from '@/lib/catalog'
 import type { CatalogFacetValue, CatalogFacets, CatalogSource } from '@/lib/api'
+import { TableHeader } from '@/components/ui/table'
+import type { Column } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
 /**
@@ -65,15 +68,9 @@ export interface BrowserData<T> {
   error: string | null
 }
 
-export interface Column<T> {
-  key: string
-  label: string
-  /** Tailwind width class. Omit for a flexible column. */
-  width?: string
-  render: (row: T) => React.ReactNode
-  /** Right-aligned, for numbers. */
-  numeric?: boolean
-}
+// The column contract now lives with the table primitives; re-exported so the
+// Database and Roster imports keep working.
+export type { Column } from '@/components/ui/table'
 
 const PAGE = 50
 
@@ -81,9 +78,9 @@ const PAGE = 50
 export function NameCell({ entity }: { entity: Pick<BrowserRow, 'name' | 'summary'> }) {
   return (
     <div className="min-w-0">
-      <div className="truncate text-[12px] text-foreground">{entity.name}</div>
+      <div className="truncate text-caption text-foreground">{entity.name}</div>
       {entity.summary && (
-        <div className="truncate text-[11px] text-muted-foreground">{entity.summary}</div>
+        <div className="truncate text-label text-muted-foreground">{entity.summary}</div>
       )}
     </div>
   )
@@ -91,7 +88,7 @@ export function NameCell({ entity }: { entity: Pick<BrowserRow, 'name' | 'summar
 
 export function SourceBadge({ source }: { source: string }) {
   return (
-    <Badge variant="outline" font="sans" className="text-[10px] font-normal">
+    <Badge variant="outline" font="sans" className="text-micro font-normal">
       {sourceLabel(source)}
     </Badge>
   )
@@ -100,7 +97,7 @@ export function SourceBadge({ source }: { source: string }) {
 export function ExpressionCell({ entity }: { entity: { expression: string | null } }) {
   if (!entity.expression) return <span className="text-muted-foreground/50">—</span>
   return (
-    <code className="block truncate font-sans text-[11px] text-muted-foreground">
+    <code className="block truncate font-sans text-label text-muted-foreground">
       {entity.expression}
     </code>
   )
@@ -123,9 +120,9 @@ function FacetGroup({
 
   return (
     <div className="space-y-1">
-      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div">
         {title}
-      </div>
+      </MicroLabel>
       {shown.map((facet) => {
         const on = active === facet.value
         return (
@@ -134,12 +131,12 @@ function FacetGroup({
             type="button"
             onClick={() => onPick(on ? undefined : facet.value)}
             className={cn(
-              'flex w-full items-center justify-between gap-2 rounded px-1.5 py-1 text-left text-[11px] transition-colors',
+              'flex w-full items-center justify-between gap-2 rounded px-1.5 py-1 text-left text-label transition-colors',
               on ? 'bg-foreground/[0.07] text-foreground' : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <span className="truncate">{labelFor ? labelFor(facet.value) : facet.value}</span>
-            <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
+            <span className="shrink-0 text-micro tabular-nums text-muted-foreground/70">
               {facet.count.toLocaleString()}
             </span>
           </button>
@@ -149,7 +146,7 @@ function FacetGroup({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+          className="px-1.5 text-micro text-muted-foreground hover:text-foreground"
         >
           {expanded ? 'Show fewer' : `Show all ${values.length}`}
         </button>
@@ -220,7 +217,7 @@ export function CatalogBrowser<T extends BrowserRow>({
     <div className="flex min-h-0 flex-1 gap-6">
       <aside className="hidden w-48 shrink-0 space-y-4 overflow-y-auto lg:block">
         {filtered && (
-          <Button variant="ghost" size="sm" onClick={clear} className="h-6 w-full justify-start px-1.5 text-[11px]">
+          <Button variant="ghost" size="sm" onClick={clear} className="h-6 w-full justify-start px-1.5 text-label">
             <X className="mr-1 h-3 w-3" /> Clear filters
           </Button>
         )}
@@ -241,10 +238,10 @@ export function CatalogBrowser<T extends BrowserRow>({
               onChange={(e) => setQ(e.target.value)}
               spellCheck={false}
               placeholder={searchPlaceholder}
-              className="h-8 pl-8 text-[12px]"
+              className="h-8 pl-8 text-caption"
             />
           </div>
-          <div className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+          <div className="shrink-0 text-label tabular-nums text-muted-foreground">
             {page ? `${page.total.toLocaleString()} result${page.total === 1 ? '' : 's'}` : '—'}
           </div>
         </div>
@@ -258,16 +255,13 @@ export function CatalogBrowser<T extends BrowserRow>({
             <thead className="sticky top-0 z-10 bg-background">
               <tr className="border-b border-border/50">
                 {columns.map((column) => (
-                  <th
+                  <TableHeader
                     key={column.key}
-                    className={cn(
-                      'px-3 py-2 text-[10px] font-normal uppercase tracking-wider text-muted-foreground/70',
-                      column.width,
-                      column.numeric && 'text-right',
-                    )}
+                    numeric={column.numeric}
+                    className={column.width}
                   >
                     {column.label}
-                  </th>
+                  </TableHeader>
                 ))}
               </tr>
             </thead>
@@ -299,7 +293,7 @@ export function CatalogBrowser<T extends BrowserRow>({
           </table>
 
           {page && page.total === 0 && (
-            <div className="p-8 text-center text-[12px] text-muted-foreground">
+            <div className="p-8 text-center text-caption text-muted-foreground">
               {filtered ? (
                 <>
                   Nothing matches those filters.{' '}
@@ -314,12 +308,12 @@ export function CatalogBrowser<T extends BrowserRow>({
             </div>
           )}
           {!page && loading && (
-            <div className="p-8 text-center text-[12px] text-muted-foreground">Loading…</div>
+            <div className="p-8 text-center text-caption text-muted-foreground">Loading…</div>
           )}
         </div>
 
         {page && page.total > PAGE && (
-          <div className="flex shrink-0 items-center justify-between text-[11px] text-muted-foreground">
+          <div className="flex shrink-0 items-center justify-between text-label text-muted-foreground">
             <span className="tabular-nums">
               {(page.offset + 1).toLocaleString()}–
               {(page.offset + page.returned).toLocaleString()} of {page.total.toLocaleString()}

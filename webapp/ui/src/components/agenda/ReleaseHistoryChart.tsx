@@ -29,7 +29,7 @@ export function ReleaseHistoryChart({ points, selectedDate, height = 180 }: {
 
   return (
     <div>
-      <div className="mb-1 flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-muted-foreground/80">
+      <div className="mb-1 flex items-center gap-3 font-mono text-tiny uppercase tracking-wider text-muted-foreground/80">
         <span className="flex items-center gap-1">
           <span aria-hidden className="h-0.5 w-3 rounded" style={{ background: actualStroke }} />
           actual

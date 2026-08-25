@@ -112,7 +112,7 @@ export function BetaBars({ model, height = 240 }: { model: MacroFactorModel; hei
               data-testid={`beta-row-${row.key}`}
               className="flex items-baseline justify-between gap-3 border-b border-border/30 py-1 last:border-0"
             >
-              <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">
+              <span className="min-w-0 truncate font-mono text-label text-muted-foreground">
                 {row.label}
                 {row.vif != null && row.vif > 5 && (
                   <span className="ml-1 text-clay" title={`VIF ${row.vif.toFixed(1)}`}>†</span>
@@ -123,10 +123,10 @@ export function BetaBars({ model, height = 240 }: { model: MacroFactorModel; hei
                   row.bps >= 0 ? 'text-primary' : 'text-clay')}>
                   {row.bps >= 0 ? '+' : ''}{row.bps.toFixed(1)}bp
                 </span>
-                <span className="tnum w-14 text-right font-mono text-[11px] text-muted-foreground/70">
+                <span className="tnum w-14 text-right font-mono text-label text-muted-foreground/70">
                   t {row.t_stat.toFixed(2)}
                 </span>
-                <span className={cn('w-7 text-right font-mono text-[10px]',
+                <span className={cn('w-7 text-right font-mono text-micro',
                   stars === 'ns' ? 'text-muted-foreground/50' : 'text-muted-foreground')}>
                   {stars}
                 </span>
@@ -136,7 +136,7 @@ export function BetaBars({ model, height = 240 }: { model: MacroFactorModel; hei
         })}
       </div>
 
-      <div className="mt-2 space-y-0.5 font-mono text-[10px] text-muted-foreground/70">
+      <div className="mt-2 space-y-0.5 font-mono text-micro text-muted-foreground/70">
         <div>
           n {model.n} · R² {model.r_squared.toFixed(3)} ·{' '}
           {model.cov === 'hac'

@@ -1,5 +1,6 @@
 import { ExternalLink, FileText, FolderOpen, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { effectiveStatus, safeWebUrl } from './citationUtils'
 import type { AnswerCitation, CitationVerificationMode } from '@/features/rag/types'
 
@@ -36,7 +37,7 @@ export function CitationPreviewPopover({
           <SourceIcon kind={citation.source.source_type} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-micro uppercase tracking-wide text-muted-foreground">
             <span>{sourceLabel(citation.source.source_type)}</span>
             <span aria-hidden>·</span>
             <span>#{citation.display_number}</span>
@@ -55,7 +56,7 @@ export function CitationPreviewPopover({
         )}
 
         {citation.problem && (
-          <div className={`text-[11px] leading-snug ${status === 'contradicted' ? 'text-destructive' : 'text-amber-700 dark:text-amber-300'}`}>
+          <div className={cn('text-label leading-snug', status === 'contradicted' ? 'text-destructive' : 'text-clay')}>
             {citation.problem}
           </div>
         )}
@@ -75,7 +76,7 @@ export function CitationPreviewPopover({
               href={safeUri}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+              className="inline-flex items-center gap-1 text-label text-muted-foreground hover:text-foreground"
             >
               Open original <ExternalLink className="h-3 w-3" />
             </a>

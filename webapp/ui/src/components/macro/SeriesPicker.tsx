@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Plus, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { MacroSeriesResponse } from '@/lib/api'
 import { MAX_SERIES } from '@/lib/macroFormat'
@@ -42,7 +43,7 @@ export function SeriesPicker({ registry, selected, onToggle }: {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-0.5 font-mono text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-0.5 font-mono text-micro text-muted-foreground transition-colors hover:text-foreground"
         >
           <Plus className="h-3 w-3" /> add
         </button>
@@ -67,9 +68,9 @@ export function SeriesPicker({ registry, selected, onToggle }: {
           )}
           {groups.map((group) => (
             <div key={group.group} className="border-b border-border/30 last:border-0">
-              <div className="px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+              <MicroLabel as="div" className="px-3 py-1.5">
                 {group.label}
-              </div>
+              </MicroLabel>
               {group.series.map((series) => {
                 const on = selected.includes(series.key)
                 const disabled = !series.available || (!on && full)
@@ -93,7 +94,7 @@ export function SeriesPicker({ registry, selected, onToggle }: {
                     )}
                   >
                     <span className="min-w-0 truncate">{series.label}</span>
-                    {on && <span className="font-mono text-[10px] text-primary">on</span>}
+                    {on && <span className="font-mono text-micro text-primary">on</span>}
                   </button>
                 )
               })}

@@ -91,7 +91,7 @@ export function SeriesExplorer({
           {selected.map((key, i) => (
             <span
               key={key}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border/50 py-0.5 pl-1.5 pr-1 text-[11px]"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border/50 py-0.5 pl-1.5 pr-1 text-label"
             >
               <span
                 className="h-3 w-0.5 rounded-full"
@@ -113,7 +113,7 @@ export function SeriesExplorer({
             <button
               type="button"
               onClick={onClear}
-              className={cn('font-mono text-[10px] text-muted-foreground',
+              className={cn('font-mono text-micro text-muted-foreground',
                 'hover:text-foreground')}
             >
               clear

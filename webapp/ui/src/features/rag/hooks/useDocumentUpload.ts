@@ -69,9 +69,9 @@ export function useDocumentUpload({ onUploadComplete, onSkipped, folderId }: Use
         } else {
           allSkipped = false
           if (result.action === 'updated') {
-            setFeedback({ message: `"${file.name}" updated, re-processing...`, type: 'success' })
+            setFeedback({ message: `"${file.name}" updated, re-processing…`, type: 'success' })
           } else {
-            setFeedback({ message: `"${file.name}" uploaded and processing...`, type: 'success' })
+            setFeedback({ message: `"${file.name}" uploaded and processing…`, type: 'success' })
           }
         }
       }

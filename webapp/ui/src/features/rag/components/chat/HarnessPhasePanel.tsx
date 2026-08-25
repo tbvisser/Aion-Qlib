@@ -32,7 +32,7 @@ function ToolCallItem({ tc }: { tc: HarnessToolCall }) {
   return (
     <div className="flex items-center gap-2 text-xs py-1">
       {tc.status === 'completed' ? (
-        <Check className="h-3 w-3 text-emerald-400 shrink-0" />
+        <Check className="h-3 w-3 text-primary shrink-0" />
       ) : (
         <Loader2 className="h-3 w-3 animate-spin text-blue-400 shrink-0" />
       )}
@@ -60,20 +60,20 @@ function SubAgentItem({ agent }: { agent: HarnessSubAgent }) {
         className="flex items-center gap-2 text-xs w-full text-left"
       >
         {agent.status === 'completed' ? (
-          <Check className="h-3 w-3 text-emerald-400 shrink-0" />
+          <Check className="h-3 w-3 text-primary shrink-0" />
         ) : agent.status === 'error' ? (
-          <AlertCircle className="h-3 w-3 text-red-400 shrink-0" />
+          <AlertCircle className="h-3 w-3 text-destructive shrink-0" />
         ) : (
           <Loader2 className="h-3 w-3 animate-spin text-blue-400 shrink-0" />
         )}
         <span className="text-blue-300 font-medium truncate">Clause {agent.clauseRef}</span>
         {!expanded && hasToolCalls && (
-          <span className="text-blue-400/50 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10">
+          <span className="text-blue-400/50 text-micro px-1.5 py-0.5 rounded bg-blue-500/10">
             {completedTools}/{agent.toolCalls.length}
           </span>
         )}
         {!expanded && !hasToolCalls && agent.status === 'completed' && (
-          <span className="text-blue-400/50 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10">
+          <span className="text-blue-400/50 text-micro px-1.5 py-0.5 rounded bg-blue-500/10">
             context only
           </span>
         )}
@@ -107,13 +107,13 @@ export function HarnessPhasePanel({ phase }: HarnessPhasePanelProps) {
   const statusIcon = {
     running: <Loader2 className="h-4 w-4 animate-spin text-blue-400" />,
     completed: (
-      <div className="w-5 h-5 flex items-center justify-center rounded-full bg-emerald-500/15">
-        <Check className="h-3 w-3 text-emerald-400" />
+      <div className="w-5 h-5 flex items-center justify-center rounded-full bg-primary/15">
+        <Check className="h-3 w-3 text-primary" />
       </div>
     ),
     error: (
-      <div className="w-5 h-5 flex items-center justify-center rounded-full bg-red-500/15">
-        <AlertCircle className="h-3 w-3 text-red-400" />
+      <div className="w-5 h-5 flex items-center justify-center rounded-full bg-destructive/15">
+        <AlertCircle className="h-3 w-3 text-destructive" />
       </div>
     ),
   }[phase.status]
@@ -167,13 +167,13 @@ export function HarnessPhasePanel({ phase }: HarnessPhasePanelProps) {
           </span>
         )}
         {!expanded && phase.isHumanInput && phase.status === 'running' && (
-          <span className="text-xs text-amber-400/70 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+          <span className="text-xs text-clay px-2 py-0.5 rounded-full bg-clay/10 border border-clay/20">
             Waiting for input
           </span>
         )}
         {!expanded && isAgentPhase && phase.status === 'running' && !hasToolCalls && !hasSubAgents && !phase.isHumanInput && (
           <span className="text-xs text-blue-400/70 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20">
-            Analyzing...
+            Analyzing…
           </span>
         )}
         {statusIcon}
@@ -182,9 +182,9 @@ export function HarnessPhasePanel({ phase }: HarnessPhasePanelProps) {
       {/* Body */}
       {expanded && hasContent && (
         <div className="px-4 pb-4 animate-fade-in space-y-3">
-          {/* Human input waiting state */}
+          {/* Human input waiting state — amber→clay for warning/verdict tone */}
           {phase.isHumanInput && phase.status === 'running' && (
-            <div className="flex items-center gap-2 text-xs text-amber-400/80 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+            <div className="flex items-center gap-2 text-xs text-clay rounded-lg bg-clay/10 border border-clay/20 px-3 py-2">
               <Clock className="h-3.5 w-3.5 shrink-0" />
               <span>Waiting for your input — type your response in the chat below</span>
             </div>
@@ -192,7 +192,7 @@ export function HarnessPhasePanel({ phase }: HarnessPhasePanelProps) {
 
           {/* Human input completed state */}
           {phase.isHumanInput && phase.status === 'completed' && (
-            <div className="flex items-center gap-2 text-xs text-emerald-400/80 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
+            <div className="flex items-center gap-2 text-xs text-primary rounded-lg bg-primary/10 border border-primary/20 px-3 py-2">
               <User className="h-3.5 w-3.5 shrink-0" />
               <span>User input received</span>
             </div>
@@ -238,7 +238,7 @@ export function HarnessPhasePanel({ phase }: HarnessPhasePanelProps) {
 
           {/* Error */}
           {phase.error && (
-            <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-300">
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
               {phase.error}
             </div>
           )}

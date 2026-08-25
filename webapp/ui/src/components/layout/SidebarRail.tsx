@@ -96,7 +96,7 @@ export function SidebarRail({ activeSection, onExpand, onSearch }: SidebarRailPr
             {item.key === 'inbox' && unreadCount > 0 && (
               <span
                 data-testid="sidebar-inbox-badge"
-                className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[9px] font-medium text-primary-foreground"
+                className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-tiny font-medium text-primary-foreground"
               >
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
@@ -112,20 +112,21 @@ export function SidebarRail({ activeSection, onExpand, onSearch }: SidebarRailPr
     <TooltipProvider delayDuration={150}>
       <div
         data-testid="sidebar-rail"
-        className="flex w-16 flex-col border-r border-border/50 bg-[#F5F3EE] dark:bg-surface-1"
+        className="flex w-16 flex-col border-r border-border/50 bg-surface-rail"
       >
         {/* Header: when collapsed the logo is replaced by an expand control
             that occupies the logo's exact 24x25 box, so toggling collapsed/
             expanded doesn't shift the alignment of the nav buttons below. */}
-        <div className="flex items-center border-b border-border/50 px-4 pb-[19px] pt-[20px]">
+        {/* h-[68px] matches PageHeader's total (py-5 + text-lg line) so the
+            sidebar border meets every page's header border. */}
+        <div className="flex h-[68px] items-center border-b border-border/50 px-4">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 data-testid="sidebar-expand"
                 onClick={onExpand}
                 aria-label="Expand sidebar"
-                className="flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                style={{ height: 25, width: 24 }}
+                className="flex h-[25px] w-6 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
               >
                 <PanelLeftOpen className="h-5 w-5" />
               </button>

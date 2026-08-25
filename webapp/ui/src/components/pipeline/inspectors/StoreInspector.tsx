@@ -1,5 +1,5 @@
 /**
- * Stage 01 — which store the prices come from.
+ * Stage 02 — which store the prices come from.
  *
  * `CoverageBanner` lives here. It is a fact about the store, it is long-form
  * prose, and by its own docblock it never blocks a run — all three of which
@@ -34,13 +34,13 @@ export function StoreInspector(props: InspectorProps) {
                                  (v) => labels.get(v) ?? v)}
         />
         {store?.exists && (
-          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/70">
+          <p className="mt-1 text-label leading-relaxed text-muted-foreground/70">
             {store.note} {store.calendar_days.toLocaleString()} trading days.
           </p>
         )}
         {store && !store.exists && (
           <div className="mt-2 space-y-2">
-            <p className="text-[11px] leading-relaxed text-clay">
+            <p className="text-label leading-relaxed text-clay">
               This store has no data yet, so a backtest against it cannot start.
               Build it from EODHD first.
             </p>
@@ -60,7 +60,7 @@ export function StoreInspector(props: InspectorProps) {
       {Object.values(coverage?.proxy_columns ?? {}).map((sentence) => (
         <p
           key={sentence}
-          className="border-t border-border/50 pt-2 text-[11px] leading-relaxed text-muted-foreground/80"
+          className="border-t border-border/50 pt-2 text-label leading-relaxed text-muted-foreground/80"
         >
           {sentence}
         </p>

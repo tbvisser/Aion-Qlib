@@ -2,18 +2,18 @@
  * The breadcrumb out of the factor canvas.
  *
  * This was also the pipeline overview, and that existed because zooming out was
- * not one: seven cards on a row was about 2,000px, which fitted into a pane at
- * roughly 0.6 zoom, where a 10px mono eyebrow is unreadable. The ring replaced
- * the row and is 784x718 — it fits the pane at zoom 1, and the hub in its middle
- * carries the readiness and the seven issue dots the strip used to hold. So the
- * overview is the canvas again, the always-visible valve on a blocker is the
- * header's count chip, and the phase names are a legend inside the canvas where
- * the hues are.
+ * not one: the cards on a row were about 2,000px, which fitted into a pane at
+ * roughly 0.6 zoom, where a 10px mono eyebrow is unreadable. The vertical
+ * stack (by way of a ring) replaced the row — it fits the pane at zoom 1, and
+ * the hub above it carries the readiness and the per-stage issue dots the
+ * strip used to hold. So the overview is the canvas again, the always-visible
+ * valve on a blocker is the header's count chip, and the phase names are a
+ * legend inside the canvas where the hues are.
  *
  * What is left is the part the canvas cannot do: the factor canvas is a place you
  * go *into* from the Features stage and need a marked way back out of. In the
  * pipeline pane this renders nothing, which is also worth 41px of canvas height
- * that the ring wants.
+ * that the stack wants.
  */
 import { ChevronRight } from 'lucide-react'
 
@@ -38,18 +38,18 @@ export function StageStrip({ pane, onBackToPipeline, activeColumn }: StageStripP
       <button
         type="button"
         onClick={onBackToPipeline}
-        className="rounded font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+        className="rounded font-mono text-label uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
       >
         Pipeline
       </button>
       <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
-      <span className="font-mono text-[11px] uppercase tracking-wider text-foreground">
+      <span className="font-mono text-label uppercase tracking-wider text-foreground">
         Features
       </span>
       {activeColumn && (
         <>
           <span className="text-muted-foreground/40">·</span>
-          <span className="truncate font-mono text-[11px] text-muted-foreground">
+          <span className="truncate font-mono text-label text-muted-foreground">
             {activeColumn}
           </span>
         </>

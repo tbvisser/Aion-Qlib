@@ -31,7 +31,7 @@ export function LeaderboardPanel({
         <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-xs text-muted-foreground">
           <Inbox className="h-5 w-5 text-muted-foreground/40" />
           <p>No finished runs yet.</p>
-          <p className="max-w-[180px] text-[10px] leading-relaxed text-muted-foreground/60">
+          <p className="max-w-[180px] text-micro leading-relaxed text-muted-foreground/60">
             Launch a sweep and the best learners will rank here.
           </p>
         </div>
@@ -49,7 +49,7 @@ export function LeaderboardPanel({
       flush
     >
       <div className="flex h-full flex-col">
-        <div className="grid grid-cols-[28px_1fr_52px_52px_52px_52px_28px] gap-1 border-b border-border/50 bg-foreground/[0.02] px-2 py-1.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground/60">
+        <div className="grid grid-cols-[28px_1fr_52px_52px_52px_52px_28px] gap-1 border-b border-border/50 bg-foreground/[0.02] px-2 py-1.5 font-mono text-tiny uppercase tracking-wider text-muted-foreground/60">
           <span>#</span>
           <span>Run</span>
           <span className="text-right">IC</span>
@@ -111,12 +111,12 @@ function LeaderboardRow({
       <div className="min-w-0">
         <Link
           to={`/runs/${run.id}`}
-          className="block truncate text-[11px] font-medium text-foreground hover:text-primary"
+          className="block truncate text-label font-medium text-foreground hover:text-primary"
           title={run.name}
         >
           {run.name}
         </Link>
-        <div className="flex items-center gap-1 text-[9px] text-muted-foreground/70">
+        <div className="flex items-center gap-1 text-tiny text-muted-foreground/70">
           <span className="truncate">{run.model}</span>
           <span className="text-border">·</span>
           <span className="truncate">{run.handler}</span>
@@ -146,7 +146,7 @@ function LeaderboardRow({
               : 'border-border/40 text-muted-foreground hover:border-primary/30 hover:text-foreground',
           )}
         >
-          <span className="text-[10px] leading-none">{selected ? '−' : '+'}</span>
+          <span className="text-micro leading-none">{selected ? '−' : '+'}</span>
         </button>
       )}
     </div>
@@ -157,7 +157,7 @@ function RankBadge({ rank }: { rank: number }) {
   return (
     <div
       className={cn(
-        'flex h-5 w-5 items-center justify-center rounded text-[10px] font-medium',
+        'flex h-5 w-5 items-center justify-center rounded text-micro font-medium',
         rank === 1 && 'bg-foreground/10 text-foreground',
         rank === 2 && 'bg-muted text-foreground',
         rank === 3 && 'bg-muted text-foreground',
@@ -185,7 +185,7 @@ function MetricCell({
     <div className="flex items-center justify-end">
       <div
         className={cn(
-          'tnum text-[11px] font-semibold',
+          'tnum text-label font-semibold',
           tone === 'positive' && 'text-primary',
           tone === 'negative' && 'text-clay',
           tone === null && 'text-muted-foreground',

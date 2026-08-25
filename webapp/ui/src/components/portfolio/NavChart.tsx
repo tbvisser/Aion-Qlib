@@ -2,6 +2,7 @@ import {
   Area, AreaChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from 'recharts'
+import { MicroLabel } from '@/components/ui/micro-label'
 import type { PortfolioNav } from '@/lib/api'
 import { decimate, mergeCurves } from '@/lib/curves'
 import { formatIsoDate } from '@/lib/macroFormat'
@@ -82,9 +83,9 @@ export function NavChart({
         </LineChart>
       </ResponsiveContainer>
 
-      <div className="mt-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="mt-1">
         Drawdown
-      </div>
+      </MicroLabel>
       <ResponsiveContainer width="100%" height={80}>
         <AreaChart data={drawdown} syncId="pf" margin={{ top: 2, right: 8, bottom: 4, left: -8 }}>
           <XAxis dataKey="date" hide />

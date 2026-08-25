@@ -15,6 +15,18 @@ interface GlobalAlertGlobeProps {
 
 const SIZE = 320
 
+function marketDriven(alerts: MacroAlertPoint[]): boolean {
+  return alerts.length > 0 && alerts.every((a) => a.source === 'market')
+}
+
+function heatHint(alerts: MacroAlertPoint[]): string {
+  if (marketDriven(alerts)) return 'Live macro market stress'
+  if (alerts.some((a) => a.source === 'blended' || a.source === 'market')) {
+    return 'Calendar + market stress'
+  }
+  return 'Next 14 days of macro releases'
+}
+
 interface HexBinLike {
   points: MacroAlertPoint[]
   sumWeight: number
@@ -73,10 +85,11 @@ const LazyGlobe = forwardRef<GlobeMethods, GlobeProps>((props, ref) => {
 LazyGlobe.displayName = 'LazyGlobe'
 
 function AlertList({ alerts, stale }: { alerts: MacroAlertPoint[]; stale?: boolean }) {
+  const allMarket = marketDriven(alerts)
   return (
     <div className="space-y-1.5 p-3">
       {stale && (
-        <div className="mb-2 flex items-center gap-1.5 rounded bg-clay/10 px-2 py-1 text-[10px] text-clay">
+        <div className="mb-2 flex items-center gap-1.5 rounded bg-clay/10 px-2 py-1 text-micro text-clay">
           <AlertTriangle className="h-3 w-3" />
           Showing recent cached events — data refresh is behind.
         </div>
@@ -84,11 +97,13 @@ function AlertList({ alerts, stale }: { alerts: MacroAlertPoint[]; stale?: boole
       {alerts.slice(0, 8).map((a) => (
         <div
           key={a.country}
-          className="flex items-center justify-between gap-2 text-[11px]"
+          className="flex items-center justify-between gap-2 text-label"
         >
           <span className="font-medium">{a.country}</span>
           <span className="font-mono text-muted-foreground">
-            {a.eventCount} release{a.eventCount === 1 ? '' : 's'}
+            {allMarket
+              ? `${a.eventCount} series`
+              : `${a.eventCount} release${a.eventCount === 1 ? '' : 's'}`}
           </span>
         </div>
       ))}
@@ -134,7 +149,7 @@ export function GlobalAlertGlobe({ alerts, loading }: GlobalAlertGlobeProps) {
   return (
     <Panel
       title="Global alert heatmap"
-      hint="Next 14 days of macro releases"
+      hint={heatHint(alerts)}
       className="w-80"
       bodyClassName="h-80 p-0 overflow-hidden"
       loading={loading}
@@ -145,7 +160,7 @@ export function GlobalAlertGlobe({ alerts, loading }: GlobalAlertGlobeProps) {
         </div>
       ) : empty ? (
         <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">
-          No upcoming macro releases in the next 14 days.
+          No macro data available for the heat map.
         </div>
       ) : !hasWebGL ? (
         <AlertList alerts={alerts} stale={stale} />
@@ -175,10 +190,12 @@ export function GlobalAlertGlobe({ alerts, loading }: GlobalAlertGlobeProps) {
               const pts = hexFor(d).points
               const total = pts.reduce((sum, p) => sum + p.eventCount, 0)
               const names = pts.map((p) => p.country).join(', ')
+              const top = pts[0]
+              const marketDriven = top?.source === 'market'
               return `<div style="font-family:sans-serif;font-size:11px;line-height:1.4;color:#fff;background:rgba(0,0,0,0.75);padding:4px 6px;border-radius:4px">
                 <b>${names}</b><br/>
-                ${total} release${total === 1 ? '' : 's'}<br/>
-                top: ${pts[0]?.topEvent ?? '—'}
+                ${marketDriven ? `${total} series` : `${total} release${total === 1 ? '' : 's'}`}<br/>
+                top: ${top?.topEvent ?? '—'}
               </div>`
             }}
             // Per-country point markers.
@@ -190,9 +207,10 @@ export function GlobalAlertGlobe({ alerts, loading }: GlobalAlertGlobeProps) {
             pointColor={pointColor}
             pointLabel={(d: object) => {
               const pt = d as MacroAlertPoint
+              const marketDriven = pt.source === 'market'
               return `<div style="font-family:sans-serif;font-size:11px;line-height:1.4;color:#fff;background:rgba(0,0,0,0.75);padding:4px 6px;border-radius:4px">
                 <b>${pt.country}</b><br/>
-                ${pt.eventCount} release${pt.eventCount === 1 ? '' : 's'}<br/>
+                ${marketDriven ? `${pt.eventCount} series` : `${pt.eventCount} release${pt.eventCount === 1 ? '' : 's'}`}<br/>
                 top: ${pt.topEvent}
               </div>`
             }}
@@ -209,20 +227,20 @@ export function GlobalAlertGlobe({ alerts, loading }: GlobalAlertGlobeProps) {
 
           {/* Persistent data overlay: count, top country, and stale warning. */}
           <div className="pointer-events-none absolute left-2 top-2 flex flex-col gap-1">
-            <div className="rounded-md border border-border/40 bg-background/85 px-2 py-1 text-[10px] backdrop-blur">
+            <div className="rounded-md border border-border/40 bg-background/85 px-2 py-1 text-micro backdrop-blur">
               <span className="font-mono uppercase tracking-wider text-muted-foreground">Total</span>
               {' '}
               <span className="font-semibold">{totalReleases}</span>
             </div>
             {alerts[0] && (
-              <div className="rounded-md border border-border/40 bg-background/85 px-2 py-1 text-[10px] backdrop-blur">
+              <div className="rounded-md border border-border/40 bg-background/85 px-2 py-1 text-micro backdrop-blur">
                 <span className="font-mono uppercase tracking-wider text-muted-foreground">Top</span>
                 {' '}
                 <span className="font-semibold">{alerts[0].country}</span>
               </div>
             )}
             {stale && (
-              <div className="flex items-center gap-1 rounded-md border border-clay/30 bg-clay/10 px-2 py-1 text-[10px] text-clay backdrop-blur">
+              <div className="flex items-center gap-1 rounded-md border border-clay/30 bg-clay/10 px-2 py-1 text-micro text-clay backdrop-blur">
                 <AlertTriangle className="h-3 w-3" />
                 Stale cache
               </div>
@@ -232,9 +250,9 @@ export function GlobalAlertGlobe({ alerts, loading }: GlobalAlertGlobeProps) {
           {/* Legend */}
           <div className="pointer-events-none absolute bottom-2 right-2 rounded-md border border-border/40 bg-background/85 px-2 py-1.5 backdrop-blur">
             <div className="space-y-1">
-              <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">Intensity</div>
+              <div className="text-tiny font-mono uppercase tracking-wider text-muted-foreground">Intensity</div>
               <div className="flex h-1.5 w-20 rounded-full bg-gradient-to-r from-[hsl(17_85%_60%_/_.55)] to-[hsl(25_100%_65%_/_.9)]" />
-              <div className="flex justify-between text-[9px] text-muted-foreground">
+              <div className="flex justify-between text-tiny text-muted-foreground">
                 <span>Low</span>
                 <span>High</span>
               </div>

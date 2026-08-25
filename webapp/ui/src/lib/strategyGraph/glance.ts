@@ -10,7 +10,7 @@
  *
  * The headline is what the stage is *set to*, and it is the card's bold line.
  * The stage's description ("Where the prices come from") is not: it is the same
- * seven sentences for every strategy anyone will ever build, so leading with it
+ * eight sentences for every strategy anyone will ever build, so leading with it
  * made two different strategies draw two identical pictures while the only
  * things that actually differed -- `us`, `top500 vs SPY`, `LightGBM` -- were
  * rendered smallest. `StageDef.label` still exists, for the inspector heading
@@ -20,19 +20,11 @@ import type {
   DataStore, ModelsResponse, StrategyExplain, StrategySpec,
 } from '@/lib/api'
 import { roundTripBps } from '@/lib/bps'
-import { STAGE_ORDER, type StageId } from './stages'
+import type { StageId } from './stages'
 
 export interface GlanceLine {
   key: string
   value: string
-  /**
-   * A number the app worked out rather than one the user typed.
-   *
-   * The card renders these in a pill so the distinction survives -- `500 names`
-   * is a fact about the store, `top500` is a choice, and they should not read
-   * as the same kind of thing.
-   */
-  computed?: boolean
   /** A value that is a problem in itself, e.g. a store with no data. */
   tone?: 'clay'
 }
@@ -95,7 +87,7 @@ function storeGlance(spec: StrategySpec, ctx: GlanceContext): StageGlance {
   return {
     headline: spec.data_store,
     detail: store.calendar_days
-      ? [{ key: 'days', value: `${thousands(store.calendar_days)} trading days`, computed: true }]
+      ? [{ key: 'days', value: `${thousands(store.calendar_days)} trading days` }]
       : [],
   }
 }
@@ -107,7 +99,7 @@ function universeGlance(spec: StrategySpec, ctx: GlanceContext): StageGlance {
   const detail: GlanceLine[] = []
   // `null` is "not counted yet", which is not "zero names" -- so say nothing.
   if (typeof ctx.universeCount === 'number') {
-    detail.push({ key: 'count', value: `${thousands(ctx.universeCount)} names`, computed: true })
+    detail.push({ key: 'count', value: `${thousands(ctx.universeCount)} names` })
   }
   return { headline, detail }
 }
@@ -121,16 +113,16 @@ function featuresGlance(spec: StrategySpec, ctx: GlanceContext): StageGlance {
     headline = spec.handler
     const columns = handlerColumns(spec.handler)
     if (columns !== null) {
-      detail.push({ key: 'columns', value: `${columns} columns`, computed: true })
+      detail.push({ key: 'columns', value: `${columns} columns` })
     }
   } else if (spec.feature_mode === 'replace') {
     headline = `${own} column${own === 1 ? '' : 's'}`
-    detail.push({ key: 'mode', value: `${spec.handler} replaced`, computed: true })
+    detail.push({ key: 'mode', value: `${spec.handler} replaced` })
   } else {
     headline = `${spec.handler} + ${own}`
     const columns = handlerColumns(spec.handler)
     if (columns !== null) {
-      detail.push({ key: 'columns', value: `${columns + own} columns`, computed: true })
+      detail.push({ key: 'columns', value: `${columns + own} columns` })
     }
   }
 
@@ -221,12 +213,4 @@ export function stageGlance(
   stage: StageId, spec: StrategySpec, ctx: GlanceContext = {},
 ): StageGlance {
   return GLANCE[stage](spec, ctx)
-}
-
-export function allGlances(
-  spec: StrategySpec, ctx: GlanceContext = {},
-): Record<StageId, StageGlance> {
-  const out = {} as Record<StageId, StageGlance>
-  for (const id of STAGE_ORDER) out[id] = stageGlance(id, spec, ctx)
-  return out
 }

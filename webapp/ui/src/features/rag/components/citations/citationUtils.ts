@@ -119,15 +119,15 @@ export function statusChipClasses(
     case 'verified':
       return 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
     case 'partially_supported':
-      return 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
+      return 'border-clay/40 bg-clay/10 text-clay hover:bg-clay/20'
     case 'not_verified':
       if (mode === 'semantic-text') {
-        return 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
+        return 'border-clay/40 bg-clay/10 text-clay hover:bg-clay/20'
       }
       return 'border-border bg-muted/60 text-muted-foreground hover:bg-muted'
     case 'verification_failed':
       if (mode === 'semantic-text') {
-        return 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
+        return 'border-clay/40 bg-clay/10 text-clay hover:bg-clay/20'
       }
       return 'border-border bg-muted/60 text-muted-foreground hover:bg-muted'
     case 'contradicted':
@@ -192,7 +192,7 @@ export function injectCitationLinks(
     const first = entries[0]
     const rest = entries.slice(1)
     const expanded = options?.expandedGroups?.has(groupId) ?? false
-    const toggle = `[${expanded ? 'x' : '...'}](${buildCitationGroupHref(groupId)})`
+    const toggle = `[${expanded ? 'x' : '…'}](${buildCitationGroupHref(groupId)})`
     if (!expanded) {
       return `${lead}[${first.number}](${first.href})${toggle}`
     }

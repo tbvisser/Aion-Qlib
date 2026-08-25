@@ -48,7 +48,7 @@ export function PortfolioListTab({ portfolios, loading }: PortfolioListTabProps)
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{portfolio.name}</div>
-                  <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
+                  <div className="mt-0.5 flex items-center gap-1.5 font-mono text-micro text-muted-foreground">
                     <span>{portfolio.base_ccy}</span>
                     <span>·</span>
                     <span>{portfolio.holdings.length} holdings</span>
@@ -60,7 +60,7 @@ export function PortfolioListTab({ portfolios, loading }: PortfolioListTabProps)
                     )}
                   </div>
                 </div>
-                <span className="shrink-0 font-mono text-[10px] text-muted-foreground/60">
+                <span className="shrink-0 font-mono text-micro text-muted-foreground/60">
                   {portfolio.benchmark}
                 </span>
               </div>

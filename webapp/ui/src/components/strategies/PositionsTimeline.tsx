@@ -6,6 +6,7 @@ import {
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { MetricTile } from '@/components/MetricTile'
 import { api, type PositionHistory, type PositionTrade } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -243,7 +244,7 @@ function TradeTimeline({ history }: { history: PositionHistory }) {
                 key={key}
                 variant={filter === key ? 'secondary' : 'ghost'}
                 size="sm"
-                className="h-6 px-2 text-[11px] capitalize"
+                className="h-6 px-2 text-label capitalize"
                 onClick={() => setFilter(key)}
               >
                 {key}
@@ -276,32 +277,30 @@ function TradeTimeline({ history }: { history: PositionHistory }) {
           <CardTitle className="text-sm">Recent events ({data.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="max-h-60 overflow-y-auto">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="text-left text-muted-foreground/70">
-                  <th className="py-1.5 pr-3 font-mono font-normal uppercase tracking-wider">Date</th>
-                  <th className="py-1.5 pr-3 font-normal">Instrument</th>
-                  <th className="py-1.5 pr-3 font-normal">Dir</th>
-                  <th className="py-1.5 pr-3 text-right font-normal">Δ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {data.slice(-50).reverse().map((t) => (
-                  <tr key={`${t.date}-${t.instrument}`} className="hover:bg-foreground/[0.02]">
-                    <td className="py-1.5 pr-3 font-mono text-[10px]">{t.date}</td>
-                    <td className="py-1.5 pr-3 font-mono">{t.instrument}</td>
-                    <td className="py-1.5 pr-3">
-                      <DirectionBadge direction={t.direction} />
-                    </td>
-                    <td className={cn('tnum py-1.5 pr-3 text-right', (t.delta ?? 0) > 0 ? 'text-primary' : 'text-clay')}>
-                      {t.delta == null ? '—' : `${(t.delta * 100).toFixed(1)}%`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table containerClassName="max-h-60 overflow-y-auto" className="text-xs">
+            <TableHead>
+              <tr>
+                <TableHeader className="py-1.5 pr-3">Date</TableHeader>
+                <TableHeader className="py-1.5 pr-3">Instrument</TableHeader>
+                <TableHeader className="py-1.5 pr-3">Dir</TableHeader>
+                <TableHeader numeric className="py-1.5 pr-3">Δ</TableHeader>
+              </tr>
+            </TableHead>
+            <TableBody>
+              {data.slice(-50).reverse().map((t) => (
+                <TableRow key={`${t.date}-${t.instrument}`} className="hover:bg-foreground/[0.02]">
+                  <TableCell className="py-1.5 pr-3 font-mono text-micro">{t.date}</TableCell>
+                  <TableCell className="py-1.5 pr-3 font-mono">{t.instrument}</TableCell>
+                  <TableCell className="py-1.5 pr-3">
+                    <DirectionBadge direction={t.direction} />
+                  </TableCell>
+                  <TableCell numeric className={cn('py-1.5 pr-3', (t.delta ?? 0) > 0 ? 'text-primary' : 'text-clay')}>
+                    {t.delta == null ? '—' : `${(t.delta * 100).toFixed(1)}%`}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>
@@ -315,7 +314,7 @@ function DirectionBadge({ direction }: { direction: PositionTrade['direction'] }
     adjust: 'bg-muted-foreground/15 text-muted-foreground',
   }
   return (
-    <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium uppercase', map[direction])}>
+    <span className={cn('rounded px-1.5 py-0.5 text-micro font-medium uppercase', map[direction])}>
       {direction}
     </span>
   )
@@ -329,28 +328,26 @@ function LatestHoldings({ history }: { history: PositionHistory }) {
         <CardTitle className="text-sm">Latest holdings · {latest.date}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
-            <thead>
-              <tr className="text-left text-muted-foreground/70">
-                <th className="py-2 pr-4 font-mono font-normal uppercase tracking-wider">#</th>
-                <th className="py-2 pr-4 font-normal">Instrument</th>
-                <th className="py-2 pr-4 text-right font-normal">Weight</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {latest.top.map((row, i) => (
-                <tr key={row.instrument} className="hover:bg-foreground/[0.02]">
-                  <td className="py-1.5 pr-4 font-mono text-[10px] text-muted-foreground">{i + 1}</td>
-                  <td className="py-1.5 pr-4 font-mono">{row.instrument}</td>
-                  <td className={cn('tnum py-1.5 pr-4 text-right', (row.weight ?? 0) < 0 ? 'text-clay' : '')}>
-                    {row.weight == null ? '—' : `${(row.weight * 100).toFixed(2)}%`}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table className="text-xs">
+          <TableHead>
+            <tr>
+              <TableHeader>#</TableHeader>
+              <TableHeader>Instrument</TableHeader>
+              <TableHeader numeric>Weight</TableHeader>
+            </tr>
+          </TableHead>
+          <TableBody>
+            {latest.top.map((row, i) => (
+              <TableRow key={row.instrument} className="hover:bg-foreground/[0.02]">
+                <TableCell className="py-1.5 pr-4 font-mono text-micro text-muted-foreground">{i + 1}</TableCell>
+                <TableCell className="py-1.5 pr-4 font-mono">{row.instrument}</TableCell>
+                <TableCell numeric className={cn('py-1.5 pr-4', (row.weight ?? 0) < 0 ? 'text-clay' : '')}>
+                  {row.weight == null ? '—' : `${(row.weight * 100).toFixed(2)}%`}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   )

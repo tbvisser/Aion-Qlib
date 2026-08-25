@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/hooks/useAuth'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { getFirstName } from '@/lib/greeting'
 import { cn } from '@/lib/utils'
 
@@ -55,6 +56,7 @@ const EDIT_MODES = [
 ]
 
 export function CodePage() {
+  useDocumentTitle('Code')
   const { user } = useAuth()
   const name = getFirstName(user?.email)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -150,7 +152,7 @@ export function CodePage() {
                   disabled
                   aria-label="Start session"
                   title="Not connected yet — nothing would run"
-                  className="h-8 w-8 rounded-[10px]"
+                  className="h-8 w-8 rounded-lg"
                 >
                   <CornerDownLeft className="h-4 w-4" />
                 </Button>
@@ -160,7 +162,7 @@ export function CodePage() {
 
           {/* One quiet line rather than a banner. The disabled send control says
               the same thing, but only to whoever thinks to hover it. */}
-          <p className="text-center text-[11px] text-muted-foreground/70">
+          <p className="text-center text-label text-muted-foreground/70">
             Coding sessions aren’t connected yet — the controls are live, nothing runs.
           </p>
         </div>

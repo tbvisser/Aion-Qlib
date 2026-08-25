@@ -5,11 +5,14 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Notice } from '@/components/ui/notice'
+import { SkeletonText } from '@/components/ui/skeleton'
 import { Panel } from '@/components/ui/panel'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { MetricTile } from '@/components/MetricTile'
 import { AllocationDonut } from '@/components/portfolio/AllocationDonut'
 import { HoldingsTable } from '@/components/portfolio/HoldingsTable'
 import { NavChart } from '@/components/portfolio/NavChart'
@@ -48,7 +51,11 @@ export function PortfolioDetailPage() {
   }
 
   if (!portfolio) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+    return (
+      <div className="p-6">
+        <SkeletonText lines={5} className="max-w-md" />
+      </div>
+    )
   }
 
   return (
@@ -130,7 +137,7 @@ function PortfolioBody({ portfolio }: { portfolio: import('@/lib/api').Portfolio
   }
 
   if (!nav) {
-    return <div className={cn('h-96 animate-subtle-pulse rounded-xl border border-border/50', loading && 'animate-subtle-pulse')} />
+    return <div className={cn('h-96 rounded-xl border border-border/50', loading && 'animate-subtle-pulse')} />
   }
 
   return (
@@ -139,7 +146,7 @@ function PortfolioBody({ portfolio }: { portfolio: import('@/lib/api').Portfolio
         <Notice tone="clay">
           {nav.unpriced.length} holding{nav.unpriced.length === 1 ? '' : 's'} could not be priced and{' '}
           {nav.unpriced.length === 1 ? 'is' : 'are'} excluded from this curve.
-          <ul className="mt-1 space-y-0.5 font-mono text-[11px]">
+          <ul className="mt-1 space-y-0.5 font-mono text-label">
             {nav.unpriced.map((u) => (
               <li key={u.symbol}>{u.symbol} — {u.reason}</li>
             ))}
@@ -170,7 +177,7 @@ function PortfolioBody({ portfolio }: { portfolio: import('@/lib/api').Portfolio
       </Panel>
 
       {nav.warnings.length > 0 && (
-        <ul className="space-y-0.5 font-mono text-[10px] text-muted-foreground">
+        <ul className="space-y-0.5 font-mono text-micro text-muted-foreground">
           {nav.warnings.map((w) => <li key={w}>· {w}</li>)}
         </ul>
       )}
@@ -201,7 +208,7 @@ function PortfolioBody({ portfolio }: { portfolio: import('@/lib/api').Portfolio
                     <Badge variant="clay" className="ml-2">deleted</Badge>
                   )}
                   {linked.model && (
-                    <span className="ml-2 font-mono text-[10px] text-muted-foreground">
+                    <span className="ml-2 font-mono text-micro text-muted-foreground">
                       {linked.model} · {linked.universe}
                     </span>
                   )}
@@ -209,12 +216,12 @@ function PortfolioBody({ portfolio }: { portfolio: import('@/lib/api').Portfolio
                 {linked.latest_run ? (
                   <Link
                     to={`/runs/${linked.latest_run.id}`}
-                    className="inline-flex shrink-0 items-center gap-1 font-mono text-[11px] text-primary hover:underline"
+                    className="inline-flex shrink-0 items-center gap-1 font-mono text-label text-primary hover:underline"
                   >
                     {linked.latest_run.status} <ArrowUpRight className="h-3 w-3" />
                   </Link>
                 ) : (
-                  <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                  <span className="shrink-0 font-mono text-label text-muted-foreground">
                     never run
                   </span>
                 )}
@@ -223,45 +230,6 @@ function PortfolioBody({ portfolio }: { portfolio: import('@/lib/api').Portfolio
           </div>
         </Panel>
       )}
-    </div>
-  )
-}
-
-function MetricTile({
-  label, value, digits = 2, percent, negative, hint,
-}: {
-  label: string
-  value?: number | null
-  digits?: number
-  percent?: boolean
-  negative?: boolean
-  hint?: string
-}) {
-  const display = value == null || !Number.isFinite(value)
-    ? '—'
-    : percent
-      ? `${(value * 100).toFixed(digits)}%`
-      : value.toFixed(digits)
-
-  const tone = value == null || !Number.isFinite(value)
-    ? ''
-    : negative
-      ? 'text-clay'
-      : value > 0
-        ? 'text-primary'
-        : value < 0
-          ? 'text-clay'
-          : ''
-
-  return (
-    <div className="rounded-xl border border-border/50 bg-card p-4 shadow-sm">
-      <div
-        className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70"
-        title={hint}
-      >
-        {label}
-      </div>
-      <div className={cn('tnum mt-1 text-xl font-semibold', tone)}>{display}</div>
     </div>
   )
 }
@@ -276,9 +244,9 @@ function Toggle({
   return (
     <label className="flex cursor-pointer items-center gap-1.5">
       <Switch checked={checked} onCheckedChange={onChange} />
-      <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel>
         {label}
-      </span>
+      </MicroLabel>
     </label>
   )
 }

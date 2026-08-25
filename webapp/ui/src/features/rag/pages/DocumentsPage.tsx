@@ -16,6 +16,8 @@ import { isFileDrag } from '@/features/rag/hooks/useFileDrop'
 import { supabase } from '@/lib/supabase'
 import type { Document, Folder } from '@/features/rag/types'
 import { FileUp, Info, Upload, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 function hasDocumentIdentity(doc: Partial<Document>): doc is Document {
   return (
@@ -465,7 +467,9 @@ export function DocumentsPage() {
   // that was the RAG app's sidebar payload becomes an in-page left column,
   // matching the list+detail idiom of /lab/roster.
   return (
-    <div className="flex h-full min-h-0 flex-1 overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <PageHeader title="Knowledgebase" description="Documents your assistant can search and cite in chat." />
+      <div className="flex min-h-0 flex-1 overflow-hidden">
       <aside className="flex w-72 shrink-0 flex-col overflow-y-auto border-r border-border/50">
         <FolderTree
           selectedFolderId={selectedFolderId ?? null}
@@ -478,29 +482,22 @@ export function DocumentsPage() {
       {/* Main content */}
       <div className="relative min-w-0 flex-1 overflow-hidden">
         <div className="absolute inset-0 overflow-auto">
-          <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+          <div className="p-6 space-y-6">
             <div>
               {searchActive ? (
                 <>
-                  <h1 className="text-2xl font-semibold tracking-tight">Search results</h1>
+                  <h2 className="text-xl font-semibold tracking-tight">Search results</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Across all folders{debouncedSearch.trim() ? ` for "${debouncedSearch.trim()}"` : ''}
                   </p>
                 </>
               ) : (
-                <>
-                  <FolderBreadcrumbs
-                    folderId={selectedFolderId}
-                    folderName={selectedFolderName}
-                    onNavigate={handleBreadcrumbNavigate}
-                    onFolderNameLoaded={setSelectedFolderName}
-                  />
-                  {selectedFolderId === null && (
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Documents the assistant can search and cite in chat. Upload files to add them to your knowledge base.
-                    </p>
-                  )}
-                </>
+                <FolderBreadcrumbs
+                  folderId={selectedFolderId}
+                  folderName={selectedFolderName}
+                  onNavigate={handleBreadcrumbNavigate}
+                  onFolderNameLoaded={setSelectedFolderName}
+                />
               )}
             </div>
 
@@ -566,7 +563,7 @@ export function DocumentsPage() {
 
               <div className="space-y-1">
                 <h2 className="text-lg font-semibold">
-                  {pageDropUploading ? 'Adding files...' : `Drop files into ${pageDropTargetName}`}
+                  {pageDropUploading ? 'Adding files…' : `Drop files into ${pageDropTargetName}`}
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   {DOCUMENT_UPLOAD_FORMAT_LABEL}
@@ -574,15 +571,15 @@ export function DocumentsPage() {
               </div>
 
               {pageDropFeedback && (
-                <div className={`mx-auto flex max-w-md items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm animate-fade-in ${
+                <div className={cn('mx-auto flex max-w-md items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm animate-fade-in',
                   pageDropFeedback.type === 'info'
-                    ? 'border border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-400'
-                    : 'border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-400'
-                }`}>
+                    ? 'border border-clay/30 bg-clay/10 text-clay'
+                    : 'border border-primary/20 bg-primary/10 text-primary'
+                )}>
                   {pageDropFeedback.type === 'info' ? (
                     <Info className="h-4 w-4 flex-shrink-0" />
                   ) : (
-                    <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-500" />
+                    <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />
                   )}
                   {pageDropFeedback.message}
                 </div>
@@ -610,7 +607,7 @@ export function DocumentsPage() {
           {/* Modal */}
           <div className="relative bg-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Upload Files</h2>
+              <h2 className="text-lg font-semibold">Upload files</h2>
               <button
                 onClick={() => setShowUploadModal(false)}
                 className="p-1 rounded-lg hover:bg-muted transition-colors"
@@ -631,6 +628,7 @@ export function DocumentsPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

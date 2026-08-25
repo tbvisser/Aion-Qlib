@@ -15,10 +15,12 @@ import {
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Notice } from '@/components/ui/notice'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useShadowAccounts } from '@/hooks/useShadowAccounts'
 import { api, type VibeShadowResult } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -71,7 +73,7 @@ function StepBadge({
   return (
     <span
       className={cn(
-        'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-mono transition-colors',
+        'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-label font-mono transition-colors',
         status === 'done'
           ? 'border-primary bg-primary text-primary-foreground'
           : status === 'active'
@@ -178,7 +180,7 @@ function DropZone({
         <p className="text-sm text-muted-foreground">
           {busy ? 'Uploading…' : 'Drop your broker trade journal here'}
         </p>
-        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/50">
+        <p className="mt-0.5 font-mono text-micro uppercase tracking-wider text-muted-foreground/50">
           CSV · XLS · XLSX
         </p>
       </div>
@@ -198,9 +200,9 @@ function RuleCard({ rule, index }: { rule: unknown; index: number }) {
   if (typeof rule === 'string') {
     return (
       <div className="rounded-lg border border-border/40 bg-muted/20 px-4 py-3">
-        <span className="mr-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">
+        <MicroLabel className="mr-2">
           rule {index + 1}
-        </span>
+        </MicroLabel>
         <p className="mt-1 font-mono text-xs leading-relaxed text-foreground/90">{rule}</p>
       </div>
     )
@@ -213,9 +215,9 @@ function RuleCard({ rule, index }: { rule: unknown; index: number }) {
     if (ifClause !== null || thenClause !== null) {
       return (
         <div className="rounded-lg border border-border/40 bg-muted/20 px-4 py-3 font-mono text-xs leading-relaxed">
-          <span className="mr-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">
+          <MicroLabel className="mr-2">
             rule {index + 1}
-          </span>
+          </MicroLabel>
           <div className="mt-1.5 space-y-1">
             {ifClause !== null && (
               <div>
@@ -236,10 +238,10 @@ function RuleCard({ rule, index }: { rule: unknown; index: number }) {
     // Fallback: key-value pairs
     return (
       <div className="rounded-lg border border-border/40 bg-muted/20 px-4 py-3">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">
+        <MicroLabel>
           rule {index + 1}
-        </span>
-        <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px]">
+        </MicroLabel>
+        <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-label">
           {Object.entries(obj).map(([k, v]) => (
             <div key={k}>
               <dt className="text-muted-foreground/70">{k}</dt>
@@ -281,7 +283,7 @@ function BacktestResults({ result }: { result: VibeShadowResult }) {
       <dl className="grid grid-cols-2 gap-x-6 gap-y-2 font-mono text-xs sm:grid-cols-3">
         {scalars.map(([k, v]) => (
           <div key={k}>
-            <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">{k}</dt>
+            <dt className="text-micro uppercase tracking-wider text-muted-foreground">{k}</dt>
             <dd className={cn(typeof v === 'number' && v < 0 ? 'text-clay' : '')}>{toStr(v)}</dd>
           </div>
         ))}
@@ -293,37 +295,35 @@ function BacktestResults({ result }: { result: VibeShadowResult }) {
   const keys = Object.keys(firstRow)
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse font-mono text-xs">
-        <thead>
-          <tr className="border-b border-border/30">
-            {keys.map((k) => (
-              <th key={k} className="py-1.5 pr-5 text-left font-normal text-muted-foreground first:pl-0">
-                {k}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => {
-            const r = row as Record<string, unknown>
-            return (
-              <tr key={i} className="border-b border-border/20 last:border-0">
-                {keys.map((k) => {
-                  const v = r[k]
-                  const isNeg = typeof v === 'number' && v < 0
-                  return (
-                    <td key={k} className={cn('py-1.5 pr-5 first:pl-0', isNeg && 'text-clay')}>
-                      {toStr(v)}
-                    </td>
-                  )
-                })}
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+    <Table className="font-mono text-xs">
+      <TableHead>
+        <tr>
+          {keys.map((k) => (
+            <TableHeader key={k} className="py-1.5 pr-5 first:pl-0">
+              {k}
+            </TableHeader>
+          ))}
+        </tr>
+      </TableHead>
+      <TableBody>
+        {rows.map((row, i) => {
+          const r = row as Record<string, unknown>
+          return (
+            <TableRow key={i}>
+              {keys.map((k) => {
+                const v = r[k]
+                const isNeg = typeof v === 'number' && v < 0
+                return (
+                  <TableCell key={k} className={cn('py-1.5 pr-5 first:pl-0', isNeg && 'text-clay')}>
+                    {toStr(v)}
+                  </TableCell>
+                )
+              })}
+            </TableRow>
+          )
+        })}
+      </TableBody>
+    </Table>
   )
 }
 
@@ -374,7 +374,7 @@ function ScanResults({ result }: { result: VibeShadowResult }) {
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs font-medium">{symbol}</span>
                   {name && (
-                    <span className="truncate text-[11px] text-muted-foreground">{name}</span>
+                    <span className="truncate text-label text-muted-foreground">{name}</span>
                   )}
                   {score != null && (
                     <Badge variant="primary" className="ml-auto shrink-0">
@@ -383,7 +383,7 @@ function ScanResults({ result }: { result: VibeShadowResult }) {
                   )}
                 </div>
                 {reason && (
-                  <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">{reason}</p>
+                  <p className="mt-0.5 font-mono text-micro text-muted-foreground">{reason}</p>
                 )}
               </div>
             </li>
@@ -498,7 +498,7 @@ export function ShadowAccountsPage() {
           {health === 'unreachable' && (
             <Notice tone="clay">
               <p className="font-medium">Vibe sidecar offline</p>
-              <p className="mt-1 font-mono text-[11px]">
+              <p className="mt-1 font-mono text-label">
                 infra\stack.ps1 up
               </p>
             </Notice>
@@ -506,7 +506,7 @@ export function ShadowAccountsPage() {
 
           {/* Error notice — rendered at page level so it's always visible */}
           {error && (
-            <Notice tone="clay">
+            <Notice tone="destructive">
               <p>{error}</p>
             </Notice>
           )}
@@ -523,11 +523,11 @@ export function ShadowAccountsPage() {
                       <p className="truncate text-xs font-medium">
                         {filename ?? journalPath.split('/').pop() ?? journalPath}
                       </p>
-                      <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
+                      <p className="mt-0.5 truncate font-mono text-micro text-muted-foreground">
                         {journalPath}
                       </p>
                       {busy === 'analyze' && (
-                        <p className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
+                        <p className="mt-1 flex items-center gap-1.5 font-mono text-micro text-muted-foreground">
                           <Loader2 className="h-3 w-3 animate-spin" />
                           Analyzing journal…
                         </p>
@@ -569,7 +569,7 @@ export function ShadowAccountsPage() {
                 {/* Controls row */}
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="space-y-1">
-                    <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <Label className="font-mono text-micro uppercase tracking-wider text-muted-foreground">
                       Min support
                     </Label>
                     <Input
@@ -584,7 +584,7 @@ export function ShadowAccountsPage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <Label className="font-mono text-micro uppercase tracking-wider text-muted-foreground">
                       Max rules
                     </Label>
                     <Input
@@ -613,7 +613,7 @@ export function ShadowAccountsPage() {
                     )}
                   </Button>
                   {busy === 'extract' && (
-                    <p className="self-end font-mono text-[10px] text-muted-foreground">
+                    <p className="self-end font-mono text-micro text-muted-foreground">
                       this can take a minute
                     </p>
                   )}
@@ -625,7 +625,7 @@ export function ShadowAccountsPage() {
                     <Badge variant="outline" className="font-mono">
                       shadow {shadowId}
                     </Badge>
-                    <span className="font-mono text-[10px] text-muted-foreground">
+                    <span className="font-mono text-micro text-muted-foreground">
                       profile saved · refresh-safe
                     </span>
                   </div>
@@ -665,7 +665,7 @@ export function ShadowAccountsPage() {
                   <CardContent className="space-y-4">
                     <div className="flex flex-wrap items-end gap-3">
                       <div className="space-y-1">
-                        <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <Label className="font-mono text-micro uppercase tracking-wider text-muted-foreground">
                           Window start
                         </Label>
                         <Input
@@ -676,7 +676,7 @@ export function ShadowAccountsPage() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <Label className="font-mono text-micro uppercase tracking-wider text-muted-foreground">
                           Window end
                         </Label>
                         <Input
@@ -687,7 +687,7 @@ export function ShadowAccountsPage() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <Label className="font-mono text-micro uppercase tracking-wider text-muted-foreground">
                           Markets (comma-sep)
                         </Label>
                         <Input
@@ -714,7 +714,7 @@ export function ShadowAccountsPage() {
                         )}
                       </Button>
                       {busy === 'backtest' && (
-                        <p className="self-end font-mono text-[10px] text-muted-foreground">
+                        <p className="self-end font-mono text-micro text-muted-foreground">
                           this can take a minute
                         </p>
                       )}
@@ -734,7 +734,7 @@ export function ShadowAccountsPage() {
                   <CardContent className="space-y-4">
                     <div className="flex flex-wrap items-end gap-3">
                       <div className="space-y-1">
-                        <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <Label className="font-mono text-micro uppercase tracking-wider text-muted-foreground">
                           Scan date (default: today)
                         </Label>
                         <Input
@@ -761,7 +761,7 @@ export function ShadowAccountsPage() {
                       </Button>
                     </div>
                     {scanResult && <ScanResults result={scanResult} />}
-                    <p className="font-mono text-[10px] text-muted-foreground/70">
+                    <p className="font-mono text-micro text-muted-foreground/70">
                       Research only — not a trade recommendation.
                     </p>
                   </CardContent>
@@ -794,7 +794,7 @@ export function ShadowAccountsPage() {
                     )}
                   </Button>
                   {busy === 'render' && (
-                    <p className="font-mono text-[10px] text-muted-foreground">
+                    <p className="font-mono text-micro text-muted-foreground">
                       this can take a minute
                     </p>
                   )}

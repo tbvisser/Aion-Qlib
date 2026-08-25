@@ -1,4 +1,8 @@
 import { Link } from 'react-router-dom'
+import { MicroLabel } from '@/components/ui/micro-label'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
 
 import type { AgendaEntry, AgendaPayload } from '@/lib/agenda'
 import { cn } from '@/lib/utils'
@@ -30,9 +34,9 @@ export function TradeDetailCard({ entry, payload }: {
             entry.title
           )}
         </h4>
-        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <MicroLabel as="div" className="mt-0.5">
           {payload.kind === 'signal' ? 'model signals' : 'rebalance'} · {entry.date}
-        </p>
+        </MicroLabel>
       </div>
 
       <div className="border-t border-border/40 pt-3">
@@ -54,32 +58,32 @@ function SignalBody({ payload }: { payload: Extract<TradePayload, { kind: 'signa
   }
   return (
     <div>
-      <table className="w-full font-mono text-[11px]">
-        <thead>
-          <tr className="text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
-            <th className="py-1 font-normal">instrument</th>
-            <th className="py-1 text-right font-normal">model score</th>
+      <Table className="font-mono text-label">
+        <TableHead>
+          <tr>
+            <TableHeader>instrument</TableHeader>
+            <TableHeader numeric>model score</TableHeader>
           </tr>
-        </thead>
-        <tbody>
+        </TableHead>
+        <TableBody>
           {payload.signal.top.map((pick) => (
-            <tr key={pick.instrument} className="border-t border-border/20">
-              <td className="py-1 text-foreground/90">{pick.instrument}</td>
-              <td
+            <TableRow key={pick.instrument}>
+              <TableCell className="text-foreground/90">{pick.instrument}</TableCell>
+              <TableCell
+                numeric
                 className={cn(
-                  'tnum py-1 text-right',
                   pick.score == null ? 'text-muted-foreground/60'
                     : pick.score > 0 ? 'text-primary'
                       : pick.score < 0 ? 'text-clay' : 'text-muted-foreground',
                 )}
               >
                 {pick.score == null ? '—' : pick.score.toFixed(4)}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-      <p className="mt-1.5 font-mono text-[10px] text-muted-foreground/50">
+        </TableBody>
+      </Table>
+      <p className="mt-1.5 font-mono text-micro text-muted-foreground/50">
         prediction scores, not positions or fills
       </p>
     </div>
@@ -94,7 +98,7 @@ function RebalanceBody({ entry, payload }: {
     <div>
       <div className="flex items-baseline gap-4 font-mono">
         <span className="flex flex-col">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+          <span className="text-micro uppercase tracking-wider text-muted-foreground/60">
             turnover
           </span>
           <span className="tnum text-base">

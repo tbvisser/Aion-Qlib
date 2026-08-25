@@ -136,11 +136,11 @@ export function WeekTimeline({
                 day.date === selectedDay && 'ring-1 ring-inset ring-primary/70',
               )}
             >
-              <span className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/70">
+              <span className="font-mono text-tiny uppercase tracking-widest text-muted-foreground/70">
                 {isoWeekday(day.date)}
               </span>
               <span className={cn(
-                'tnum font-mono text-[11px]',
+                'tnum font-mono text-label',
                 day.date === today ? 'font-medium text-primary' : 'text-foreground/80',
               )}>
                 {Number(day.date.slice(8, 10))}
@@ -157,7 +157,7 @@ export function WeekTimeline({
             {LABEL_HOURS.map((hour) => (
               <span
                 key={hour}
-                className="absolute right-1.5 -translate-y-1/2 font-mono text-[9px] text-muted-foreground/50"
+                className="absolute right-1.5 -translate-y-1/2 font-mono text-tiny text-muted-foreground/50"
                 style={{ top: topOf(hour * 60) }}
               >
                 {pad(hour)}
@@ -200,7 +200,7 @@ export function WeekTimeline({
 function Band({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex border-b border-border/30 last:border-0">
-      <div className="w-14 shrink-0 whitespace-nowrap pr-1.5 pt-1 text-right font-mono text-[9px] uppercase tracking-wider text-muted-foreground/50">
+      <div className="w-14 shrink-0 whitespace-nowrap pr-1.5 pt-1 text-right font-mono text-tiny uppercase tracking-wider text-muted-foreground/50">
         {label}
       </div>
       <div className="grid flex-1 grid-cols-7 gap-px bg-border/40">
@@ -231,7 +231,7 @@ function GutterBand({ label, days, pick, selectedKey, onSelectEntry }: {
               title={entry.title}
               onClick={() => onSelectEntry(entry.key)}
               className={cn(
-                'block w-full truncate rounded px-1 text-left font-mono text-[9px] leading-[14px]',
+                'block w-full truncate rounded px-1 text-left font-mono text-tiny leading-[14px]',
                 TYPE_STYLES[entry.type].chipBg,
                 entry.key === selectedKey && 'ring-1 ring-inset ring-primary/70',
               )}
@@ -272,7 +272,7 @@ function ClusterChip({
         width: `calc(${100 / laneCount}% - 2px)`,
       }}
       className={cn(
-        'absolute truncate rounded px-1 text-left font-mono text-[9px] leading-[15px]',
+        'absolute truncate rounded px-1 text-left font-mono text-tiny leading-[15px]',
         TYPE_STYLES[cluster.entries[0].type].chipBg,
         single && single.key === selectedKey && 'ring-1 ring-inset ring-primary/70',
       )}
