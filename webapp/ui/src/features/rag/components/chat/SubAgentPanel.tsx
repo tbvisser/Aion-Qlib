@@ -80,9 +80,9 @@ function HeaderStatus({ status }: { status: SubAgentState['status'] }) {
 
   if (status === 'error') {
     return (
-      <span className="flex items-center gap-2 text-xs font-medium text-red-400">
+      <span className="flex items-center gap-2 text-xs font-medium text-destructive">
         <span>Error</span>
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/15">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive/15">
           <AlertCircle className="h-3 w-3" />
         </span>
       </span>
@@ -92,8 +92,8 @@ function HeaderStatus({ status }: { status: SubAgentState['status'] }) {
   return (
     <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
       <span>Complete</span>
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15">
-        <Check className="h-3 w-3 text-emerald-400" />
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15">
+        <Check className="h-3 w-3 text-primary" />
       </span>
     </span>
   )
@@ -105,18 +105,18 @@ function MiniToolCallItem({ tc }: { tc: ExplorerToolCall }) {
 
   return (
     <div className="grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-2 py-1.5">
-      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-muted text-muted-foreground dark:bg-[#303030] dark:text-[#C8CBD0]">
+      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-muted text-muted-foreground">
         <ToolIcon className="h-3.5 w-3.5" />
       </span>
       <span className="min-w-0 truncate">
-        <span className="text-[13px] font-semibold text-foreground">{getToolDisplayName(tc.tool_name)}</span>
+        <span className="text-body-sm font-semibold text-foreground">{getToolDisplayName(tc.tool_name)}</span>
         {summary && (
-          <span className="ml-2 font-mono text-[11.5px] text-muted-foreground">{summary}</span>
+          <span className="ml-2 font-mono text-label text-muted-foreground">{summary}</span>
         )}
       </span>
       {tc.status === 'completed' ? (
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15">
-          <Check className="h-3 w-3 text-emerald-400" />
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15">
+          <Check className="h-3 w-3 text-primary" />
         </span>
       ) : (
         <span className="flex h-5 w-5 items-center justify-center">
@@ -145,35 +145,35 @@ export function SubAgentPanel({ subAgent }: SubAgentPanelProps) {
   const hasContent = !!(brief || result || toolCalls.length > 0 || subAgent.status === 'error')
 
   return (
-    <div className="overflow-hidden rounded-[14px] border border-border/60 bg-surface-2/80 animate-fade-in dark:border-[#2E2E2E] dark:bg-[#1D1D1D]">
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-surface-2/80 animate-fade-in">
       <button
         type="button"
         onClick={() => hasContent && setExpanded(!expanded)}
-        className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30 dark:hover:bg-[#262626]/70 ${!hasContent ? 'cursor-default' : ''}`}
+        className={cn('flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30', !hasContent && 'cursor-default')}
         aria-expanded={expanded}
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground dark:bg-[#303030] dark:text-[#C8CBD0]">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
           <Icon className="h-4 w-4" />
         </span>
-        <span className="min-w-0 flex-1 truncate text-[14.5px] font-semibold text-foreground">
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
           {title}
         </span>
         <HeaderStatus status={subAgent.status} />
         {hasContent && (
-          <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground/70 transition-transform ${expanded ? '' : '-rotate-90'}`} />
+          <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground/70 transition-transform', !expanded && '-rotate-90')} />
         )}
       </button>
 
       {expanded && hasContent && (
         <div className="space-y-3 px-4 pb-4 animate-fade-in">
           {brief && (
-            <div className="rounded-lg border-l-2 border-border bg-background/60 px-3 py-2 text-[13.5px] leading-relaxed text-foreground dark:border-[#2E2E2E] dark:bg-[#161616]">
+            <div className="rounded-lg border-l-2 border-border bg-background/60 px-3 py-2 text-body-sm leading-relaxed text-foreground">
               {brief}
             </div>
           )}
 
           {toolCalls.length > 0 && (
-            <div className="rounded-lg border border-border/40 bg-background/35 px-2 py-2 dark:border-[#212121] dark:bg-[#191919]">
+            <div className="rounded-lg border border-border/40 bg-background/35 px-2 py-2">
               {toolCalls.map((tc, idx) => (
                 <MiniToolCallItem key={`${tc.tool_name}-${idx}`} tc={tc} />
               ))}
@@ -183,7 +183,7 @@ export function SubAgentPanel({ subAgent }: SubAgentPanelProps) {
           {result && (
             <div
               className={cn(
-                "prose prose-neutral dark:prose-invert prose-sm max-w-none text-[13.5px] leading-relaxed prose-p:my-2 prose-p:text-foreground/90 prose-strong:text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+                "prose prose-neutral dark:prose-invert prose-sm max-w-none text-body-sm leading-relaxed prose-p:my-2 prose-p:text-foreground/90 prose-strong:text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
                 subAgent.mode === 'analyze' && 'max-h-[55vh] overflow-y-auto overscroll-contain pr-2 sm:max-h-96',
               )}
               tabIndex={subAgent.mode === 'analyze' ? 0 : undefined}
@@ -196,7 +196,7 @@ export function SubAgentPanel({ subAgent }: SubAgentPanelProps) {
           )}
 
           {subAgent.status === 'error' && !result && (
-            <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">
               Sub-agent failed.
             </div>
           )}

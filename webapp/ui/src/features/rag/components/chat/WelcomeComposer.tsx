@@ -26,7 +26,7 @@ interface WelcomeComposerProps {
 export function WelcomeComposer({
   onSubmit,
   busy,
-  placeholder = 'Ask anything...',
+  placeholder = 'Ask anything…',
   focusToken,
   dropActive = true,
   onDraftChange,

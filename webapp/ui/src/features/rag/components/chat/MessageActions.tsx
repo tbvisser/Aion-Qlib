@@ -111,7 +111,7 @@ export function MessageActions({
         onClick={handleCopy}
         title={copied ? 'Copied' : 'Copy message'}
       >
-        {copied ? <Check className="text-emerald-500" /> : <Copy />}
+        {copied ? <Check className="text-primary" /> : <Copy />}
         <span>{copied ? 'Copied' : 'Copy'}</span>
       </ActionButton>
 
@@ -133,7 +133,7 @@ export function MessageActions({
           ) : checkError ? (
             <ShieldAlert />
           ) : (
-            <ShieldCheck className={citationsChecked ? 'text-emerald-500' : undefined} />
+            <ShieldCheck className={citationsChecked ? 'text-primary' : undefined} />
           )}
           <span>
             {checking

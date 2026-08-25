@@ -6,8 +6,8 @@
  * swap away and everything else in this directory stays testable as plain data.
  *
  * Stage node ids are stage ids, which are constants. That is what guarantees
- * React Flow never remounts a *card* when a field is edited: the eight ids of
- * the hub and the seven stages are the same, in the same order, for every spec
+ * React Flow never remounts a *card* when a field is edited: the nine ids of
+ * the hub and the eight stages are the same, in the same order, for every spec
  * that ever existed.
  *
  * The feature chips are the one part of this canvas that is a function of the
@@ -41,7 +41,7 @@ export const FEATURE_NODE_TYPE = 'feature'
  * `LABEL`), so chip ids have to live somewhere a stage id cannot reach. The
  * prefix contains a colon, which `StageId` never can.
  */
-export const FEATURE_NODE_PREFIX = 'feature:'
+const FEATURE_NODE_PREFIX = 'feature:'
 export const FEATURE_BASE_ID = 'feature:base'
 export const FEATURE_MORE_ID = 'feature:more'
 
@@ -49,7 +49,7 @@ export const FEATURE_MORE_ID = 'feature:more'
  * How many column chips are drawn *while the fan is collapsed* before the rest
  * become a count.
  *
- * The arc holds seven: a base chip, five columns and the overflow chip. A sixth
+ * The fan holds seven: a base chip, five columns and the overflow chip. A sixth
  * column is drawn rather than collapsed, because "+1 more" in the slot the
  * column itself would occupy tells a reader strictly less than the column does.
  * Expanded, that limit is gone and only the grid's own cap applies.
@@ -80,7 +80,7 @@ export function hasFeatureOverflow(spec: StrategySpec): boolean {
  */
 export type StageCardData = {
   stage: StageDef
-  /** `01`…`07`. The pipeline is ordered, and no node editor usually says so. */
+  /** `01`…`08`. The pipeline is ordered, and no node editor usually says so. */
   ordinal: string
   /** What the stage is set to. The headline is the card's bold line. */
   glance: StageGlance
@@ -92,7 +92,7 @@ export type StageCardData = {
   height: number
 }
 
-/** What the seven cards add up to, for the node at the top of the stack. */
+/** What the eight cards add up to, for the node at the top of the stack. */
 export type HubCardData = {
   name: string
   /** Stages with nothing to say at all. The dots carry the other two states. */
@@ -250,7 +250,7 @@ export const HUB_SPOKES: readonly Edge[] = Object.freeze(
  * The base chip leads because the handler's set is what the custom columns are
  * added to, and the fan reads top to bottom.
  *
- * `expanded` swaps the arc for the grid and drops the five-column limit, so
+ * `expanded` swaps the fan for the grid and drops the five-column limit, so
  * every column gets a chip. The overflow chip stays the same node either way --
  * same id, same kind, only its label turns around -- which is what lets React
  * Flow relabel it instead of remounting, and keeps the roster reading
@@ -392,7 +392,7 @@ export function toStageNodes(
 }
 
 /**
- * What the seven cards add up to.
+ * What the eight cards add up to.
  *
  * Everything here is derived from the same badges the cards wear, so the hub can
  * never disagree with the stack below it -- the same reason positions are

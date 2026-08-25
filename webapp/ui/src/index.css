@@ -102,6 +102,55 @@
   }
 }
 
+/* App-specific tokens — NOT part of the verbatim platform block above.
+
+   Keycard canvas identity hues: one per block family, referenced (never
+   hardcoded) by the three keycard colour maps — node categories
+   (`nodeRegistry.ts`), port types (`keycardFlow.ts`) and template families
+   (`NodePalette.tsx`) — via `lib/keycardGraph/palette.ts`. Identity only,
+   like the --type-* set: verdicts never come from these.
+
+   Dark values are the hexes the canvas was designed against (Tailwind
+   400-level, tuned for the charcoal card); light re-steps each hue one shade
+   deeper so a white icon still reads on the category tile. */
+@layer base {
+  :root {
+    --kc-blue: 217 91% 55%;
+    --kc-emerald: 160 84% 36%;
+    --kc-violet: 258 84% 60%;
+    --kc-orange: 25 95% 47%;
+    --kc-rose: 347 77% 50%;
+    --kc-amber: 38 92% 44%;
+    --kc-cyan: 192 91% 36%;
+    --kc-slate: 215 16% 47%;
+  }
+
+  .dark {
+    --kc-blue: 213 94% 68%;
+    --kc-emerald: 158 64% 52%;
+    --kc-violet: 255 92% 76%;
+    --kc-orange: 25 95% 53%;
+    --kc-rose: 350 89% 60%;
+    --kc-amber: 43 96% 56%;
+    --kc-cyan: 187 86% 53%;
+    --kc-slate: 215 20% 65%;
+  }
+}
+
+/* Sidebar chrome. The rail/panel background sat a step warmer than
+   --surface-1 in light mode and was hardcoded as #F5F3EE in two layout
+   components; this names it. Dark mode never had a separate rail colour —
+   it aliases --surface-1. */
+@layer base {
+  :root {
+    --surface-rail: 43 26% 95%;
+  }
+
+  .dark {
+    --surface-rail: var(--surface-1);
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

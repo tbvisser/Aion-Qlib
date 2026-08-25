@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, type Indicator, type IndicatorsResponse, type ModelsResponse, type PositionTrade, type Run } from '@/lib/api'
 
-const OVERLAY_COLORS = [
+/**
+ * The chart-overlay rotation, exported as the single source — the legend in
+ * ChartOverlaysPanel imports it rather than keeping its own copy (the two had
+ * been duplicated verbatim, which is one drift away from a legend that lies).
+ */
+export const OVERLAY_COLORS = [
   '#22c55e', // green
   '#3b82f6', // blue
   '#f59e0b', // amber

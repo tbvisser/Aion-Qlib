@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils'
  * The app's canonical mode switch, extracted from the copy of it in
  * MarketsPage, DatabankPage, IndicatorsPage and the builder's ModeToggle.
  *
- * Deliberately not Radix Tabs. `@radix-ui/react-tabs` is installed but unused,
- * and this idiom is already the established gesture for switching a panel —
- * adding Tabs would give the app two visual languages for one action. What
+ * Deliberately not Radix Tabs. This idiom is already the established gesture
+ * for switching a panel — adding Tabs would give the app two visual languages
+ * for one action. What
  * Radix would have contributed is keyboard support, so that is here: roving
  * arrow keys and radiogroup semantics.
  */
@@ -32,7 +32,8 @@ export function Segmented<T extends string>({
   className,
   size = 'md',
   stretch = false,
-  buttonClassName = 'font-mono',
+  // Sidebar-sans, like every other navigation control. Mono is for data.
+  buttonClassName = 'font-medium',
   'data-testid': testId,
 }: {
   value: T
@@ -96,7 +97,7 @@ export function Segmented<T extends string>({
             onClick={() => onChange(option.value)}
             className={cn(
               'inline-flex items-center justify-center gap-1.5 rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-40',
-              size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]',
+              size === 'sm' ? 'px-2 py-0.5 text-micro' : 'px-2.5 py-1 text-label',
               stretch && 'flex-1',
               active
                 ? 'bg-foreground/[0.07] text-foreground'

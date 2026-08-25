@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowUpRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { Segmented } from '@/components/ui/segmented'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -83,7 +84,7 @@ export function LinkagePanel({
         </div>
 
         {linkage && (
-          <p className="font-mono text-[11px] text-muted-foreground">
+          <p className="font-mono text-label text-muted-foreground">
             {linkage.run_id ? `from run ${linkage.run_id} · ` : ''}
             {formatIsoDate(linkage.window.start)} → {formatIsoDate(linkage.window.end)} ·{' '}
             {linkage.window.days.toLocaleString()} days
@@ -136,7 +137,7 @@ function Body({
           <p className="text-sm">{error}</p>
           <Link
             to="/lab/builder"
-            className="mt-2 inline-flex items-center gap-1 font-mono text-[11px] text-primary hover:underline"
+            className="mt-2 inline-flex items-center gap-1 font-mono text-label text-primary hover:underline"
           >
             Run a backtest <ArrowUpRight className="h-3 w-3" />
           </Link>
@@ -197,9 +198,9 @@ function Panel({
 }) {
   return (
     <div>
-      <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="mb-2">
         {title}
-      </div>
+      </MicroLabel>
       {note ? (
         <div className="rounded-lg border border-clay/40 bg-clay/5 p-3 text-xs">{note}</div>
       ) : (
@@ -262,9 +263,9 @@ function EventOverlay({ linkage, eventKey }: { linkage: MacroLinkage; eventKey: 
 
   return (
     <div className="mt-6">
-      <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="mb-2">
         Cumulative return, with {row?.type ?? eventKey} releases marked
-      </div>
+      </MicroLabel>
       {curves ? (
         <EventOverlayChart
           curves={curves}

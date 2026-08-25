@@ -1,5 +1,6 @@
 import { Panel } from '@/components/ui/panel'
 import { Segmented } from '@/components/ui/segmented'
+import { Table, TableBody } from '@/components/ui/table'
 import { Sparkline } from '@/components/Sparkline'
 import type { BoardGroup, Horizon } from '@/lib/macroBoard'
 import {
@@ -48,14 +49,14 @@ export function CrossAssetBoard({
           size="sm"
         />
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[10px] text-muted-foreground">
+          <span className="font-mono text-micro text-muted-foreground">
             {selected.length} of {MAX_SERIES} charted
           </span>
           {selected.length > 0 && (
             <button
               type="button"
               onClick={onClear}
-              className="font-mono text-[10px] text-muted-foreground hover:text-foreground"
+              className="font-mono text-micro text-muted-foreground hover:text-foreground"
             >
               clear
             </button>
@@ -67,8 +68,8 @@ export function CrossAssetBoard({
         loading && 'animate-subtle-pulse')}>
         {groups.map((group) => (
           <Panel key={group.id} title={group.label} flush>
-            <table className="w-full">
-              <tbody>
+            <Table>
+              <TableBody>
                 {group.rows.map((row) => {
                   const at = selected.indexOf(row.key)
                   const on = at >= 0
@@ -111,18 +112,18 @@ export function CrossAssetBoard({
                         />
                       </td>
                       <td className="min-w-0 py-1.5 pl-2 pr-2">
-                        <span className="block truncate text-[11px]">{row.label}</span>
+                        <span className="block truncate text-label">{row.label}</span>
                       </td>
                       <td className="w-[76px] py-1.5">
                         {row.spark.length > 1
                           ? <Sparkline values={row.spark} width={72} height={18} />
                           : null}
                       </td>
-                      <td className="tnum w-[64px] py-1.5 pr-2 text-right font-mono text-[11px]">
+                      <td className="tnum w-[64px] py-1.5 pr-2 text-right font-mono text-label">
                         {row.available ? formatLevel(row.level, row.unit) : 'n/a'}
                       </td>
                       <td className={cn(
-                        'tnum w-[62px] py-1.5 pr-2 text-right font-mono text-[11px]',
+                        'tnum w-[62px] py-1.5 pr-2 text-right font-mono text-label',
                         toneFor(row.change),
                       )}>
                         {row.available ? formatChange(row.change, row.changeUnit) : '—'}
@@ -130,13 +131,13 @@ export function CrossAssetBoard({
                     </tr>
                   )
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </Panel>
         ))}
       </div>
 
-      <p className="font-mono text-[10px] text-muted-foreground/70">
+      <p className="font-mono text-micro text-muted-foreground/70">
         A mark on the leading edge means the level is more than 1.5σ from its own
         history — direction against precedent, not desirability.
       </p>

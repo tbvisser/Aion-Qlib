@@ -66,7 +66,7 @@ export function MonthGrid({
         {WEEKDAY_HEAD.map((day) => (
           <div
             key={day}
-            className="text-center font-mono text-[9px] uppercase tracking-widest text-muted-foreground/80"
+            className="text-center font-mono text-tiny uppercase tracking-widest text-muted-foreground/80"
           >
             {day}
           </div>
@@ -87,7 +87,7 @@ export function MonthGrid({
         ))}
       </div>
 
-      <p className="border-t border-border/50 px-3 py-1.5 text-[10px] text-muted-foreground/60">
+      <p className="border-t border-border/50 px-3 py-1.5 text-micro text-muted-foreground/60">
         Releases cover the viewed month; processes, trades, messages and
         notifications show recent history only.
       </p>
@@ -167,14 +167,14 @@ function DayCell({ date, inMonth, isToday, isSelected, summary, onSelect }: {
 
       <span className="flex items-baseline justify-between gap-1">
         <span className={cn(
-          'tnum font-mono text-[11px] leading-none',
+          'tnum font-mono text-label leading-none',
           isToday ? 'font-medium text-primary'
             : inMonth ? 'text-foreground/80' : 'text-muted-foreground/40',
         )}>
           {Number(date.slice(8, 10))}
         </span>
         {count > 0 && (
-          <span className="tnum font-mono text-[10px] leading-none text-muted-foreground/50">
+          <span className="tnum font-mono text-micro leading-none text-muted-foreground/50">
             {count}
           </span>
         )}
@@ -186,12 +186,12 @@ function DayCell({ date, inMonth, isToday, isSelected, summary, onSelect }: {
       <span className="flex flex-1 items-center justify-center px-0.5">
         {summary?.marquee && (
           <span className={cn(
-            'line-clamp-2 text-center text-[11px] font-medium leading-tight',
+            'line-clamp-2 text-center text-label font-medium leading-tight',
             inMonth ? 'text-foreground/85' : 'text-muted-foreground/40',
           )}>
             {summary.marquee}
             {summary.marqueeMore > 0 && (
-              <span className="font-mono text-[10px] text-muted-foreground/60">
+              <span className="font-mono text-micro text-muted-foreground/60">
                 {' '}+{summary.marqueeMore}
               </span>
             )}

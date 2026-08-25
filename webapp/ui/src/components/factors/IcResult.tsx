@@ -44,7 +44,7 @@ export function IcMetrics({ result, compact, font = 'mono' }: {
             data-testid={`ic-${row.key}`}
           >
             <div className={cn(
-              'text-[10px] uppercase tracking-wider text-muted-foreground/70',
+              'text-micro uppercase tracking-wider text-muted-foreground/70',
               font === 'sans' ? 'font-sans' : 'font-mono',
             )}>
               {row.label}
@@ -109,7 +109,7 @@ export function IcChart({ result, height = 220, font = 'mono' }: {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <p className={cn('mt-2 text-[11px] text-muted-foreground', font === 'sans' ? 'font-sans' : 'font-mono')}>
+      <p className={cn('mt-2 text-label text-muted-foreground', font === 'sans' ? 'font-sans' : 'font-mono')}>
         {result.observations.toLocaleString()} observations over{' '}
         {result.days.toLocaleString()} days · {result.horizon}d horizon
       </p>

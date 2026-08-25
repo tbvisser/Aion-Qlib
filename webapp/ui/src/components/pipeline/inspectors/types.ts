@@ -1,7 +1,7 @@
 /**
  * What every stage inspector is handed.
  *
- * One prop bag rather than seven bespoke signatures: the inspectors are
+ * One prop bag rather than eight bespoke signatures: the inspectors are
  * rendered by a single switch in `StageInspector`, and a per-stage signature
  * would put that switch in the business of knowing which stage needs what.
  */
@@ -9,7 +9,6 @@ import type {
   DataStore, FieldOptions, ModelsResponse, SpecDefect, StrategyCoverage, StrategyExplain,
   StrategySpec,
 } from '@/lib/api'
-import type { StageId } from '@/lib/strategyGraph/stages'
 
 export interface InspectorProps {
   spec: StrategySpec
@@ -24,7 +23,11 @@ export interface InspectorProps {
   onOpenFeatureCanvas: () => void
   /** Canvas columns still being built — shown, but not in the spec. */
   unfinished: number
-  /** Blockers and advisories already routed to this stage. */
+  /**
+   * Advisories routed to this stage. Rendered once, by `StageInspector`'s
+   * shell — an inspector never prints them itself. Blockers arrive on the
+   * shell's own `blocking` prop.
+   */
   notes: string[]
   /**
    * What each field may be set to, judged against the rest of the spec.
@@ -49,6 +52,3 @@ export interface InspectorProps {
 }
 
 export type InspectorComponent = (props: InspectorProps) => JSX.Element
-
-/** null means nothing is selected, and the rail is not rendered at all. */
-export type SelectedStage = StageId | null

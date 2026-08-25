@@ -1,3 +1,4 @@
+import { MicroLabel } from '@/components/ui/micro-label'
 import type { MacroRegimeReport } from '@/lib/api'
 import { formatPercent } from '@/lib/macroFormat'
 import { cn } from '@/lib/utils'
@@ -38,14 +39,14 @@ export function RegimeGrid({ report }: { report: MacroRegimeReport }) {
               style={tint ? { backgroundColor: tint } : undefined}
               className="rounded-lg border border-border/50 p-3"
             >
-              <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+              <MicroLabel as="div">
                 {bucket.label}
-              </div>
+              </MicroLabel>
 
               {value == null ? (
                 <>
                   <div className="tnum mt-1 font-mono text-2xl text-muted-foreground">—</div>
-                  <div className="mt-0.5 text-[10px] text-muted-foreground">
+                  <div className="mt-0.5 text-micro text-muted-foreground">
                     {bucket.reason}
                   </div>
                 </>
@@ -55,7 +56,7 @@ export function RegimeGrid({ report }: { report: MacroRegimeReport }) {
                     value >= 0 ? 'text-primary' : 'text-clay')}>
                     {formatPercent(value, 1)}
                   </div>
-                  <div className="mt-0.5 flex gap-3 font-mono text-[10px] text-muted-foreground">
+                  <div className="mt-0.5 flex gap-3 font-mono text-micro text-muted-foreground">
                     <span>sharpe {bucket.sharpe?.toFixed(2) ?? '—'}</span>
                     <span>hit {bucket.hit_rate == null ? '—' : `${(bucket.hit_rate * 100).toFixed(0)}%`}</span>
                   </div>
@@ -68,7 +69,7 @@ export function RegimeGrid({ report }: { report: MacroRegimeReport }) {
                   style={{ width: `${(bucket.share * 100).toFixed(1)}%` }}
                 />
               </div>
-              <div className="tnum mt-1 font-mono text-[10px] text-muted-foreground/70">
+              <div className="tnum mt-1 font-mono text-micro text-muted-foreground/70">
                 {bucket.days}d · {(bucket.share * 100).toFixed(0)}% of the window
               </div>
             </div>
@@ -76,7 +77,7 @@ export function RegimeGrid({ report }: { report: MacroRegimeReport }) {
         })}
       </div>
 
-      <div className="mt-2 space-y-0.5 font-mono text-[10px] text-muted-foreground/70">
+      <div className="mt-2 space-y-0.5 font-mono text-micro text-muted-foreground/70">
         <div>
           Rates: {report.rates_key} against itself {report.momentum} sessions ago.
           Vol: rolling z-score of log {report.vol_key} over {report.lookback} sessions.

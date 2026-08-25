@@ -26,6 +26,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import type { KeycardDefect, KeycardSpec } from '@/lib/api'
+import { firstBlockedNodeId } from '@/lib/keycardGraph/keycardFlow'
 
 interface Props {
   spec: KeycardSpec
@@ -40,6 +41,8 @@ interface Props {
   onExport: () => void
   onDelete: () => void
   onAutoLayout: () => void
+  /** Select the node the first blocking defect is about, so the chip leads somewhere. */
+  onFocusBlocked?: (nodeId: string) => void
 }
 
 export function KeycardToolbar({
@@ -55,8 +58,12 @@ export function KeycardToolbar({
   onExport,
   onDelete,
   onAutoLayout,
+  onFocusBlocked,
 }: Props) {
   const blocking = defects.filter((d) => d.severity === 'blocking')
+  // The node behind the first blocker, when it is about one. The strategy
+  // builder's chip jumps to the first blocked stage; this is the same gesture.
+  const firstBlockedNode = firstBlockedNodeId(defects)
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -70,12 +77,24 @@ export function KeycardToolbar({
 
         <div className="flex items-center gap-1.5">
           {dirty && (
-            <Badge variant="outline" font="sans" className="text-[10px]">unsaved</Badge>
+            <Badge variant="outline" font="sans" className="text-micro">unsaved</Badge>
           )}
           {blocking.length > 0 && (
-            <Badge variant="clay" font="sans" className="text-[10px]">
-              {blocking.length} blocking
-            </Badge>
+            // A button, not an inert label: the strategy builder's chip jumps
+            // to the problem, and its title carries the sentences the count
+            // cannot.
+            <button
+              type="button"
+              title={blocking.map((d) => d.message).join('\n')}
+              onClick={() => {
+                if (firstBlockedNode && onFocusBlocked) onFocusBlocked(firstBlockedNode)
+              }}
+              className={firstBlockedNode && onFocusBlocked ? undefined : 'cursor-default'}
+            >
+              <Badge variant="clay" font="sans" className="text-micro">
+                {blocking.length} blocking
+              </Badge>
+            </button>
           )}
         </div>
 
@@ -157,14 +176,18 @@ export function KeycardToolbar({
             Share
           </Button>
 
+          {/* Disabled only while busy, per the strategy builder's own written
+              policy: a button whose sole explanation is a tooltip is
+              unreachable by keyboard and invisible on touch. Blockers hold the
+              launch inside the confirm dialog, where the reasons are written. */}
           <Button
             type="button"
             size="sm"
             onClick={onRun}
-            disabled={busy || blocking.length > 0}
+            disabled={busy}
           >
             <Play className="mr-1.5 h-3.5 w-3.5" />
-            Test strategy
+            Test keycard
           </Button>
         </div>
       </div>

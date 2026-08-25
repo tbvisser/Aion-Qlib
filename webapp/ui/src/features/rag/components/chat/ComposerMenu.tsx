@@ -52,7 +52,7 @@ const ACCEPTED_TYPES = [
 // used by both the menu items and the active-mode chip.
 const MODE_META = {
   general: {
-    label: 'Deep Mode',
+    label: 'Deep mode',
     description: 'General-purpose agent',
     icon: Zap,
     iconColor: 'text-amber-500',
@@ -185,7 +185,7 @@ export function ComposerMenu({
             >
               <Zap className={MODE_META.general.iconColor} />
               <div className="flex flex-col">
-                <span className="font-medium">Deep Mode</span>
+                <span className="font-medium">Deep mode</span>
                 <span className="text-xs text-muted-foreground">{MODE_META.general.description}</span>
               </div>
               {activeMode === 'general' && <Check className="ml-auto h-4 w-4" />}

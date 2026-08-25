@@ -8,6 +8,7 @@ import { Notice } from '@/components/ui/notice'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import type { KeycardDefect, KeycardNodeTypeMeta, KeycardSpec } from '@/lib/api'
+import { routeDefects } from '@/lib/keycardGraph/keycardFlow'
 
 interface Props {
   spec: KeycardSpec
@@ -51,18 +52,9 @@ export function NodeInspector({
   onChange,
   onChangeNode,
 }: Props) {
-  const routed = useMemo(() => {
-    const map = new Map<string, KeycardDefect[]>()
-    for (const d of defects) {
-      const match = /^nodes\[([^\]]+)\]/.exec(d.path)
-      if (!match) continue
-      const key = match[1]
-      const list = map.get(key) ?? []
-      list.push(d)
-      map.set(key, list)
-    }
-    return map
-  }, [defects])
+  // The shared router. It groups edge defects into the same map, which is
+  // harmless here: this rail only ever looks nodes up.
+  const routed = useMemo(() => routeDefects(defects), [defects])
 
   if (!selectedNodeId) {
     return (
@@ -138,11 +130,14 @@ export function NodeInspector({
     <aside className="flex h-full min-h-0 flex-col bg-card">
       <div className="border-b border-border/50 px-3 py-2">
         <div className="text-sm font-medium">{meta?.label ?? node.type}</div>
-        <div className="text-[10px] text-muted-foreground">{node.id}</div>
+        <div className="text-micro text-muted-foreground">{node.id}</div>
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+        {/* Clay, not destructive: a compile defect is a verdict on the
+            config, not something that broke — the house rule the strategy
+            inspectors follow, and the tone the node's own card border uses. */}
         {nodeDefects.length > 0 && (
-          <Notice tone="destructive" icon={false}>
+          <Notice tone="clay" icon={false}>
             {nodeDefects.map((d) => (
               <p key={d.code}>{d.message}</p>
             ))}
@@ -220,7 +215,7 @@ function ConfigField({
             </option>
           ))}
         </select>
-        {prop.description && <p className="text-[10px] text-muted-foreground">{prop.description}</p>}
+        {prop.description && <p className="text-micro text-muted-foreground">{prop.description}</p>}
       </Field>
     )
   }
@@ -253,7 +248,7 @@ function ConfigField({
             onChange(v)
           }}
         />
-        {prop.description && <p className="text-[10px] text-muted-foreground">{prop.description}</p>}
+        {prop.description && <p className="text-micro text-muted-foreground">{prop.description}</p>}
       </Field>
     )
   }
@@ -268,7 +263,7 @@ function ConfigField({
           {items.map((item, i) => (
             <div key={i} className="rounded-md border border-border/50 p-2">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[10px] font-medium">Item {i + 1}</span>
+                <span className="text-micro font-medium">Item {i + 1}</span>
                 <Button
                   type="button"
                   variant="ghost"
@@ -285,7 +280,7 @@ function ConfigField({
               <div className="space-y-2">
                 {Object.keys(subProps).map((subKey) => (
                   <div key={subKey} className="space-y-1">
-                    <Label className="text-[10px]">
+                    <Label className="text-micro">
                       {subKey}{subRequired.includes(subKey) ? ' *' : ''}
                     </Label>
                     <Input
@@ -328,7 +323,7 @@ function ConfigField({
           placeholder={prop.description}
           rows={4}
         />
-        {prop.description && <p className="text-[10px] text-muted-foreground">{prop.description}</p>}
+        {prop.description && <p className="text-micro text-muted-foreground">{prop.description}</p>}
       </Field>
     )
   }
@@ -340,7 +335,7 @@ function ConfigField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={prop.description}
       />
-      {prop.description && <p className="text-[10px] text-muted-foreground">{prop.description}</p>}
+      {prop.description && <p className="text-micro text-muted-foreground">{prop.description}</p>}
     </Field>
   )
 }
@@ -361,7 +356,7 @@ function WindowsEditor({
       <div className="grid grid-cols-2 gap-2">
         {keys.map((k) => (
           <div key={k} className="space-y-1">
-            <Label className="text-[10px] text-muted-foreground">{k.replace(/_/g, ' ')}</Label>
+            <Label className="text-micro text-muted-foreground">{k.replace(/_/g, ' ')}</Label>
             <Input
               type="date"
               value={windows[k]}

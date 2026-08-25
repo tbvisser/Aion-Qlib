@@ -71,7 +71,7 @@ export function DriverBars({ drivers, limit = 10 }: { drivers: MacroDriver[]; li
         </BarChart>
       </ResponsiveContainer>
 
-      <div className="mt-2 space-y-0.5 font-mono text-[10px] text-muted-foreground/70">
+      <div className="mt-2 space-y-0.5 font-mono text-micro text-muted-foreground/70">
         <div>Pearson on overlapping daily changes. ρ is the rank correlation.</div>
         {thin.map((d) => (
           <div key={d.key}>

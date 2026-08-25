@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 
 import { KeycardAssistantDock } from '@/components/keycard/KeycardAssistantDock'
+import { UnsavedChangesDialog } from '@/components/builder/UnsavedChangesDialog'
 import { KeycardCanvas } from '@/components/keycard/KeycardCanvas'
 import { KeycardToolbar } from '@/components/keycard/KeycardToolbar'
 import { NodeInspector } from '@/components/keycard/NodeInspector'
@@ -26,8 +27,9 @@ import { useKeycard, toKeycardSpec } from '@/hooks/useKeycard'
 import { useKeycardChat, useKeycardChatConfigured } from '@/hooks/useKeycardChat'
 import { useKeycardCompile } from '@/hooks/useKeycardCompile'
 import { useKeycardState } from '@/hooks/useKeycardState'
+import { useRuns } from '@/hooks/useRuns'
 import { useSessionRuns } from '@/hooks/useSessionRuns'
-import { useUnsavedGuard } from '@/hooks/useUnsavedGuard'
+import { useBeforeUnloadWarning, useUnsavedGuard } from '@/hooks/useUnsavedGuard'
 import {
   api,
   defaultKeycardSpec,
@@ -37,6 +39,8 @@ import {
   type Run,
 } from '@/lib/api'
 import { NODE_TYPE_INFO, normaliseCategory } from '@/lib/keycardGraph/nodeRegistry'
+import { changedKeys } from '@/lib/specDiff'
+import { cn } from '@/lib/utils'
 import { missingRequiredCategories } from '@/lib/keycardGraph/keycardValidation'
 
 
@@ -46,10 +50,13 @@ export function KeycardBuilderPage() {
   const keycard = useKeycard(defaultKeycardSpec())
   const state = useKeycardState(keycard.spec)
 
-  // Sync external load/save state into the local editor state.
+  // Sync external load/save state into the local editor state. Destructured
+  // because `setSpec` is a stable dispatch wrapper while the `state` bag is
+  // rebuilt every render — depending on the bag would re-run this constantly.
+  const { setSpec: setEditorSpec } = state
   useEffect(() => {
-    state.setSpec(keycard.spec)
-  }, [keycard.spec])
+    setEditorSpec(keycard.spec)
+  }, [keycard.spec, setEditorSpec])
 
   useEffect(() => {
     if (id && id !== 'new') {
@@ -63,21 +70,22 @@ export function KeycardBuilderPage() {
 
   const compile = useKeycardCompile(state.spec)
 
-  const dirty = useMemo(
-    () => JSON.stringify(state.spec) !== JSON.stringify(keycard.baseline),
+  // Per-key rather than one JSON compare, so the unsaved dialog can name what
+  // changed — the same `changedKeys` the strategy builder's dirty dot uses.
+  const changed = useMemo(
+    () => changedKeys(
+      keycard.baseline as unknown as Record<string, unknown>,
+      state.spec as unknown as Record<string, unknown>,
+    ),
     [state.spec, keycard.baseline],
   )
+  const dirty = changed.length > 0
 
-  const { guard } = useUnsavedGuard(dirty)
-
-  useEffect(() => {
-    if (!dirty) return
-    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [dirty])
+  const { guard, pending, discard, cancel, resume } = useUnsavedGuard(dirty)
+  useBeforeUnloadWarning(dirty)
 
   const [importOpen, setImportOpen] = useState(false)
+  const [runConfirmOpen, setRunConfirmOpen] = useState(false)
   const [importText, setImportText] = useState('')
   const [importReport, setImportReport] = useState<{ unknown: string[]; rejected: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -85,7 +93,7 @@ export function KeycardBuilderPage() {
 
   const sessionRuns = useSessionRuns()
   const [backtestsOpen, setBacktestsOpen] = useBacktestsOpen()
-  const [runs, setRuns] = useState<Run[]>([])
+  const { runs, refresh: refreshRuns, remove: removeRun } = useRuns(setError)
   const [reportRun, setReportRun] = useState<Run | null>(null)
   const [assistantOpen, setAssistantOpen] = useState(true)
 
@@ -94,18 +102,6 @@ export function KeycardBuilderPage() {
     keycardId: keycard.currentId,
   })
   const keycardChatConfigured = useKeycardChatConfigured()
-
-  const refreshRuns = useCallback(async () => {
-    try {
-      setRuns((await api.listRuns(500)).runs)
-    } catch {
-      /* ignore */
-    }
-  }, [])
-
-  useEffect(() => {
-    void refreshRuns()
-  }, [refreshRuns])
 
   const [nodeTypes, setNodeTypes] = useState<KeycardNodeTypeMeta[]>([])
 
@@ -136,7 +132,20 @@ export function KeycardBuilderPage() {
     [state.spec.nodes, metaByType],
   )
 
-  const handleSave = useCallback(async () => {
+  // For the run-confirm dialog: blockers hold the launch, advisories are
+  // worth reading and never a reason to hold anything.
+  const runBlockers = useMemo(
+    () => compile.defects.filter((d) => d.severity === 'blocking').map((d) => d.message),
+    [compile.defects],
+  )
+  const runAdvisories = useMemo(
+    () => compile.defects.filter((d) => d.severity !== 'blocking').map((d) => d.message),
+    [compile.defects],
+  )
+  const currentIdForRun = keycard.currentId
+
+  /** Returns whether it worked, so "Save and continue" knows not to continue. */
+  const handleSave = useCallback(async (): Promise<boolean> => {
     setBusy(true)
     const { stored, error: saveError } = await keycard.save()
     setBusy(false)
@@ -145,9 +154,10 @@ export function KeycardBuilderPage() {
       if (!id || id === 'new') {
         navigate(`/lab/keycards/${stored.id}`, { replace: true })
       }
-    } else {
-      setError(saveError)
+      return true
     }
+    setError(saveError)
+    return false
   }, [keycard, id, navigate])
 
   const handleRun = useCallback(async () => {
@@ -227,7 +237,7 @@ export function KeycardBuilderPage() {
   return (
     <>
       <PageHeader
-        title="Keycard Builder"
+        title="Strategy Builder"
         description="Build quant strategies with simple blocks."
         actions={
           <div className="flex items-center gap-2">
@@ -265,8 +275,9 @@ export function KeycardBuilderPage() {
           busy={busy || keycard.loading || compile.loading}
           defects={compile.defects}
           onNameChange={(name) => state.updateSpec({ name })}
-          onSave={handleSave}
-          onRun={handleRun}
+          onSave={() => void handleSave()}
+          onRun={() => setRunConfirmOpen(true)}
+          onFocusBlocked={state.selectNode}
           onImport={() => setImportOpen(true)}
           onExport={handleExport}
           onDelete={handleDelete}
@@ -286,8 +297,8 @@ export function KeycardBuilderPage() {
           </div>
         )}
         {compile.offline && (
-          <div className="border-b border-border/50 bg-muted/30 px-3 py-1.5">
-            <p className="text-[10px] text-muted-foreground">
+          <div className="border-b border-border/50 px-4 py-2">
+            <p className="text-micro text-muted-foreground">
               Compiler offline — you can still edit and save; validation will resume when the backend is available.
             </p>
           </div>
@@ -338,21 +349,21 @@ export function KeycardBuilderPage() {
               strategyId={undefined}
               onFinish={refreshRuns}
               onOpenReport={setReportRun}
-              onDeleteRun={async (run) => {
-                setRuns((prev) => prev.filter((r) => r.id !== run.id))
-                try {
-                  await api.deleteRun(run.id)
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : 'Could not delete run')
-                } finally {
-                  void refreshRuns()
-                }
-              }}
+              onDeleteRun={removeRun}
               open={backtestsOpen}
               onOpenChange={setBacktestsOpen}
             />
 
-            <div className="pointer-events-auto absolute right-3 top-14 z-10 flex h-[38%] w-80 flex-col overflow-hidden rounded-xl border border-border/50 bg-card shadow-card">
+            {/* The backtests panel (30rem, z-20, top-right, and it opens
+                itself when a run starts) would otherwise sit exactly on top of
+                this rail; step aside while it is open instead of being
+                silently covered. */}
+            <div
+              className={cn(
+                'pointer-events-auto absolute top-14 z-10 flex h-[38%] w-80 flex-col overflow-hidden rounded-xl border border-border/50 bg-card shadow-card',
+                backtestsOpen ? 'right-[31.5rem]' : 'right-3',
+              )}
+            >
               <NodeInspector
                 spec={state.spec}
                 selectedNodeId={state.selectedNodeId}
@@ -408,7 +419,63 @@ export function KeycardBuilderPage() {
         </DialogContent>
       </Dialog>
 
+      {/* The last look before the compute is spent — the same policy the
+          strategy builder documents at length: the Run button is never
+          disabled-with-no-explanation, blockers hold the launch in here,
+          where the reasons are written out. */}
+      <Dialog open={runConfirmOpen} onOpenChange={setRunConfirmOpen}>
+        <DialogContent className="sm:max-w-lg" data-testid="keycard-run-confirm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Test keycard</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            {state.spec.name || 'Untitled keycard'} · {state.spec.nodes.length} block{state.spec.nodes.length === 1 ? '' : 's'} · {state.spec.edges.length} connection{state.spec.edges.length === 1 ? '' : 's'}
+          </p>
+          {runBlockers.length > 0 && (
+            <Notice tone="clay">
+              {runBlockers.map((m) => <p key={m}>{m}</p>)}
+            </Notice>
+          )}
+          {runAdvisories.length > 0 && (
+            <Notice tone="muted" icon={false}>
+              {runAdvisories.map((m) => <p key={m}>{m}</p>)}
+            </Notice>
+          )}
+          {!currentIdForRun && (
+            <p className="text-label text-muted-foreground">
+              This keycard is saved first, then run.
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setRunConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              data-testid="keycard-start-backtest"
+              disabled={busy || runBlockers.length > 0}
+              title={runBlockers.length ? runBlockers.join('\n') : undefined}
+              onClick={() => { setRunConfirmOpen(false); void handleRun() }}
+            >
+              Start backtest
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <RunReportModal run={reportRun} onClose={() => setReportRun(null)} />
+
+      {/* Without this the guard's stashed action waits for a dialog that never
+          renders — "New keycard" and "use template" were silent no-ops
+          whenever the spec was dirty. */}
+      <UnsavedChangesDialog
+        pending={pending}
+        changed={changed}
+        onCancel={cancel}
+        onDiscard={discard}
+        saving={busy}
+        onSave={() => { void handleSave().then((ok) => { if (ok) resume() }) }}
+      />
     </>
   )
 }
@@ -423,7 +490,7 @@ function KeycardProjectDock({ spec }: { spec: KeycardSpec }) {
         <button
           type="button"
           onClick={() => setInputsOpen((v) => !v)}
-          className="flex w-full items-center gap-2 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          className="flex w-full items-center gap-2 px-3 py-2 text-micro font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground"
         >
           {inputsOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
           <Database className="h-3.5 w-3.5" />
@@ -431,7 +498,7 @@ function KeycardProjectDock({ spec }: { spec: KeycardSpec }) {
         </button>
         {inputsOpen && (
           <div className="border-t border-border/50 px-3 py-2">
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-label text-muted-foreground">
               {spec.nodes.length} block{spec.nodes.length === 1 ? '' : 's'} · {spec.edges.length} connection{spec.edges.length === 1 ? '' : 's'}
             </p>
           </div>
@@ -442,7 +509,7 @@ function KeycardProjectDock({ spec }: { spec: KeycardSpec }) {
         <button
           type="button"
           onClick={() => setPropsOpen((v) => !v)}
-          className="flex w-full items-center gap-2 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          className="flex w-full items-center gap-2 px-3 py-2 text-micro font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground"
         >
           {propsOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
           <Settings2 className="h-3.5 w-3.5" />
@@ -451,18 +518,18 @@ function KeycardProjectDock({ spec }: { spec: KeycardSpec }) {
         {propsOpen && (
           <div className="space-y-2 border-t border-border/50 px-3 py-2">
             {spec.tags.length > 0 && (
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-label text-muted-foreground">
                 <Tag className="h-3 w-3" />
                 <span className="truncate">{spec.tags.join(', ')}</span>
               </div>
             )}
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-label text-muted-foreground">
               Template family: <span className="text-foreground">{spec.template_family || '—'}</span>
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-label text-muted-foreground">
               Train: <span className="text-foreground">{spec.windows.train_start}</span>
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-label text-muted-foreground">
               Test: <span className="text-foreground">{spec.windows.test_end}</span>
             </div>
           </div>

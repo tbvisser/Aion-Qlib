@@ -84,7 +84,7 @@ export function YieldCurveChart({
         </LineChart>
       </ResponsiveContainer>
 
-      <div className="mt-2 space-y-0.5 font-mono text-[10px] text-muted-foreground">
+      <div className="mt-2 space-y-0.5 font-mono text-micro text-muted-foreground">
         {slope != null && (
           <div>
             10Y−2Y{' '}

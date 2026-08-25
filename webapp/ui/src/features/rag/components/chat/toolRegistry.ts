@@ -77,9 +77,9 @@ const TOOL_REGISTRY: Record<string, ToolMeta> = {
 
   calculator: { name: 'Calculator', icon: Calculator, family: 'Compute' },
   generate_code: { name: 'Generate Code', icon: Code, family: 'Compute' },
-  code_execution: { name: 'Run Code', icon: Terminal, family: 'Compute' },
+  code_execution: { name: 'Run code', icon: Terminal, family: 'Compute' },
 
-  execute_code: { name: 'Run Code', icon: Terminal, family: 'Compute' },
+  execute_code: { name: 'Run code', icon: Terminal, family: 'Compute' },
   tool_search: { name: 'Tool Search', icon: Search, family: 'Planning' },
   hybrid_search: { name: 'Document Search', icon: FileSearch, family: 'Knowledge Base' },
   append_file: { name: 'Write File', icon: FilePlus, family: 'Workspace' },

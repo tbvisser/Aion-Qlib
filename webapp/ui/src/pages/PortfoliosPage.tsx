@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Notice } from '@/components/ui/notice'
+import { TabNav } from '@/components/ui/tab-nav'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { PortfolioDialog } from '@/components/portfolio/PortfolioDialog'
 import { BookOverview } from '@/components/book/BookOverview'
@@ -11,9 +12,8 @@ import { PortfolioListTab } from '@/components/book/PortfolioListTab'
 import { StrategyListTab } from '@/components/book/StrategyListTab'
 import { usePortfolios } from '@/hooks/usePortfolios'
 import { api, type Run, type StoredStrategy } from '@/lib/api'
-import { cn } from '@/lib/utils'
 
-const TABS = [
+const TABS: readonly { key: BookTab; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'portfolios', label: 'Portfolios' },
   { key: 'strategies', label: 'Strategies' },
@@ -81,7 +81,7 @@ export function PortfoliosPage() {
       />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <TabNav active={tab} onChange={setTab} />
+        <TabNav tabs={TABS} active={tab} onChange={setTab} />
 
         <div className="p-6">
           {error && <Notice tone="destructive">{error}</Notice>}
@@ -114,30 +114,6 @@ export function PortfoliosPage() {
         }}
       />
     </>
-  )
-}
-
-function TabNav({ active, onChange }: { active: BookTab; onChange: (tab: BookTab) => void }) {
-  return (
-    <div className="sticky top-0 z-20 border-b border-border/50 bg-background/80 px-6 py-2 backdrop-blur">
-      <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-border/50 p-0.5">
-        {TABS.map((spec) => (
-          <button
-            key={spec.key}
-            type="button"
-            onClick={() => onChange(spec.key as BookTab)}
-            className={cn(
-              'shrink-0 rounded-md px-2.5 py-1 font-mono text-[11px] transition-colors',
-              active === spec.key
-                ? 'bg-foreground/[0.07] text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {spec.label}
-          </button>
-        ))}
-      </div>
-    </div>
   )
 }
 

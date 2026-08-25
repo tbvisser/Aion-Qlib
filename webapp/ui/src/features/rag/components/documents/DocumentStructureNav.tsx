@@ -23,7 +23,7 @@ export function DocumentStructureNav({
       data-testid="document-structure-nav"
     >
       <div className="flex h-12 items-center border-b border-border/50 px-3">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="text-label font-semibold uppercase tracking-wide text-muted-foreground">
           Contents
         </span>
       </div>

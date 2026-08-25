@@ -1,4 +1,5 @@
 import { Panel } from '@/components/ui/panel'
+import { MicroLabel } from '@/components/ui/micro-label'
 import type { SummaryRow } from '@/lib/agendaSummary'
 
 /**
@@ -21,9 +22,9 @@ export function AtAGlance({ rows }: { rows: SummaryRow[] }) {
         {rows.map((row) => (
           <div key={row.label} className="px-3 py-2">
             <div className="flex items-baseline justify-between gap-3">
-              <dt className="min-w-0 truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+              <MicroLabel as="dt" className="min-w-0 truncate">
                 {row.label}
-              </dt>
+              </MicroLabel>
               {/* tnum, unlike the display tiles this replaces: these values sit
                   in a column and have to align down it. Nothing else shares the
                   line — a qualifier between the label and the number puts a
@@ -31,7 +32,7 @@ export function AtAGlance({ rows }: { rows: SummaryRow[] }) {
               <dd className="tnum shrink-0 font-mono text-sm">{row.value}</dd>
             </div>
             {(row.sub || row.footnote) && (
-              <p className="mt-0.5 text-[10px] text-muted-foreground/60">
+              <p className="mt-0.5 text-micro text-muted-foreground/60">
                 {[row.sub, row.footnote].filter(Boolean).join(' · ')}
               </p>
             )}

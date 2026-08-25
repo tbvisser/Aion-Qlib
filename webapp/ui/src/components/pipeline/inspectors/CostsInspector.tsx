@@ -1,16 +1,13 @@
 /**
- * Stage 07 — what trading takes off the top.
+ * Stage 08 — what trading takes off the top.
  *
  * The round-trip line exists because the two legs are configured and read
  * separately, so the number that decides whether a strategy survives its own
  * turnover was never on screen.
  */
-import { useState } from 'react'
-
-import { BpsInput, Field, NumberInput, Section } from '@/components/builder/FormControls'
-import { Input } from '@/components/ui/input'
+import { BpsInput, Field, NullableNumberInput, NumberInput, Section }
+  from '@/components/builder/FormControls'
 import { roundTripBps } from '@/lib/bps'
-import { parseNumberField } from '@/lib/numberField'
 import { CompatField } from './compat'
 import type { InspectorProps } from './types'
 
@@ -58,58 +55,17 @@ export function CostsInspector(props: InspectorProps) {
         hint="The daily move beyond which a fill is refused, as a fraction — 0.5 blocks moves over 50%. Empty means no limit."
         ctx={props}
       >
-        <LimitInput
+        {/* The one nullable number on the spec: empty is a real value — no
+            limit — so this cannot be `NumberInput`, whose empty field is an
+            error. It used to render only when a template had already carried a
+            value in, as a read-only badge with a Clear button; the crypto
+            costs advisory tells the reader to *set* this field, and advice
+            pointing at a control that does not exist cannot be followed. */}
+        <NullableNumberInput
           value={spec.limit_threshold}
           onChange={(limit_threshold) => setSpec((prev) => ({ ...prev, limit_threshold }))}
         />
       </CompatField>
     </Section>
-  )
-}
-
-/**
- * The one nullable number on the spec. Empty is a real value — no limit — so
- * this cannot be `NumberInput`, whose empty field is an error.
- *
- * It used to render only when a template had already carried a value in, as a
- * read-only badge with a Clear button. The costs advisory on crypto stores
- * tells the reader to set this field; an advisory pointing at a control that
- * does not exist is advice that cannot be followed.
- */
-function LimitInput({ value, onChange }: {
-  value: number | null
-  onChange: (v: number | null) => void
-}) {
-  const [draft, setDraft] = useState<string | null>(null)
-  const parsed = draft === null ? null : parseNumberField(draft, { min: 0 })
-
-  return (
-    <div className="space-y-1">
-      <Input
-        type="number"
-        value={draft ?? (value === null ? '' : value)}
-        min={0}
-        step={0.05}
-        placeholder="No limit"
-        onChange={(e) => {
-          const text = e.target.value
-          if (text.trim() === '') {
-            setDraft(null)
-            onChange(null)
-            return
-          }
-          setDraft(text)
-          const next = parseNumberField(text, { min: 0 })
-          if (next.ok) onChange(next.value)
-        }}
-        onBlur={() => {
-          if (draft !== null && parseNumberField(draft, { min: 0 }).ok) setDraft(null)
-        }}
-        className="tnum font-mono text-xs"
-      />
-      {parsed && !parsed.ok && (
-        <p className="text-[11px] leading-relaxed text-clay">{parsed.error}</p>
-      )}
-    </div>
   )
 }

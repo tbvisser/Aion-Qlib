@@ -216,7 +216,7 @@ export function SkillEditor({ skill, onSkillUpdated, onSkillDeleted }: SkillEdit
           disabled={saving}
         >
           <Save className="mr-2 h-4 w-4" />
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? 'Saving…' : 'Save'}
         </Button>
 
         {/* Delete only for user-owned skills */}
@@ -241,7 +241,7 @@ export function SkillEditor({ skill, onSkillUpdated, onSkillDeleted }: SkillEdit
               onClick={handleDelete}
               disabled={deleting}
             >
-              {deleting ? 'Deleting...' : 'Confirm'}
+              {deleting ? 'Deleting…' : 'Confirm'}
             </Button>
             <Button
               variant="outline"
@@ -263,7 +263,7 @@ export function SkillEditor({ skill, onSkillUpdated, onSkillDeleted }: SkillEdit
             disabled={sharing}
           >
             <Globe className="mr-2 h-4 w-4" />
-            {sharing ? 'Updating...' : 'Share Globally'}
+            {sharing ? 'Updating…' : 'Share globally'}
           </Button>
         )}
         {isSharedByCurrentUser && (
@@ -274,7 +274,7 @@ export function SkillEditor({ skill, onSkillUpdated, onSkillDeleted }: SkillEdit
             disabled={sharing}
           >
             <Lock className="mr-2 h-4 w-4" />
-            {sharing ? 'Updating...' : 'Make Private'}
+            {sharing ? 'Updating…' : 'Make private'}
           </Button>
         )}
 
@@ -290,7 +290,7 @@ export function SkillEditor({ skill, onSkillUpdated, onSkillDeleted }: SkillEdit
           disabled={exporting}
         >
           <Download className="mr-2 h-4 w-4" />
-          {exporting ? 'Exporting...' : 'Export'}
+          {exporting ? 'Exporting…' : 'Export'}
         </Button>
       </div>
 
@@ -352,7 +352,7 @@ export function SkillEditor({ skill, onSkillUpdated, onSkillDeleted }: SkillEdit
             id="editor-instructions"
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
-            placeholder="Enter the instructions the AI should follow..."
+            placeholder="Enter the instructions the AI should follow…"
             className="font-mono"
             rows={12}
           />

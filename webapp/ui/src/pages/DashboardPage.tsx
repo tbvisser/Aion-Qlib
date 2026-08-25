@@ -10,6 +10,7 @@ import { WelcomeComposer } from '@/features/rag/components/chat/WelcomeComposer'
 import { type ComposerMode } from '@/features/rag/components/chat/ComposerMenu'
 import { createThread } from '@/features/rag/lib/api'
 import { getGreetingHeadline, getFirstName } from '@/lib/greeting'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { navItemFor, type SectionKey } from '@/components/layout/NavItems'
 import { cn } from '@/lib/utils'
 
@@ -46,6 +47,7 @@ interface PendingHandoff {
  * is that same home turned over to the conversation.
  */
 export function DashboardPage() {
+  useDocumentTitle('Home')
   const { threadId } = useParams<{ threadId?: string }>()
   const navigate = useNavigate()
   const location = useLocation()
@@ -168,7 +170,7 @@ export function DashboardPage() {
       <div className="flex h-full flex-col items-center justify-center">
         <div className="mb-8 flex items-center justify-center gap-3">
           <AionMark className="h-8" />
-          <h1 className="font-serif text-3xl tracking-tight text-foreground/90 md:text-4xl">
+          <h1 className="text-3xl tracking-tight text-foreground/90 md:text-4xl">
             {getGreetingHeadline()}, {getFirstName()}
           </h1>
         </div>

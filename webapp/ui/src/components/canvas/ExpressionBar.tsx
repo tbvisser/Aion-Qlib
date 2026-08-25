@@ -7,7 +7,7 @@
  * page, which is why it is pinned rather than tucked in a panel.
  */
 import { Check, Copy, LayoutGrid, Redo2, Undo2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -39,11 +39,17 @@ export function ExpressionBar({
   const [copied, setCopied] = useState(false)
   const incomplete = hasHole(expression)
 
+  // Held so the un-tick cannot fire into an unmounted component, and so two
+  // quick copies do not race each other's reset.
+  const copiedTimer = useRef<ReturnType<typeof setTimeout>>()
+  useEffect(() => () => clearTimeout(copiedTimer.current), [])
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(expression)
       setCopied(true)
-      setTimeout(() => setCopied(false), 1200)
+      clearTimeout(copiedTimer.current)
+      copiedTimer.current = setTimeout(() => setCopied(false), 1200)
     } catch {
       /* clipboard is a convenience; a refusal must not break the canvas */
     }
@@ -51,7 +57,7 @@ export function ExpressionBar({
 
   return (
     <div className="glass absolute inset-x-0 bottom-0 z-10 flex items-center gap-3 border-t border-border/50 px-4 py-2.5">
-      <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <span className="shrink-0 font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
         {name ?? 'Expression'}
       </span>
       <code

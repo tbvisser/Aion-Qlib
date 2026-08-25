@@ -100,7 +100,7 @@ export function MoveToFolderDialog({
           )}
         >
           {isGlobal ? (
-            <Globe className="h-4 w-4 shrink-0 text-blue-500" />
+            <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
           ) : (
             <FolderIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
@@ -142,7 +142,7 @@ export function MoveToFolderDialog({
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading folders...
+              Loading folders…
             </div>
           ) : loadError ? (
             <p className="py-8 text-center text-sm text-destructive">{loadError}</p>
@@ -185,7 +185,7 @@ export function MoveToFolderDialog({
             Cancel
           </Button>
           <Button onClick={handleMove} disabled={!canMove}>
-            {moving ? 'Moving...' : 'Move here'}
+            {moving ? 'Moving…' : 'Move here'}
           </Button>
         </DialogFooter>
       </DialogContent>

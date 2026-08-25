@@ -20,6 +20,7 @@ import { Bot, PanelRightClose } from 'lucide-react'
 
 import { ChatComposer, ChatTranscript } from './ChatTranscript'
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import type { BuilderChat } from '@/hooks/useBuilderChat'
 import type { StrategySpec } from '@/lib/api'
 // Shared with the front door rather than duplicated. Both are the same offer on
@@ -54,9 +55,9 @@ export function AssistantDock({ chat, configured, spec, onApply, onClose }: Prop
       <div className="flex shrink-0 items-center gap-2 border-b border-border/50 px-3 py-2">
         <Bot className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">Assistant</span>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <MicroLabel>
           proposes only
-        </span>
+        </MicroLabel>
         <Button variant="ghost" size="icon" onClick={onClose} className="ml-auto"
                 title="Hide the assistant">
           <PanelRightClose className="h-4 w-4" />
@@ -65,7 +66,7 @@ export function AssistantDock({ chat, configured, spec, onApply, onClose }: Prop
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
         {configured === false && (
-          <p className="rounded-lg border border-clay/50 p-3 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="rounded-lg border border-clay/50 p-3 text-label leading-relaxed text-muted-foreground">
             No OpenRouter key is set, so the assistant cannot answer. Add
             <span className="font-mono"> OPENROUTER_API_KEY </span>
             to <span className="font-mono">webapp/.env</span> and restart the API.
@@ -74,7 +75,7 @@ export function AssistantDock({ chat, configured, spec, onApply, onClose }: Prop
 
         {messages.length === 0 && configured !== false && (
           <div className="space-y-2">
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <p className="text-label leading-relaxed text-muted-foreground">
               Describe the strategy you want, or ask for a change to the one on screen.
               Every answer is a proposal — nothing is applied or run until you say so.
             </p>
@@ -82,7 +83,7 @@ export function AssistantDock({ chat, configured, spec, onApply, onClose }: Prop
               <button
                 key={s}
                 onClick={() => void send(s)}
-                className="block w-full rounded-md border border-border/50 px-2.5 py-1.5 text-left text-[11px] transition-colors hover:bg-foreground/[0.04]"
+                className="block w-full rounded-md border border-border/50 px-2.5 py-1.5 text-left text-label transition-colors hover:bg-foreground/[0.04]"
               >
                 {s}
               </button>

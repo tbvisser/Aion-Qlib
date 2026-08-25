@@ -18,6 +18,7 @@
 import { Check, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import type { Proposal } from '@/lib/chat'
 import type { StrategySpec } from '@/lib/api'
 import { changedKeys, showValue as show } from '@/lib/specDiff'
@@ -52,11 +53,11 @@ export function ProposalCard({
                     applied ? 'border-primary/40' : 'border-border/50')}
     >
       <div className="flex items-center gap-2 border-b border-border/50 px-3 py-2">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <MicroLabel>
           Proposed strategy
-        </span>
+        </MicroLabel>
         {proposal.source.startsWith('template:') && (
-          <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] uppercase text-muted-foreground">
+          <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-tiny uppercase text-muted-foreground">
             {proposal.source.replace('template:', '')}
           </span>
         )}
@@ -85,13 +86,13 @@ export function ProposalCard({
 
         {proposal.inherited.length > 0 && (
           <details className="group">
-            <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+            <summary className="cursor-pointer font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
               {proposal.inherited.length} kept from your current strategy
             </summary>
             <div className="mt-1.5 flex flex-wrap gap-1">
               {proposal.inherited.map((i) => (
                 <span key={i.path}
-                      className="rounded border border-border/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                      className="rounded border border-border/50 px-1.5 py-0.5 font-mono text-micro text-muted-foreground">
                   {i.path}={show(i.value)}
                 </span>
               ))}
@@ -100,13 +101,13 @@ export function ProposalCard({
         )}
 
         {proposal.warnings.map((w) => (
-          <p key={w} className="text-[11px] leading-relaxed text-clay">{w}</p>
+          <p key={w} className="text-label leading-relaxed text-clay">{w}</p>
         ))}
       </div>
 
       <div className="flex items-center gap-2 border-t border-border/50 px-3 py-2">
         {applied ? (
-          <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-primary">
+          <span className="flex items-center gap-1.5 font-mono text-micro uppercase tracking-wider text-primary">
             <Check className="h-3.5 w-3.5" />
             On the canvas
           </span>
@@ -123,7 +124,7 @@ export function ProposalCard({
             {/* The old copy — "Nothing runs until you press Run backtest" —
                 named a header button the front door's scrim was covering at
                 that exact moment. Say where you are about to end up instead. */}
-            <span className="ml-auto text-[10px] text-muted-foreground">
+            <span className="ml-auto text-micro text-muted-foreground">
               You'll see the cards next
             </span>
           </>
@@ -139,11 +140,11 @@ function Rows({ label, rows }: {
 }) {
   return (
     <div>
-      <div className="pb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="pb-1">
         {label}
-      </div>
+      </MicroLabel>
       {rows.map((r) => (
-        <div key={r.key} className="flex items-baseline gap-2 py-0.5 font-mono text-[11px]">
+        <div key={r.key} className="flex items-baseline gap-2 py-0.5 font-mono text-label">
           <span className="w-28 shrink-0 truncate text-muted-foreground">{r.key}</span>
           <span className="truncate text-muted-foreground/60 line-through">{r.left}</span>
           <span className="truncate text-primary">{r.right}</span>
@@ -159,13 +160,13 @@ function Notes({ label, rows }: {
 }) {
   return (
     <div>
-      <div className="pb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="pb-1">
         {label}
-      </div>
+      </MicroLabel>
       {rows.map((r) => (
         <div key={r.key} className="py-0.5">
-          <span className="font-mono text-[11px]">{r.key}={r.value}</span>
-          <span className="ml-2 text-[11px] text-muted-foreground">{r.note}</span>
+          <span className="font-mono text-label">{r.key}={r.value}</span>
+          <span className="ml-2 text-label text-muted-foreground">{r.note}</span>
         </div>
       ))}
     </div>

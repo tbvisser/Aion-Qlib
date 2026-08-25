@@ -179,9 +179,6 @@ export const CATEGORY_LABELS: Record<OperatorSpec['category'], string> = {
   logic: 'Logic',
 }
 
-export const getOp = (registry: OperatorRegistry, name: string): OperatorSpec | undefined =>
-  registry[name]
-
 /**
  * Fold a served registry over the fallback. The served entry wins outright
  * rather than being merged field-by-field: a half-served operator whose slots

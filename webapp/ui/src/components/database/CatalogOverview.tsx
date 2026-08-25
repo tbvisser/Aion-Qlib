@@ -14,6 +14,7 @@ import {
 } from '@/lib/catalog'
 import { formatRelativeStamp } from '@/lib/time'
 import type { CatalogHarvester, CatalogHarvestRecord, CatalogSummary } from '@/lib/api'
+import { Table, TableBody, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
 /**
@@ -134,7 +135,7 @@ export function CatalogOverview({
                 className="h-full transition-shadow hover:shadow-card"
               >
                 <div className="space-y-3">
-                  <div className="tnum text-3xl font-semibold">{count.toLocaleString()}</div>
+                  <div className="tnum text-2xl font-semibold">{count.toLocaleString()}</div>
                   <div className="h-[120px]">
                     <SourceBreakdownChart sources={sources} height={120} />
                   </div>
@@ -142,12 +143,12 @@ export function CatalogOverview({
                     {breakdown.length ? breakdown.map((entry) => (
                       <span
                         key={entry.value}
-                        className="inline-flex items-center rounded-md border border-border/50 bg-foreground/[0.02] px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                        className="inline-flex items-center rounded-md border border-border/50 bg-foreground/[0.02] px-1.5 py-0.5 text-micro text-muted-foreground"
                       >
                         {sourceLabel(entry.value)} {entry.count.toLocaleString()}
                       </span>
                     )) : (
-                      <span className="text-[11px] text-muted-foreground/70">
+                      <span className="text-label text-muted-foreground/70">
                         {spec.soon ? 'Not harvested yet' : 'Empty'}
                       </span>
                     )}
@@ -172,7 +173,7 @@ export function CatalogOverview({
       </div>
 
       <div className="col-span-12">
-        <p className="text-[11px] text-muted-foreground/70">
+        <p className="text-label text-muted-foreground/70">
           {summaryLine(summary)}
         </p>
       </div>
@@ -220,8 +221,8 @@ function RecentHarvestsPanel({
               <div className="flex min-w-0 items-center gap-2">
                 <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
                 <div className="min-w-0">
-                  <div className="truncate text-[12px]">{harvester.label}</div>
-                  <div className="font-mono text-[10px] text-muted-foreground/70">
+                  <div className="truncate text-caption">{harvester.label}</div>
+                  <div className="font-mono text-micro text-muted-foreground/70">
                     {harvester.name} · {sourceLabel(harvester.source)}
                     {harvester.remote ? ' · remote' : ' · local'}
                   </div>
@@ -233,10 +234,10 @@ function RecentHarvestsPanel({
                     'h-1.5 w-1.5 rounded-full',
                     harvester.latest.error
                       ? 'bg-destructive'
-                      : 'bg-emerald-500',
+                      : 'bg-primary',
                   )}
                 />
-                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                <span className="whitespace-nowrap text-label text-muted-foreground">
                   {formatRelativeStamp(harvester.latest.finished_at ?? harvester.latest.started_at)}
                 </span>
               </div>
@@ -269,44 +270,42 @@ function HarvesterStatusPanel({
       )}
     >
       {running && progress?.harvester && (
-        <div className="mb-2 text-[11px] text-muted-foreground">
+        <div className="mb-2 text-label text-muted-foreground">
           {progress.harvester} · {progress.done}/{progress.total}
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-border/50">
-        <table className="w-full border-collapse text-left">
-          <tbody>
-            {summary.harvesters.map((harvester) => {
-              const state = freshness(harvester.name, summary.harvests)
-              return (
-                <tr key={harvester.name} className="border-b border-border/30 last:border-0">
-                  <td className="px-3 py-2">
-                    <div className="text-[12px]">{harvester.label}</div>
-                    <div className="font-mono text-[10px] text-muted-foreground/70">
-                      {harvester.name} · {sourceLabel(harvester.source)}
-                      {harvester.remote ? ' · remote' : ' · local'}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1.5 text-[11px]',
-                        state.state === 'degraded' ? 'text-destructive' : 'text-muted-foreground',
-                      )}
-                    >
-                      {state.state === 'degraded'
-                        ? <AlertTriangle className="h-3 w-3" />
-                        : state.state === 'ok' ? <Check className="h-3 w-3" /> : null}
-                      {state.detail}
-                    </span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+      <Table containerClassName="overflow-hidden rounded-lg border border-border/50">
+        <TableBody>
+          {summary.harvesters.map((harvester) => {
+            const state = freshness(harvester.name, summary.harvests)
+            return (
+              <TableRow key={harvester.name}>
+                <td className="px-3 py-2">
+                  <div className="text-caption">{harvester.label}</div>
+                  <div className="font-mono text-micro text-muted-foreground/70">
+                    {harvester.name} · {sourceLabel(harvester.source)}
+                    {harvester.remote ? ' · remote' : ' · local'}
+                  </div>
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1.5 text-label',
+                      state.state === 'degraded' ? 'text-destructive' : 'text-muted-foreground',
+                    )}
+                  >
+                    {state.state === 'degraded'
+                      ? <AlertTriangle className="h-3 w-3" />
+                      : state.state === 'ok' ? <Check className="h-3 w-3" /> : null}
+                    {state.detail}
+                  </span>
+                </td>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
     </Panel>
   )
 }

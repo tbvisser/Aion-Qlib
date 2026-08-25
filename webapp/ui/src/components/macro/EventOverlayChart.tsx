@@ -80,7 +80,7 @@ export function EventOverlayChart({
           />
         </LineChart>
       </ResponsiveContainer>
-      <p className="mt-1 font-mono text-[10px] text-muted-foreground/70">
+      <p className="mt-1 font-mono text-micro text-muted-foreground/70">
         {shown.length} {markerLabel} release{shown.length === 1 ? '' : 's'} marked
         {usable.length > shown.length && ` (capped at ${MAX_MARKERS} of ${usable.length})`}
       </p>

@@ -8,10 +8,27 @@ interface Markov3DGraphProps {
   currentState: string
 }
 
-const STATE_COLORS: Record<string, number> = {
-  Bull: 0x22c55e,
-  Bear: 0xf97316,
-  Sideways: 0x9ca3af,
+/**
+ * The 2D page colours the same three states with --primary/--clay/
+ * --muted-foreground; the 3D scene resolves those tokens at build time so both
+ * views agree in both themes. Tokens are HSL triplets ("138 61% 68%"), turned
+ * into a CSS hsl() string three.js can parse. Resolved when the scene is
+ * (re)built — the scene rebuilds on data change, which in practice tracks
+ * theme flips closely enough for a decorative view.
+ */
+const STATE_TOKENS: Record<string, string> = {
+  Bull: '--primary',
+  Bear: '--clay',
+  Sideways: '--muted-foreground',
+}
+
+function resolveStateColors(): Record<string, string> {
+  const styles = getComputedStyle(document.documentElement)
+  const css = (token: string) => {
+    const triplet = styles.getPropertyValue(token).trim()
+    return triplet ? `hsl(${triplet.split(/\s+/).join(', ')})` : '#9ca3af'
+  }
+  return Object.fromEntries(Object.entries(STATE_TOKENS).map(([k, t]) => [k, css(t)]))
 }
 
 const NODE_POSITIONS: Record<string, [number, number, number]> = {
@@ -40,6 +57,8 @@ export function Markov3DGraph({ transition_matrix, currentState }: Markov3DGraph
     const setup = async () => {
       const THREE: any = await import('three')
       if (cancelled) return
+
+      const STATE_COLORS = resolveStateColors()
 
       const scene = new THREE.Scene()
       scene.background = null
@@ -309,7 +328,7 @@ export function Markov3DGraph({ transition_matrix, currentState }: Markov3DGraph
       title="Drag to rotate, scroll to zoom"
     >
       {!ready && (
-        <div className="absolute inset-0 flex items-center justify-center text-[11px] text-muted-foreground">
+        <div className="absolute inset-0 flex items-center justify-center text-label text-muted-foreground">
           Loading 3D scene…
         </div>
       )}
@@ -320,7 +339,7 @@ export function Markov3DGraph({ transition_matrix, currentState }: Markov3DGraph
             labelRefs.current[name] = el
           }}
           className={cn(
-            'pointer-events-none absolute left-0 top-0 whitespace-nowrap rounded-full border border-border/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shadow-sm backdrop-blur',
+            'pointer-events-none absolute left-0 top-0 whitespace-nowrap rounded-full border border-border/40 px-2 py-0.5 text-micro font-medium uppercase tracking-wider shadow-sm backdrop-blur',
             name === 'Bull' && 'bg-primary/10 text-primary',
             name === 'Bear' && 'bg-clay/10 text-clay',
             name === 'Sideways' && 'bg-muted text-muted-foreground',

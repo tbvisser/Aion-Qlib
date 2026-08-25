@@ -18,9 +18,11 @@ import {
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { MicroLabel } from '@/components/ui/micro-label'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useRunReports } from '@/hooks/useRunReports'
 import type { Run } from '@/lib/api'
 import { COMPARE_COLORS, decimate, mergeCurves } from '@/lib/curves'
@@ -113,7 +115,7 @@ export function RunCompareModal({ runs, open, onClose, title }: {
                   : new Date(run.created_at).toLocaleString()}
                 onClick={() => { if (!disabled) toggle(run.id) }}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-[11px] transition-colors',
+                  'flex items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-label transition-colors',
                   on ? 'border-border bg-foreground/[0.06]' : 'border-border/50',
                   disabled ? 'cursor-not-allowed opacity-40' : 'hover:bg-foreground/[0.04]',
                 )}
@@ -138,53 +140,46 @@ export function RunCompareModal({ runs, open, onClose, title }: {
           </p>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[32rem] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-border/50 text-left">
-                    <th className="py-2 pr-4 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
-                      Metric
-                    </th>
-                    {chosen.map((run, i) => (
-                      <th key={run.id} className="py-2 pr-4 text-right">
-                        <span
-                          className="font-mono text-[10px] uppercase tracking-wider"
-                          style={{ color: COMPARE_COLORS[i % COMPARE_COLORS.length] }}
-                        >
-                          {run.model ?? 'run'} #{runs.length - runs.indexOf(run)}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {COLUMNS.map((column) => {
-                    const winner = best(rows, column.key)
-                    return (
-                      <tr key={column.key} className="border-b border-border/30">
-                        <td className="py-2 pr-4 text-muted-foreground">{column.label}</td>
-                        {rows.map((row) => (
-                          <td key={row.runId} className="tnum py-2 pr-4 text-right font-mono text-xs">
-                            {format(row[column.key], column)}
-                            {/* `primary`, never `destructive`: a losing run is a
-                                clay verdict, not an error, and `Badge` declines
-                                to offer destructive for exactly that reason. */}
-                            {winner === row.runId && rows.length > 1 && (
-                              <Badge variant="primary" className="ml-1.5">best</Badge>
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <Table className="min-w-[32rem] text-sm">
+              <TableHead>
+                <tr>
+                  <TableHeader>Metric</TableHeader>
+                  {chosen.map((run, i) => (
+                    <TableHeader key={run.id} numeric>
+                      <span style={{ color: COMPARE_COLORS[i % COMPARE_COLORS.length] }}>
+                        {run.model ?? 'run'} #{runs.length - runs.indexOf(run)}
+                      </span>
+                    </TableHeader>
+                  ))}
+                </tr>
+              </TableHead>
+              <TableBody>
+                {COLUMNS.map((column) => {
+                  const winner = best(rows, column.key)
+                  return (
+                    <TableRow key={column.key}>
+                      <TableCell className="text-muted-foreground">{column.label}</TableCell>
+                      {rows.map((row) => (
+                        <TableCell key={row.runId} numeric className="text-xs">
+                          {format(row[column.key], column)}
+                          {/* `primary`, never `destructive`: a losing run is a
+                              clay verdict, not an error, and `Badge` declines
+                              to offer destructive for exactly that reason. */}
+                          {winner === row.runId && rows.length > 1 && (
+                            <Badge variant="primary" className="ml-1.5">best</Badge>
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
 
             <div>
-              <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+              <MicroLabel as="div" className="mb-1">
                 Excess return, net of cost
-              </div>
+              </MicroLabel>
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={points} margin={{ top: 4, right: 8, bottom: 4, left: -8 }}>
                   <CartesianGrid stroke="hsl(var(--border) / 0.4)" vertical={false} />
@@ -237,11 +232,11 @@ function Differences({ runs }: { runs: Run[] }) {
 
   return (
     <div>
-      <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <MicroLabel as="div" className="mb-1">
         What differs
-      </div>
+      </MicroLabel>
       {rows.length === 0 ? (
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-body-sm text-muted-foreground">
           Nothing recorded differs between these runs — same model, same universe, same
           settings. Any gap in the numbers is the engine's own variance, or a change made
           before run metadata recorded it.
@@ -250,9 +245,9 @@ function Differences({ runs }: { runs: Run[] }) {
         <div className="space-y-1">
           {rows.map((row) => (
             <div key={row.field} className="flex items-baseline gap-3 text-xs">
-              <span className="w-28 shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+              <MicroLabel className="w-28 shrink-0">
                 {row.field}
-              </span>
+              </MicroLabel>
               {runs.map((run) => (
                 <span key={run.id} className="min-w-0 flex-1 truncate font-mono">
                   {row.values[run.id]}

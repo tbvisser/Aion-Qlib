@@ -1,3 +1,4 @@
+import { MicroLabel } from '@/components/ui/micro-label'
 import { cn } from '@/lib/utils'
 
 /**
@@ -43,11 +44,11 @@ export function Panel({
     >
       <header className="flex items-center justify-between gap-2 border-b border-border/50 bg-foreground/[0.02] px-3 py-2">
         <div className="flex min-w-0 items-baseline gap-2">
-          <h3 className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+          <MicroLabel as="h3" className="truncate">
             {title}
-          </h3>
+          </MicroLabel>
           {hint && (
-            <span className="truncate text-[10px] text-muted-foreground/60">{hint}</span>
+            <span className="truncate text-micro text-muted-foreground/60">{hint}</span>
           )}
         </div>
         {actions}

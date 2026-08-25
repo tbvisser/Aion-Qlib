@@ -51,7 +51,7 @@ export function SkillsHome({
       <div className="p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Heading */}
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Agent Skills</h1>
+          <h2 className="text-xl font-semibold tracking-tight">Agent skills</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Reusable instructions the assistant loads on demand. Add a new skill or pick one to use.
           </p>
@@ -193,13 +193,13 @@ function SkillCard({ skill, onUse, onView }: SkillCardProps) {
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="truncate text-sm font-medium">{skill.name}</span>
             {isGlobal && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-500">
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-micro font-medium text-primary">
                 <Globe className="h-2.5 w-2.5" />
                 Global
               </span>
             )}
             {!skill.enabled && (
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-micro font-medium text-muted-foreground">
                 Disabled
               </span>
             )}
@@ -223,7 +223,7 @@ function SkillCard({ skill, onUse, onView }: SkillCardProps) {
       </div>
 
       {isGlobal && skill.shared_by && skill.shared_by !== user?.id && (
-        <p className="text-[11px] text-muted-foreground">Shared globally</p>
+        <p className="text-label text-muted-foreground">Shared globally</p>
       )}
     </Card>
   )

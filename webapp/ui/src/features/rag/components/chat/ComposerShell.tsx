@@ -119,7 +119,7 @@ export function ComposerShell({
               type="button"
               onClick={() => setModelDialogOpen(true)}
               title="Model configuration"
-              className="inline-flex max-w-[14rem] items-center gap-1 rounded-lg px-2 py-1 text-[13px] transition-colors hover:bg-surface-3"
+              className="inline-flex max-w-[14rem] items-center gap-1 rounded-lg px-2 py-1 text-body-sm transition-colors hover:bg-surface-3"
             >
               <span className="truncate font-medium text-foreground/90">
                 {modelConfig.model || 'Server default'}
@@ -150,7 +150,7 @@ export function ComposerShell({
                 onClick={onStop}
                 aria-label="Stop generating"
                 title="Stop generating"
-                className="h-8 w-8 rounded-[10px] btn-press"
+                className="h-8 w-8 rounded-lg btn-press"
               >
                 <Square className="h-3.5 w-3.5" />
               </Button>
@@ -160,7 +160,7 @@ export function ComposerShell({
                 size="icon"
                 aria-label="Send message"
                 disabled={disabled}
-                className="h-8 w-8 rounded-[10px] bg-primary btn-press transition-all duration-200 hover:bg-primary/90"
+                className="h-8 w-8 rounded-lg bg-primary btn-press transition-all duration-200 hover:bg-primary/90"
               >
                 <ArrowUp className="h-4 w-4" />
               </Button>
@@ -215,7 +215,7 @@ function ModeToggle({ activeMode, onModeChange, harnessLocked }: ModeToggleProps
           disabled={harnessLocked}
           aria-pressed={active}
           className={cn(
-            'rounded-md px-2.5 py-1 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+            'rounded-md px-2.5 py-1 text-body-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
             active
               ? 'bg-surface-3 text-foreground shadow-sm'
               : 'text-muted-foreground hover:text-foreground',

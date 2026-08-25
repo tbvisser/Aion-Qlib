@@ -1,5 +1,6 @@
 import { Panel } from '@/components/ui/panel'
 import { Segmented } from '@/components/ui/segmented'
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { MacroPlaybookResponse, PlaybookLens } from '@/lib/api'
 import { formatIsoDate, formatPercent, toneFor } from '@/lib/macroFormat'
 import { playbookMatrix } from '@/lib/playbook'
@@ -58,31 +59,34 @@ export function RegimePlaybook({ playbook, lens, onLensChange, loading }: {
         </p>
       ) : (
         <>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border/50 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
-                  <th className="sticky left-0 z-10 bg-card px-3 py-1.5 font-normal">State</th>
-                  <th className="px-2 py-1.5 text-right font-normal">Days</th>
-                  <th className="px-2 py-1.5 text-right font-normal" title="Contiguous episodes — the honest denominator">
-                    Epi
-                  </th>
-                  {matrix.assets.map((asset) => (
-                    <th key={asset.key} className="px-2 py-1.5 text-right font-normal">
-                      {asset.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {matrix.rows.map((row) => (
-                  <tr
-                    key={row.state}
-                    className={cn(
-                      'border-b border-border/30 align-top last:border-0',
-                      row.current && 'bg-foreground/[0.07]',
-                    )}
-                  >
+          <Table>
+            <TableHead>
+              <tr>
+                <TableHeader className="sticky left-0 z-10 bg-card">State</TableHeader>
+                <TableHeader numeric>Days</TableHeader>
+                {/* title preserved via tooltip — TableHeader doesn't accept title; kept raw */}
+                <th
+                  className="border-b border-border/50 py-2 pr-4 text-micro font-normal uppercase tracking-wider text-muted-foreground/70 text-right"
+                  title="Contiguous episodes — the honest denominator"
+                >
+                  Epi
+                </th>
+                {matrix.assets.map((asset) => (
+                  <TableHeader key={asset.key} numeric>
+                    {asset.label}
+                  </TableHeader>
+                ))}
+              </tr>
+            </TableHead>
+            <TableBody>
+              {matrix.rows.map((row) => (
+                <TableRow
+                  key={row.state}
+                  className={cn(
+                    'align-top',
+                    row.current && 'bg-foreground/[0.07]',
+                  )}
+                >
                     <td
                       className={cn('sticky left-0 z-10 px-3 py-2',
                         row.current ? 'bg-[hsl(var(--card))]' : 'bg-card')}
@@ -92,7 +96,7 @@ export function RegimePlaybook({ playbook, lens, onLensChange, loading }: {
                         <span className={cn('h-2 w-2 shrink-0 rounded-full', row.tone.dot)} />
                         <span className="whitespace-nowrap text-xs">{row.label}</span>
                         {row.current && (
-                          <span className="font-mono text-[9px] uppercase text-muted-foreground">
+                          <span className="font-mono text-tiny uppercase text-muted-foreground">
                             ◄ now
                           </span>
                         )}
@@ -105,10 +109,10 @@ export function RegimePlaybook({ playbook, lens, onLensChange, loading }: {
                         />
                       </div>
                     </td>
-                    <td className="tnum px-2 py-2 text-right font-mono text-[11px] text-muted-foreground">
+                    <td className="tnum px-2 py-2 text-right font-mono text-label text-muted-foreground">
                       {row.days.toLocaleString()}
                     </td>
-                    <td className="tnum px-2 py-2 text-right font-mono text-[11px] text-muted-foreground">
+                    <td className="tnum px-2 py-2 text-right font-mono text-label text-muted-foreground">
                       {row.episodes}
                     </td>
                     {row.cells.map((cell, i) => (
@@ -130,27 +134,26 @@ export function RegimePlaybook({ playbook, lens, onLensChange, loading }: {
                             )}>
                               {formatPercent(cell.ann_return, 1)}
                             </span>
-                            <span className="tnum block font-mono text-[10px] text-muted-foreground/70">
+                            <span className="tnum block font-mono text-micro text-muted-foreground/70">
                               {cell.hit_rate == null ? '—' : `${(cell.hit_rate * 100).toFixed(0)}%`}
                             </span>
-                            <span className="tnum block font-mono text-[10px] text-muted-foreground/50">
+                            <span className="tnum block font-mono text-micro text-muted-foreground/50">
                               n={cell.n.toLocaleString()}
                             </span>
                           </>
                         )}
                       </td>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
           <div className="space-y-2 border-t border-border/50 p-3">
             <div className="rounded-lg border border-clay/40 bg-clay/5 p-3 text-xs">
               {playbook.caveat}
             </div>
-            <p className="font-mono text-[10px] leading-relaxed text-muted-foreground/70">
+            <p className="font-mono text-micro leading-relaxed text-muted-foreground/70">
               Annualised from each state's own days — not a contiguous period, so
               no drawdown is reported. Second line is the hit rate, third the
               sample. Dotted and greyed means too few episodes to read as a
@@ -159,7 +162,7 @@ export function RegimePlaybook({ playbook, lens, onLensChange, loading }: {
                 ` ${playbook.unclassified.toLocaleString()} days fall outside the lens's coverage.`}
             </p>
             {playbook.warnings.map((w) => (
-              <p key={w} className="font-mono text-[10px] text-clay">{w}</p>
+              <p key={w} className="font-mono text-micro text-clay">{w}</p>
             ))}
           </div>
         </>

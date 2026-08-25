@@ -152,7 +152,11 @@ export function useFeatureSet(initial: () => FeatureColumn[],
         column: { id: nextId('col'), name: uniqueName(taken, source.name), expr: source.expr },
       })
     },
-    remove: (columnId: string) => {
+    // Not `remove`: the editor facade already owns that name for deleting a
+    // card, and both facades are spread into one return value below. A second
+    // `remove` here wins the spread and turns "Remove card" into a no-op that
+    // the types cannot catch, because both take a lone string.
+    removeColumn: (columnId: string) => {
       dispatch({ type: 'remove', columnId })
       setPositions(({ [columnId]: _drop, ...rest }) => rest)
       setSelection(({ [columnId]: _also, ...rest }) => rest)

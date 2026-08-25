@@ -38,7 +38,7 @@ export class ErrorBoundary extends Component<Props, State> {
           {error.name}: {error.message}
         </p>
         {error.stack && (
-          <pre className="max-h-96 max-w-2xl overflow-auto rounded-lg border border-border/50 p-3 text-left font-mono text-[10px] text-muted-foreground">
+          <pre className="max-h-96 max-w-2xl overflow-auto rounded-lg border border-border/50 p-3 text-left font-mono text-micro text-muted-foreground">
             {error.stack}
           </pre>
         )}

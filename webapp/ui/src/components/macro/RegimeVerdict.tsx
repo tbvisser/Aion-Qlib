@@ -4,9 +4,8 @@ import type { MacroRegimeResponse } from '@/lib/api'
 import { formatIsoDate, formatLevel, formatSigned, toneFor } from '@/lib/macroFormat'
 import { quadrantTone, rateStageGlyph, riskTone } from '@/lib/regimeTone'
 import { verdictSentence } from '@/lib/regimeVerdict'
+import { MicroLabel } from '@/components/ui/micro-label'
 import { cn } from '@/lib/utils'
-
-const MICRO = 'font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70'
 
 function Dir({ d }: { d?: string | null }) {
   if (d === 'rising') return <ArrowUpRight className="h-3 w-3 shrink-0" />
@@ -109,11 +108,11 @@ export function RegimeVerdict({ regime, loading }: {
           <span className={cn('font-semibold', verdict.tone.text)}>{verdict.headline}</span>
           {verdict.sub && <span className="text-muted-foreground"> — {verdict.sub}</span>}
         </p>
-        <p className={cn('mt-0.5', MICRO)}>
+        <MicroLabel as="div" className="mt-0.5">
           Top-down read as of {formatIsoDate(regime.as_of)} · {regime.vintage} vintage
           {verdict.knownLenses < 4 &&
             ` · ${4 - verdict.knownLenses} of 4 lenses unresolved`}
-        </p>
+        </MicroLabel>
       </div>
 
       {regime.warnings.length > 0 && (
@@ -146,7 +145,7 @@ export function RegimeVerdict({ regime, loading }: {
                "bad". Direction against precedent, not desirability. */
           />
           {q.tie_break_used && (
-            <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">
+            <p className="pt-1 text-micro leading-relaxed text-muted-foreground">
               Growth sat inside the flat band; the call was broken on recent
               releases beating or missing expectations.
             </p>
@@ -206,7 +205,7 @@ export function RegimeVerdict({ regime, loading }: {
             />
           ))}
           {r.missing.length > 0 && (
-            <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">
+            <p className="pt-1 text-micro leading-relaxed text-muted-foreground">
               No data: {r.missing.join(', ')}
             </p>
           )}
@@ -235,7 +234,7 @@ export function RegimeVerdict({ regime, loading }: {
             label="Vol z-score"
             value={m.vol_z == null ? (m.vol ?? '—') : `${m.vol} · ${formatSigned(m.vol_z, 2)}σ`}
           />
-          <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">
+          <p className="pt-1 text-micro leading-relaxed text-muted-foreground">
             From prices, not from prints — the linkage panel below splits your
             book on these same two axes.
           </p>
@@ -251,12 +250,12 @@ export function RegimeVerdict({ regime, loading }: {
                   {formatLevel(h.value, h.unit)}
                 </span>
                 {h.prior != null && (
-                  <span className="tnum font-mono text-[10px] text-muted-foreground">
+                  <span className="tnum font-mono text-micro text-muted-foreground">
                     prior {formatLevel(h.prior, h.unit)}
                   </span>
                 )}
               </div>
-              <span className={cn('mt-0.5 block', MICRO)}>{formatIsoDate(h.date)}</span>
+              <MicroLabel className="mt-0.5 block">{formatIsoDate(h.date)}</MicroLabel>
             </Panel>
           ))}
         </div>

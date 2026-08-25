@@ -114,7 +114,7 @@ export function UserMenu({ email, onSignOut, compact = false }: UserMenuProps) {
         {/* Workspace. Lead with the name you are working in rather than the
             word "Organisation": which workspace your next strategy lands in is
             the fact that matters, and the label alone never told you. */}
-        <div className="px-2 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="px-2 pb-1 pt-1.5 text-label font-medium uppercase tracking-wide text-muted-foreground">
           Workspace
         </div>
         {organizations.map((org) => (
@@ -127,11 +127,11 @@ export function UserMenu({ email, onSignOut, compact = false }: UserMenuProps) {
             <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate text-left">{org.name}</span>
             {org.role !== 'member' && (
-              <span className="shrink-0 text-[10px] uppercase text-muted-foreground">
+              <span className="shrink-0 text-micro uppercase text-muted-foreground">
                 {org.role}
               </span>
             )}
-            {org.id === current?.id && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+            {org.id === current?.id && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
           </Button>
         ))}
 

@@ -107,13 +107,13 @@ export function BookOverview({ portfolios, strategies, runs }: BookOverviewProps
                   <div className="flex min-w-0 items-center gap-2">
                     <RunStatusIcon status={run.status} />
                     <div className="min-w-0">
-                      <div className="truncate text-[12px]">{run.name}</div>
-                      <div className="font-mono text-[10px] text-muted-foreground/70">
+                      <div className="truncate text-caption">{run.name}</div>
+                      <div className="font-mono text-micro text-muted-foreground/70">
                         {run.model ?? '—'} · {run.universe ?? '—'}
                       </div>
                     </div>
                   </div>
-                  <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                  <span className="shrink-0 font-mono text-micro text-muted-foreground">
                     {formatIsoDate(run.created_at)}
                   </span>
                 </Link>
@@ -176,12 +176,12 @@ function CollectionCard({
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="tnum text-3xl font-semibold">{count.toLocaleString()}</div>
+            <div className="tnum text-2xl font-semibold">{count.toLocaleString()}</div>
             <div className="mt-2 flex flex-wrap gap-1">
               {breakdown.map((entry) => (
                 <span
                   key={entry.label}
-                  className="inline-flex items-center rounded-md border border-border/50 bg-foreground/[0.02] px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                  className="inline-flex items-center rounded-md border border-border/50 bg-foreground/[0.02] px-1.5 py-0.5 text-micro text-muted-foreground"
                 >
                   {entry.label} {entry.count.toLocaleString()}
                 </span>
@@ -221,7 +221,7 @@ function QuickLink({
           {label}
           <ArrowUpRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
-        <p className="text-[11px] leading-relaxed text-muted-foreground">{description}</p>
+        <p className="text-label leading-relaxed text-muted-foreground">{description}</p>
       </div>
     </Link>
   )

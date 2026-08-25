@@ -15,6 +15,7 @@ import type {
   KeycardPortType,
   KeycardSpec,
 } from '@/lib/api'
+import { KEYCARD_HUES, solid } from './palette'
 
 export const KEYCARD_NODE_TYPE = 'keycardNode'
 export const KEYCARD_EDGE_TYPE = 'keycardEdge'
@@ -28,15 +29,22 @@ export const KEYCARD_ADD_NEXT_GAP = 180
 /** Vertical spacing between stacked downstream nodes from the same output port. */
 export const KEYCARD_ADD_NEXT_VERTICAL_SPACING = 72
 
+/**
+ * Hue references from `palette.ts` — wrap in `solid()` before painting.
+ *
+ * Ports that carry the same kind of thing share a hue with the category that
+ * produces it: what used to be blue-500 beside the categories' blue-400 (and
+ * green-500 beside emerald-400) was near-duplication, not information.
+ */
 export const PORT_COLORS: Record<KeycardPortType, string> = {
-  data: '#3b82f6', // blue-500
-  features: '#a855f7', // purple-500
-  signal: '#22c55e', // green-500
-  trades: '#f97316', // orange-500
-  config: '#6b7280', // gray-500
-  trigger: '#34d399', // emerald-400
-  trade: '#f97316', // orange-500
-  value: '#fbbf24', // amber-400
+  data: KEYCARD_HUES.blue,
+  features: KEYCARD_HUES.violet,
+  signal: KEYCARD_HUES.emerald,
+  trades: KEYCARD_HUES.orange,
+  config: KEYCARD_HUES.slate,
+  trigger: KEYCARD_HUES.emerald,
+  trade: KEYCARD_HUES.orange,
+  value: KEYCARD_HUES.amber,
 }
 
 export interface KeycardNodeData extends Record<string, unknown> {
@@ -49,7 +57,6 @@ export interface KeycardNodeData extends Record<string, unknown> {
   connectingPortType: KeycardPortType | null
   /** Which handle direction is a valid drop target while a connection is in flight. */
   seekingHandle: 'source' | 'target' | null
-  onDoubleClick?: (nodeId: string) => void
   onCreateNode?: (sourceNodeId: string, sourcePortId: string, type: string) => void
   onReplaceStartNode?: (type: string) => void
   onReplaceAddNext?: (sourceNodeId: string, sourcePortId: string, type: string) => void
@@ -116,7 +123,6 @@ export function toFlowNodes(
   metaByType: Map<string, KeycardNodeTypeMeta>,
   defects: KeycardDefect[] = [],
   selectedId?: string | null,
-  onDoubleClick?: (nodeId: string) => void,
   onCreateNode?: (sourceNodeId: string, sourcePortId: string, type: string) => void,
   onReplaceStartNode?: (type: string) => void,
   onReplaceAddNext?: (sourceNodeId: string, sourcePortId: string, type: string) => void,
@@ -138,7 +144,6 @@ export function toFlowNodes(
         selected: node.id === selectedId && node.type !== 'start',
         connectingPortType,
         seekingHandle,
-        onDoubleClick,
         onCreateNode,
         onReplaceStartNode,
         onReplaceAddNext,
@@ -155,13 +160,19 @@ export function toFlowNodes(
 export function toFlowEdges(
   keycard: Keycard | KeycardSpec,
   metaByType?: Map<string, KeycardNodeTypeMeta>,
+  defects: KeycardDefect[] = [],
 ): KeycardFlowEdge[] {
-  const routed = routeDefects([])
+  // Routed here, like `toFlowNodes` does for nodes. The canvas used to route
+  // edge defects itself and re-map every edge this returned, while this
+  // function called `routeDefects([])` — an always-empty map that read like it
+  // worked.
+  const routed = routeDefects(defects)
   const edges: KeycardFlowEdge[] = keycard.edges.map((edge) => {
     const sourceNode = keycard.nodes.find((n) => n.id === edge.source)
     const sourceMeta = metaByType?.get(sourceNode?.type ?? '')
     const sourcePort = sourceMeta?.ports.find((p) => p.id === edge.source_port)
     const portColor = sourcePort ? (PORT_COLORS[sourcePort.type] ?? undefined) : undefined
+    const mine = routed.get(edge.id) ?? []
     return {
       id: edge.id,
       source: edge.source,
@@ -169,58 +180,17 @@ export function toFlowEdges(
       sourceHandle: edge.source_port,
       targetHandle: edge.target_port,
       type: KEYCARD_EDGE_TYPE,
-      style: portColor ? { stroke: portColor } : undefined,
+      // A defective edge stops flowing: the animation reads as "working".
+      animated: mine.length === 0,
+      style: portColor ? { stroke: solid(portColor) } : undefined,
       markerEnd: portColor
-        ? { type: MarkerType.ArrowClosed, width: 12, height: 12, color: portColor }
+        ? { type: MarkerType.ArrowClosed, width: 12, height: 12, color: solid(portColor) }
         : undefined,
-      data: { keycardEdge: edge, defects: routed.get(edge.id) ?? [] },
+      data: { keycardEdge: edge, defects: mine },
     }
   })
 
   return edges
-}
-
-/**
- * Rebuild a KeycardSpec from the current React Flow state.
- *
- * Positions come from `rfNodes`; config and topology come from the original
- * keycard. Nodes/edges removed from the canvas are dropped from the spec.
- *
- * Only real keycard nodes/edges are considered.
- */
-export function fromFlow(
-  keycard: Keycard | KeycardSpec,
-  rfNodes: Node[],
-  rfEdges: Edge[],
-): KeycardSpec {
-  const positions = new Map(rfNodes.map((n) => [n.id, n.position]))
-  const nodeIds = new Set(rfNodes.map((n) => n.id))
-
-  const nodes: KeycardNodeSpec[] = keycard.nodes
-    .filter((n) => nodeIds.has(n.id))
-    .map((n) => {
-      const pos = positions.get(n.id)
-      return {
-        ...n,
-        position: pos ? { ...pos } : { ...n.position },
-      }
-    })
-
-  const edgeIds = new Set(rfEdges.map((e) => e.id))
-  const edges: KeycardEdgeSpec[] = keycard.edges
-    .filter((e) => edgeIds.has(e.id))
-    .map((e) => ({ ...e }))
-
-  return {
-    name: keycard.name,
-    description: keycard.description,
-    tags: [...keycard.tags],
-    is_template: keycard.is_template,
-    template_family: keycard.template_family,
-    nodes,
-    edges,
-    windows: { ...keycard.windows },
-  }
 }
 
 /**
@@ -275,28 +245,6 @@ export function wouldCreateCycle(
     ...keycard,
     edges: [...keycard.edges, candidate],
   })
-}
-
-/**
- * Suggest a drop position for a new node.
- *
- * Places it to the right of the right-most existing node, or centred when the
- * canvas is empty.
- */
-export function defaultNodePosition(
-  keycard: Keycard | KeycardSpec,
-  _type: string,
-): { x: number; y: number } {
-  if (keycard.nodes.length === 0) {
-    return { x: 0, y: 0 }
-  }
-  const rightmost = keycard.nodes.reduce((acc, n) =>
-    n.position.x > acc.position.x ? n : acc,
-  )
-  return {
-    x: rightmost.position.x + KEYCARD_NODE_WIDTH + 80,
-    y: rightmost.position.y,
-  }
 }
 
 /** Horizontal pitch between depth levels in the auto tree layout. */
@@ -415,4 +363,18 @@ export function routeDefects(defects: KeycardDefect[]): Map<string, KeycardDefec
     out.set(key, list)
   }
   return out
+}
+
+/**
+ * The node named by the first blocking defect that is about one, for the
+ * toolbar's "N blocking" chip to jump to. Null when every blocker is about an
+ * edge or the keycard as a whole.
+ */
+export function firstBlockedNodeId(defects: KeycardDefect[]): string | null {
+  for (const defect of defects) {
+    if (defect.severity !== 'blocking') continue
+    const match = NODE_PATH_RE.exec(defect.path)
+    if (match) return match[1]
+  }
+  return null
 }

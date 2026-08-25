@@ -5,7 +5,7 @@
  * `lib/strategyGraph/glance.ts`, which is what makes the canvas testable in a
  * repo with no component tests -- there is nothing left in here worth asserting.
  *
- * The card is intentionally slim so the seven stages can stack vertically in a
+ * The card is intentionally slim so the eight stages can stack vertically in a
  * narrow column. Color and icon identity are preserved from the previous design:
  * each phase keeps its hue on the icon tile and the bottom accent bar.
  */
@@ -103,13 +103,13 @@ export const StageNodeCard = memo(function StageNodeCard({
         <div className="flex min-w-0 items-center gap-1.5">
           <span
             className={cn(
-              'tnum shrink-0 font-mono text-[9px] uppercase tracking-wider',
+              'tnum shrink-0 font-mono text-tiny uppercase tracking-wider',
               TONE_TEXT[stage.phase],
             )}
           >
             {ordinal}
           </span>
-          <span className="truncate font-mono text-[9px] uppercase tracking-wider text-muted-foreground/70">
+          <span className="truncate font-mono text-tiny uppercase tracking-wider text-muted-foreground/70">
             · {stage.eyebrow}
           </span>
         </div>
@@ -128,7 +128,7 @@ export const StageNodeCard = memo(function StageNodeCard({
                 key={line.key}
                 title={line.value}
                 className={cn(
-                  'tnum max-w-full shrink-0 truncate rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground/80',
+                  'tnum max-w-full shrink-0 truncate rounded bg-surface-2 px-1.5 py-0.5 font-mono text-tiny text-muted-foreground/80',
                   line.tone === 'clay' && 'text-clay',
                 )}
               >
@@ -143,7 +143,7 @@ export const StageNodeCard = memo(function StageNodeCard({
       {status !== 'ok' && (
         <Badge
           variant={status === 'blocked' ? 'clay' : 'muted'}
-          className="mr-2.5 shrink-0 truncate text-[9px]"
+          className="mr-2.5 shrink-0 truncate text-tiny"
         >
           {status === 'blocked' ? `${notes.length} blocking` : `${notes.length} advisory`}
         </Badge>
@@ -152,7 +152,7 @@ export const StageNodeCard = memo(function StageNodeCard({
       {/* Phase label tucked into the unused corner, matching the bottom accent. */}
       <span
         className={cn(
-          'pointer-events-none absolute bottom-2 right-2.5 font-mono text-[9px] uppercase tracking-wider opacity-40',
+          'pointer-events-none absolute bottom-2 right-2.5 font-mono text-tiny uppercase tracking-wider opacity-40',
           TONE_TEXT[stage.phase],
         )}
       >

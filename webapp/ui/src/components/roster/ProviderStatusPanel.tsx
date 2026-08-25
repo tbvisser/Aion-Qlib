@@ -1,6 +1,7 @@
 import { AlertTriangle, Check, CircleSlash, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Panel } from '@/components/ui/panel'
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { sourceLabel } from '@/lib/catalog'
 import { providerState, type ProviderState } from '@/lib/roster'
 import type { RegistryProvider, RosterKind } from '@/lib/api'
@@ -37,39 +38,37 @@ export function ProviderStatusPanel({
         </Button>
       )}
     >
-      <div className="overflow-hidden rounded-lg border border-border/50">
-        <table className="w-full border-collapse text-left">
-          <tbody>
-            {filtered.map((provider) => {
-              const state = providerState(provider)
-              return (
-                <tr key={provider.name} className="border-b border-border/30 last:border-0">
-                  <td className="px-3 py-2">
-                    <div className="text-[12px]">{provider.label}</div>
-                    <div className="font-mono text-[10px] text-muted-foreground/70">
-                      {provider.name} · {sourceLabel(provider.source)}
-                      {provider.remote ? ' · over the network' : ' · in process'}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1.5 text-[11px]',
-                        stateClass(state),
-                      )}
-                    >
-                      <StatusIcon state={state.state} />
-                      {state.detail}
-                    </span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+      <Table containerClassName="overflow-hidden rounded-lg border border-border/50">
+        <TableBody>
+          {filtered.map((provider) => {
+            const state = providerState(provider)
+            return (
+              <TableRow key={provider.name}>
+                <TableCell className="px-3 py-2">
+                  <div className="text-caption">{provider.label}</div>
+                  <div className="font-mono text-micro text-muted-foreground/70">
+                    {provider.name} · {sourceLabel(provider.source)}
+                    {provider.remote ? ' · over the network' : ' · in process'}
+                  </div>
+                </TableCell>
+                <TableCell className="px-3 py-2 text-right">
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1.5 text-label',
+                      stateClass(state),
+                    )}
+                  >
+                    <StatusIcon state={state.state} />
+                    {state.detail}
+                  </span>
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
       {ttlSeconds != null && (
-        <p className="mt-2 text-[11px] text-muted-foreground/70">
+        <p className="mt-2 text-label text-muted-foreground/70">
           Nothing here is stored. Each backend is re-read at most once every{' '}
           {ttlSeconds} seconds; Refresh drops that cache.
         </p>

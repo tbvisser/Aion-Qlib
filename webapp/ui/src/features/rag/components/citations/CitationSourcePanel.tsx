@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { X, ExternalLink, FileText, FileType, FolderOpen, Globe, AlertTriangle, Eye, Code2, ChevronDown, Camera } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { CitationSourceViewer, type WebViewMode } from './CitationSourceViewer'
 import { citationBadgeLabel, effectiveStatus, safeWebUrl } from './citationUtils'
 import { hasMultipleViews, type ViewMode } from '@/features/rag/components/shared/FileContentPreview'
@@ -120,7 +121,7 @@ export function CitationSourcePanel({ citation, verificationMode, onClose }: Cit
                 type="button"
                 onClick={() => setWebViewMode('snapshot')}
                 aria-pressed={webViewMode === 'snapshot'}
-                className={`h-8 rounded px-3 text-sm font-medium transition-colors ${webViewMode === 'snapshot' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={cn('h-8 rounded px-3 text-sm font-medium transition-colors', webViewMode === 'snapshot' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
               >
                 Snapshot
               </button>
@@ -128,7 +129,7 @@ export function CitationSourcePanel({ citation, verificationMode, onClose }: Cit
                 type="button"
                 onClick={() => setWebViewMode('live')}
                 aria-pressed={webViewMode === 'live'}
-                className={`h-8 rounded px-3 text-sm font-medium transition-colors ${webViewMode === 'live' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={cn('h-8 rounded px-3 text-sm font-medium transition-colors', webViewMode === 'live' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
               >
                 Live page
               </button>
@@ -149,7 +150,7 @@ export function CitationSourcePanel({ citation, verificationMode, onClose }: Cit
           <SourceIcon kind={citation.source.source_type} className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-micro uppercase tracking-wide text-muted-foreground">
             <span>{sourceLabel(citation.source.source_type)}</span>
             <span aria-hidden>·</span>
             <span>Citation #{citation.display_number}</span>
@@ -165,7 +166,7 @@ export function CitationSourcePanel({ citation, verificationMode, onClose }: Cit
               onClick={() => setViewMode('rendered')}
               aria-pressed={viewMode === 'rendered'}
               title="Preview"
-              className={`flex items-center justify-center h-6 w-7 rounded transition-colors ${viewMode === 'rendered' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              className={cn('flex items-center justify-center h-6 w-7 rounded transition-colors', viewMode === 'rendered' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
             >
               <Eye className="h-3.5 w-3.5" />
             </button>
@@ -174,7 +175,7 @@ export function CitationSourcePanel({ citation, verificationMode, onClose }: Cit
               onClick={() => setViewMode('source')}
               aria-pressed={viewMode === 'source'}
               title="Source"
-              className={`flex items-center justify-center h-6 w-7 rounded transition-colors ${viewMode === 'source' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              className={cn('flex items-center justify-center h-6 w-7 rounded transition-colors', viewMode === 'source' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
             >
               <Code2 className="h-3.5 w-3.5" />
             </button>
@@ -187,7 +188,7 @@ export function CitationSourcePanel({ citation, verificationMode, onClose }: Cit
               onClick={() => setPdfView('page')}
               aria-pressed={pdfView === 'page'}
               title="Page"
-              className={`flex items-center justify-center h-6 w-7 rounded transition-colors ${pdfView === 'page' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              className={cn('flex items-center justify-center h-6 w-7 rounded transition-colors', pdfView === 'page' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
               data-testid="citation-view-page"
             >
               <FileType className="h-3.5 w-3.5" />
@@ -197,7 +198,7 @@ export function CitationSourcePanel({ citation, verificationMode, onClose }: Cit
               onClick={() => setPdfView('text')}
               aria-pressed={pdfView === 'text'}
               title="Text"
-              className={`flex items-center justify-center h-6 w-7 rounded transition-colors ${pdfView === 'text' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              className={cn('flex items-center justify-center h-6 w-7 rounded transition-colors', pdfView === 'text' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
               data-testid="citation-view-text"
             >
               <FileText className="h-3.5 w-3.5" />
@@ -219,40 +220,41 @@ export function CitationSourcePanel({ citation, verificationMode, onClose }: Cit
           className="flex w-full items-center gap-2 px-4 py-2 text-xs text-left hover:bg-muted/30 transition-colors"
         >
           <span
-            className={
+            className={cn(
+              'inline-flex items-center rounded-full px-2 py-0.5 font-medium',
               status === 'verified'
-                ? 'inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-primary font-medium'
+                ? 'bg-primary/10 text-primary'
                 : status === 'partially_supported' || status === 'not_verified' || status === 'verification_failed'
-                ? 'inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-300 font-medium'
+                ? 'bg-clay/10 text-clay'
                 : status === 'contradicted'
-                ? 'inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-destructive font-medium'
-                : 'inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-muted-foreground font-medium'
-            }
+                ? 'bg-destructive/10 text-destructive'
+                : 'bg-muted text-muted-foreground',
+            )}
           >
             {citationBadgeLabel(citation.status, verificationMode)}
           </span>
           <ChevronDown
-            className={`ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform ${detailsOpen ? 'rotate-180' : ''}`}
+            className={cn('ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform', detailsOpen && 'rotate-180')}
           />
         </button>
 
         {detailsOpen && (
           <div className="space-y-2 px-4 pb-3 text-xs">
             {citation.problem && (
-              <div className={`text-[11px] leading-snug ${status === 'contradicted' ? 'text-destructive' : 'text-amber-700 dark:text-amber-300'}`}>
+              <div className={cn('text-label leading-snug', status === 'contradicted' ? 'text-destructive' : 'text-clay')}>
                 {citation.problem}
               </div>
             )}
             {citation.quote && (
               <div className="rounded-sm bg-muted/30 px-2 py-1.5">
-                <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Cited passage</div>
+                <div className="mb-1 text-micro uppercase tracking-wide text-muted-foreground">Cited passage</div>
                 <blockquote className="leading-snug border-l-2 border-border pl-2">
                   {citation.quote}
                 </blockquote>
               </div>
             )}
             {highlightStatus === 'missing' && (
-              <div className="flex items-center gap-1 text-[10px] text-amber-700 dark:text-amber-300">
+              <div className="flex items-center gap-1 text-micro text-clay">
                 <AlertTriangle className="h-3 w-3" />
                 Exact location not found in the source - showing the cited passage above.
               </div>

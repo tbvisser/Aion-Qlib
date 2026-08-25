@@ -90,7 +90,7 @@ export function AgendaEntryRow({ entry, unread, today, isSelected = false, onSel
             className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_5px_hsl(var(--primary)/0.6)]"
           />
         )}
-        <span className="tnum font-mono text-[10px] text-muted-foreground/60">
+        <span className="tnum font-mono text-micro text-muted-foreground/60">
           {entry.time ?? clock(entry.timestamp) ?? ''}
         </span>
       </span>
@@ -131,7 +131,7 @@ function Body({ entry, today }: { entry: AgendaEntry; today: string }) {
     return (
       <>
         <TitleLine entry={entry}>
-          <span className={cn('font-mono text-[10px] uppercase', statusTextClass(item.status))}>
+          <span className={cn('font-mono text-micro uppercase', statusTextClass(item.status))}>
             {item.status}
           </span>
         </TitleLine>
@@ -192,13 +192,13 @@ function ReleaseBody({ entry, release, today }: {
     <>
       <TitleLine entry={entry}>
         {release.comparison && (
-          <span className="shrink-0 font-mono text-[10px] uppercase text-muted-foreground/60">
+          <span className="shrink-0 font-mono text-micro uppercase text-muted-foreground/60">
             {release.comparison}
           </span>
         )}
         <ImportanceBadge tier={release.importance} />
       </TitleLine>
-      <div className="flex items-baseline gap-2 font-mono text-[11px]">
+      <div className="flex items-baseline gap-2 font-mono text-label">
         {release.country && (
           <span className="shrink-0 text-muted-foreground/70">{release.country}</span>
         )}

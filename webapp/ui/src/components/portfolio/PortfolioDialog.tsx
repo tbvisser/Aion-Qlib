@@ -147,10 +147,10 @@ export function PortfolioDialog({
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+              <Label className="font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
                 Holdings
               </Label>
-              <span className={cn('tnum font-mono text-[11px]',
+              <span className={cn('tnum font-mono text-label',
                 Math.abs(total - 1) < 0.005 ? 'text-muted-foreground'
                   : total > 1 ? 'text-clay' : 'text-muted-foreground')}>
                 {(total * 100).toFixed(1)}% allocated
@@ -245,7 +245,7 @@ export function PortfolioDialog({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <Label className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <Label className="mb-1 block font-mono text-micro uppercase tracking-wider text-muted-foreground/70">
         {label}
       </Label>
       {children}
@@ -321,10 +321,10 @@ function HoldingRow({
                 className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left hover:bg-foreground/[0.04]"
               >
                 <span className="font-mono text-xs">{m.symbol}</span>
-                <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+                <span className="min-w-0 flex-1 truncate text-label text-muted-foreground">
                   {m.name}
                 </span>
-                <span className="font-mono text-[9px] uppercase text-muted-foreground/60">
+                <span className="font-mono text-tiny uppercase text-muted-foreground/60">
                   {m.asset_class}
                 </span>
               </button>

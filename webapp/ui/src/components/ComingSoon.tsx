@@ -1,4 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card'
+import { MicroLabel } from '@/components/ui/micro-label'
 
 /**
  * Honest placeholder for a route that exists but isn't built yet.
@@ -10,9 +11,9 @@ export function ComingSoon({ phase, children }: { phase: string; children: React
   return (
     <Card className="mx-auto max-w-2xl border-dashed">
       <CardContent className="space-y-2 p-8 text-center">
-        <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+        <MicroLabel as="div">
           {phase}
-        </div>
+        </MicroLabel>
         <div className="text-sm text-muted-foreground">{children}</div>
       </CardContent>
     </Card>

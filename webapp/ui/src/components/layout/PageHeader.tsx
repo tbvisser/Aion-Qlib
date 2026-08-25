@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+
 /** Consistent page title block: title, one-line explanation, right-side actions. */
 export function PageHeader({
   title,
@@ -18,6 +20,7 @@ export function PageHeader({
   description?: string
   actions?: ReactNode
 }) {
+  useDocumentTitle(title)
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border/50 px-6 py-5">
       <div className="min-w-0">

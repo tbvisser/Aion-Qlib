@@ -48,7 +48,9 @@ export function KeycardEdge({
       className={cn('aion-keycard-edge', hasDefect && 'aion-keycard-edge-defect')}
       style={{
         ...style,
-        stroke: hasDefect ? 'hsl(var(--destructive))' : style?.stroke,
+        // Clay: a blocked edge is a config verdict, same tone as the card
+        // border and dot on the node it leads to.
+        stroke: hasDefect ? 'hsl(var(--clay))' : style?.stroke,
         strokeWidth: hasDefect ? 2 : style?.strokeWidth ?? 2,
       }}
       markerEnd={markerEnd}

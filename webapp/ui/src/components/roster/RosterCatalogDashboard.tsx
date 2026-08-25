@@ -71,7 +71,7 @@ export function RosterCatalogDashboard({
       <div className="col-span-12">
         <Panel title={spec.label} bodyClassName="p-0" flush>
           <div className="p-3">
-            {blurb && <p className="mb-3 max-w-3xl text-[12px] text-muted-foreground">{blurb}</p>}
+            {blurb && <p className="mb-3 max-w-3xl text-caption text-muted-foreground">{blurb}</p>}
             <CatalogBrowser<RegistryEntity>
               kind={kind}
               columns={columns}

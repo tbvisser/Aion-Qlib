@@ -9,7 +9,7 @@
  * Guarding inside the switcher would have left the other four as unguarded back
  * doors into the same destruction.
  */
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export interface PendingAction {
   /** Completes "Discard changes and …?", e.g. `open “Momentum v3”`. */
@@ -36,11 +36,30 @@ export function useUnsavedGuard(dirty: boolean): UnsavedGuard {
     setPending(action)
   }, [dirty])
 
+  // The action runs outside the updater: StrictMode invokes updaters twice,
+  // and `p.run()` inside one replaced the spec twice per discard.
   const discard = useCallback(() => {
-    setPending((p) => { p?.run(); return null })
-  }, [])
+    if (!pending) return
+    setPending(null)
+    pending.run()
+  }, [pending])
 
   const cancel = useCallback(() => setPending(null), [])
 
   return { guard, pending, discard, cancel, resume: discard }
+}
+
+/**
+ * The guard's sibling for the exits `useUnsavedGuard` cannot see: a tab close
+ * or a reload. An in-app route change cannot be guarded here — `main.tsx`
+ * mounts a `<BrowserRouter>` and `useBlocker` needs a data router, which is
+ * not a migration worth doing for this.
+ */
+export function useBeforeUnloadWarning(dirty: boolean): void {
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
 }

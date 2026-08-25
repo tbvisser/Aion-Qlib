@@ -56,7 +56,7 @@ export function WorkspacePanel({ files, onFileClick }: WorkspacePanelProps) {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{formatFileSize(file.size_bytes)}</span>
-                    <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                    <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-micro font-medium">
                       {file.source}
                     </span>
                   </div>

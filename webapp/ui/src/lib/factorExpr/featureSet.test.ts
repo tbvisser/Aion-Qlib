@@ -210,6 +210,16 @@ describe('the feature set reducer', () => {
     expect(state.present.columns.map((c) => c.name)).toEqual(['Z'])
   })
 
+  it('honours an empty reseed — the new document really is empty', () => {
+    // Quietly keeping the old columns on an empty reseed is how one strategy's
+    // features leaked into another one's spec. Callers decide what an empty
+    // document should show instead.
+    let state = start('A')
+    state = featureSetReducer(state, { type: 'reseed', columns: [] })
+    expect(state.present.columns).toEqual([])
+    expect(state.present.activeId).toBe('')
+  })
+
   it('is pure, and never mints an id', () => {
     // React invokes reducers twice under StrictMode. A reducer that called
     // nextId() would burn ids and return two different states for one dispatch.

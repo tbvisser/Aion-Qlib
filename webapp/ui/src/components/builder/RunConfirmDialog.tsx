@@ -20,6 +20,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { CoverageBanner } from '@/components/builder/CoverageBanner'
 import { Choice, DateInput, Field } from '@/components/builder/FormControls'
 import { UniversePicker } from '@/components/builder/UniversePicker'
+import { choiceOptions, type CompatCtx } from '@/components/pipeline/inspectors/compat'
 import { Button } from '@/components/ui/button'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -69,6 +70,9 @@ export function RunConfirmDialog({
     setWarnings(initialBlockers)
     setPreview(null)
     setPreviewError(null)
+    // Seeded on open ONLY (see the state's comment): re-seeding on `spec` or
+    // `initialBlockers` would fight the user's edits to the draft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   useEffect(() => {
@@ -127,6 +131,18 @@ export function RunConfirmDialog({
 
   const modelLabel = models?.models.find((m) => m.id === draft.model)?.label ?? draft.model
 
+  // The same option-building the inspectors use, so the dialog cannot offer a
+  // store or benchmark the rail would refuse. It used to hand-build both lists
+  // — with a "(not built)" suffix the inspectors had already retired — and let
+  // you pick a store whose option the server had disabled with a reason.
+  const compat: CompatCtx = {
+    spec: draft,
+    options: preview?.options,
+    defects: preview?.defects,
+    applyPatch: (p) => setDraft((prev) => ({ ...prev, ...p })),
+  }
+  const storeLabels = new Map<string, string>(stores.map((s) => [s.key, s.label]))
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg" data-testid="run-confirm-dialog">
@@ -146,10 +162,8 @@ export function RunConfirmDialog({
             <Choice
               value={draft.data_store}
               onChange={(v) => setDraft((prev) => applyStore(prev, stores, v))}
-              options={stores.map((s) => ({
-                value: s.key,
-                label: s.exists ? s.label : `${s.label} (not built)`,
-              }))}
+              options={choiceOptions(compat, 'data_store', stores.map((s) => s.key),
+                                     (v) => storeLabels.get(v) ?? v)}
             />
           </Field>
 
@@ -169,9 +183,9 @@ export function RunConfirmDialog({
             <Choice
               value={draft.benchmark}
               onChange={(benchmark) => patch('benchmark', benchmark)}
-              options={[...new Set([...(store?.benchmarks ?? []), draft.benchmark])]
-                .filter(Boolean)
-                .map((b) => ({ value: b, label: b }))}
+              options={choiceOptions(compat, 'benchmark',
+                                     [...new Set([...(store?.benchmarks ?? []), draft.benchmark])]
+                                       .filter(Boolean))}
             />
           </Field>
 
@@ -187,7 +201,7 @@ export function RunConfirmDialog({
           {/* The clamp is applied whether or not anyone is told. Saying it here
               is the difference between a short backtest and a mystery. */}
           {stopsEarly && (
-            <p className="text-[11px] leading-relaxed text-clay">
+            <p className="text-label leading-relaxed text-clay">
               This store can only be backtested to {clamped}; the run will end there.
             </p>
           )}
@@ -218,7 +232,7 @@ export function RunConfirmDialog({
 
           <CoverageBanner coverage={preview?.coverage} />
 
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-label text-muted-foreground">
             Changes here are saved into the strategy.
           </p>
         </div>

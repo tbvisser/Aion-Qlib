@@ -11,14 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { IndicatorsResponse, Run } from '@/lib/api'
 
-const OVERLAY_COLORS = [
-  '#22c55e',
-  '#3b82f6',
-  '#f59e0b',
-  '#8b5cf6',
-  '#14b8a6',
-  '#ec4899',
-]
+import { OVERLAY_COLORS } from '@/hooks/useChartOverlays'
 
 const MAX_INDICATORS = 5
 const MAX_RUNS = 3
@@ -118,7 +111,7 @@ export function ChartOverlaysPanel({
       {!open && (
         <div className="flex flex-wrap items-center gap-2">
           {selectedIndicators.length === 0 && selectedRuns.length === 0 && (
-            <span className="text-[11px] text-muted-foreground/60">
+            <span className="text-label text-muted-foreground/60">
               No overlays. Expand to add indicators or model signals.
             </span>
           )}
@@ -127,7 +120,7 @@ export function ChartOverlaysPanel({
               key={name}
               type="button"
               onClick={() => onToggleIndicator(name)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-foreground/[0.02] px-2 py-1 text-[11px] transition-colors hover:bg-foreground/[0.04]"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-foreground/[0.02] px-2 py-1 text-label transition-colors hover:bg-foreground/[0.04]"
               title="Remove indicator"
             >
               <span
@@ -145,7 +138,7 @@ export function ChartOverlaysPanel({
                 key={runId}
                 type="button"
                 onClick={() => onToggleRun(runId)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-foreground/[0.02] px-2 py-1 text-[11px] transition-colors hover:bg-foreground/[0.04]"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-foreground/[0.02] px-2 py-1 text-label transition-colors hover:bg-foreground/[0.04]"
                 title="Remove run"
               >
                 <span className="font-medium">{run?.name ?? runId}</span>
@@ -170,7 +163,7 @@ export function ChartOverlaysPanel({
           </div>
 
           {selectedIndicators.length >= MAX_INDICATORS && (
-            <p className="text-[11px] text-clay">
+            <p className="text-label text-clay">
               Maximum {MAX_INDICATORS} indicators. Remove one to add another.
             </p>
           )}
@@ -178,7 +171,7 @@ export function ChartOverlaysPanel({
           <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
             {groupedIndicators.map(([family, items]) => (
               <div key={family}>
-                <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/55">
+                <div className="mb-1 font-mono text-micro uppercase tracking-wider text-muted-foreground/55">
                   {familyLabel.get(family) ?? family}
                 </div>
                 <div className="grid gap-1 sm:grid-cols-2">
@@ -204,11 +197,11 @@ export function ChartOverlaysPanel({
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-[11px] font-medium">{i.name}</span>
+                            <span className="font-mono text-label font-medium">{i.name}</span>
                             {i.in_handler && <Badge variant="primary">alpha158</Badge>}
                             {i.window != null && <Badge variant="outline">{i.window}d</Badge>}
                           </div>
-                          <p className="text-[10px] leading-snug text-muted-foreground/70">
+                          <p className="text-micro leading-snug text-muted-foreground/70">
                             {i.description}
                           </p>
                         </div>
@@ -219,7 +212,7 @@ export function ChartOverlaysPanel({
               </div>
             ))}
             {groupedIndicators.length === 0 && (
-              <p className="text-[11px] text-muted-foreground/50">No indicators match.</p>
+              <p className="text-label text-muted-foreground/50">No indicators match.</p>
             )}
           </div>
         </div>
@@ -228,17 +221,17 @@ export function ChartOverlaysPanel({
       {open && tab === 'models' && (
         <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
           {selectedRuns.length >= MAX_RUNS && (
-            <p className="text-[11px] text-clay">
+            <p className="text-label text-clay">
               Maximum {MAX_RUNS} runs. Remove one to add another.
             </p>
           )}
 
           {groupedRuns.length === 0 && (
-            <p className="text-[11px] text-muted-foreground/50">No finished runs yet.</p>
+            <p className="text-label text-muted-foreground/50">No finished runs yet.</p>
           )}
           {groupedRuns.map(({ modelId, label, runs }) => (
             <div key={modelId}>
-              <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/55">
+              <div className="mb-1 font-mono text-micro uppercase tracking-wider text-muted-foreground/55">
                 {label}
               </div>
               <div className="grid gap-1 sm:grid-cols-2">
@@ -259,8 +252,8 @@ export function ChartOverlaysPanel({
                         className="mt-0.5"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="font-mono text-[11px] font-medium">{run.name}</div>
-                        <div className="text-[10px] text-muted-foreground/60">
+                        <div className="font-mono text-label font-medium">{run.name}</div>
+                        <div className="text-micro text-muted-foreground/60">
                           {run.finished_at
                             ? new Date(run.finished_at).toLocaleDateString()
                             : '—'}

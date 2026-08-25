@@ -462,7 +462,7 @@ export function CitationSourceViewer({
           <span className="truncate">{domain || loaded.uri || 'web source'}</span>
         </div>
         {citation.quote && (
-          <blockquote className="rounded-r border-l-2 border-amber-400/70 bg-amber-50/50 px-3 py-2 text-sm leading-relaxed dark:bg-amber-500/10">
+          <blockquote className="rounded-r border-l-2 border-clay/30 bg-clay/10 px-3 py-2 text-sm leading-relaxed">
             {citation.quote}
           </blockquote>
         )}
@@ -490,7 +490,7 @@ export function CitationSourceViewer({
       <div className="flex h-full min-h-0 flex-col">
         {renderWebChrome(rawUri)}
         {false && (
-          <div className="border-b border-border/40 bg-muted/30 px-4 py-1.5 text-[11px] text-muted-foreground shrink-0">
+          <div className="border-b border-border/40 bg-muted/30 px-4 py-1.5 text-label text-muted-foreground shrink-0">
             Couldn’t locate the cited passage in the page preview — showing the raw captured source with the passage highlighted.
           </div>
         )}

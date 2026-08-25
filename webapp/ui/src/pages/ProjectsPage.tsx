@@ -5,6 +5,9 @@ import { IndexHeader } from '@/components/layout/IndexHeader'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { Notice } from '@/components/ui/notice'
+import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Dialog,
   DialogContent,
@@ -121,33 +124,27 @@ export function ProjectsPage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <div className="mx-auto max-w-5xl space-y-4">
-          {error && (
-            <Card className="border-destructive/40">
-              <CardContent className="p-4 text-sm text-destructive">{error}</CardContent>
-            </Card>
-          )}
+          {error && <Notice tone="destructive">{error}</Notice>}
 
           {loading && (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }, (_, i) => (
-                <div key={i} className="h-40 animate-pulse rounded-xl bg-muted/60" />
+                <Skeleton key={i} className="h-40 rounded-xl" />
               ))}
             </div>
           )}
 
           {!loading && visible.length === 0 && (
-            <div className="rounded-xl border border-dashed border-border/60 p-10 text-center">
-              <p className="text-sm text-muted-foreground">
-                {projects.length === 0
-                  ? 'No projects yet. A project is a name over the strategies, books, chats and documents that belong to one piece of work.'
-                  : `Nothing matches “${query}”.`}
-              </p>
-              {projects.length === 0 && (
-                <Button size="sm" className="mt-4" onClick={openNew}>
+            <EmptyState
+              title={projects.length === 0
+                ? 'No projects yet. A project is a name over the strategies, books, chats and documents that belong to one piece of work.'
+                : `Nothing matches “${query}”.`}
+              action={projects.length === 0 ? (
+                <Button size="sm" onClick={openNew}>
                   <Plus className="mr-1 h-3.5 w-3.5" /> New project
                 </Button>
-              )}
-            </div>
+              ) : undefined}
+            />
           )}
 
           {!loading && visible.length > 0 && (
@@ -173,7 +170,7 @@ export function ProjectsPage() {
                       <p className="line-clamp-3 flex-1 text-xs leading-relaxed text-muted-foreground">
                         {project.description || 'No description.'}
                       </p>
-                      <p className="font-mono text-[11px] text-muted-foreground/70">
+                      <p className="font-mono text-label text-muted-foreground/70">
                         {formatRelativeStamp(project.updated_at)}
                       </p>
                     </CardContent>

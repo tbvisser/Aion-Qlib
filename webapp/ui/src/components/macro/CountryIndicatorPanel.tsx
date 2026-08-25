@@ -69,7 +69,7 @@ export function CountryIndicatorPanel({
               >
                 <div className="min-w-0">
                   <div className="truncate text-xs">{indicator.label}</div>
-                  <div className={cn('font-mono text-[10px]',
+                  <div className={cn('font-mono text-micro',
                     stale ? 'text-clay' : 'text-muted-foreground/70')}>
                     {indicator.latest_year ?? '—'}
                     {stale && ' · latest available'}
@@ -86,7 +86,7 @@ export function CountryIndicatorPanel({
                       {format(indicator.latest, indicator.unit)}
                     </div>
                     {delta != null && indicator.unit === 'percent' && (
-                      <div className={cn('tnum font-mono text-[10px]',
+                      <div className={cn('tnum font-mono text-micro',
                         delta > 0 ? 'text-primary' : delta < 0 ? 'text-clay' : 'text-muted-foreground')}>
                         {delta > 0 ? '+' : ''}{delta.toFixed(1)}pp
                       </div>
