@@ -98,6 +98,19 @@ Three things the ingest gets right, each of which is a silent data bug otherwise
 - Only models whose dependencies are installed are offered. The PyTorch
   benchmarks need the `rl` extras.
 
+## Aion MCP (optional)
+
+A streamable-HTTP MCP server exposes a read-only subset of chat tools for
+[Hermes Agent](https://github.com/nousresearch/hermes-agent) and other MCP hosts.
+See [`aion_mcp/README.md`](../aion_mcp/README.md). For the optional gateway
+sidecar, see [`hermes/README.md`](../hermes/README.md). Set
+`HERMES_GATEWAY_ENABLED=true` in `webapp/.env` when the gateway is running so
+Agents & Skills shows the Hermes roster row and console card. Start MCP with:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d aion-mcp
+```
+
 ## Tests
 
 ```bash

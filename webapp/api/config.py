@@ -59,6 +59,23 @@ class Settings(BaseSettings):
     # Postgres; this URL is only the /health probe the Agents & Skills roster
     # uses. Compose-network default; natively override to 127.0.0.1:8771.
     scalability_agent_url: str = "http://agent:8771"
+    # Aion MCP server (compose service aion-mcp, optional). Streamable-HTTP MCP
+    # exposing allowlisted qlib tools for Hermes and other MCP hosts. The token
+    # must be sent as Authorization: Bearer … from non-loopback callers.
+    aion_mcp_url: str = "http://aion-mcp:8910/mcp"
+    aion_mcp_token: str = ""
+    # Optional service user for tools that read Postgres (runs, scalability).
+    # When empty, qlib-only tools still work; DB-backed tools return an error.
+    aion_mcp_service_user_id: str = ""
+    aion_mcp_service_org_id: str = ""
+    # Optional dedicated secret for user-scoped MCP tokens; defaults to aion_mcp_token.
+    aion_mcp_user_token_secret: str = ""
+    # Shared secret for Hermes → Aion bridge endpoints (scheduled tasks). Docker-internal.
+    hermes_bridge_token: str = ""
+    # Optional Hermes gateway sidecar (compose service hermes-gateway). When
+    # false, the roster skips the provider entirely — no probe, no timeout.
+    hermes_gateway_enabled: bool = False
+    hermes_gateway_url: str = "http://hermes-gateway:8642"
 
     # --- identity and per-user storage --------------------------------------
     # The same Supabase the RAG half already uses (compose file in

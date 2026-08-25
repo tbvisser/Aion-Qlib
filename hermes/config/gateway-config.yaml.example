@@ -1,0 +1,13 @@
+# Optional messaging platforms. Copy to $HERMES_HOME/gateway-config.yaml on first
+# boot (entrypoint does this automatically) then fill in tokens in hermes/.env
+# and run: docker compose … restart hermes-gateway
+#
+# Full reference: https://hermes-agent.nousresearch.com/docs/user-guide/messaging
+
+gateway:
+  platforms: {}
+  # Example Telegram (uncomment and set TELEGRAM_BOT_TOKEN in hermes/.env):
+  # platforms:
+  #   telegram:
+  #     token: "${TELEGRAM_BOT_TOKEN}"
+  #     allowed_users: []   # empty = pairing mode; see Hermes security docs
