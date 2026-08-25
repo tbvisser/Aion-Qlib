@@ -22,11 +22,11 @@ describe('nav shape', () => {
     ])
   })
 
-  it('carries all twenty destinations', () => {
+  it('carries all twenty main-nav destinations', () => {
     // Three fewer than the platform's twenty-three. Alpha Zoo and Indicators
-    // folded into the Databank -- which became the Database, a rename rather
-    // than a removal, so it still holds a row -- and Vibe Agent folded into
-    // Agents & Skills.
+    // (Alpha158) folded into the Databank -- which became the Database, a rename
+    // rather than a removal, so it still holds a row -- and Vibe Agent folded
+    // into Agents & Skills. Markov Chains moved into the new Indicators page.
     expect(items).toHaveLength(20)
   })
 
@@ -82,20 +82,27 @@ describe('nav shape', () => {
   })
 
   /**
-   * The Strategy Lab is where the fold is visible: eight rows became four. This
-   * is pinned as an exact list rather than a membership check because a
+   * The Strategy Lab is where the fold is visible: eight rows became five.
+   * This is pinned as an exact list rather than a membership check because a
    * regression here looks like a restoration -- someone "putting Indicators
    * back" would pass every other assertion in this file.
    */
-  it('shapes the Strategy Lab as five rows around the Database and Markov Chains', () => {
+  it('shapes the Strategy Lab as five rows including Indicators', () => {
     const section = (heading: string) =>
       allNavSections.find((s) => s.heading === heading)!.items.map((i) => i.key)
 
     expect(section('Strategy Lab')).toEqual([
-      'tl-builder', 'tl-mlstudio', 'tl-database', 'tl-markov', 'tl-roster',
+      'tl-builder', 'tl-mlstudio', 'tl-indicators', 'tl-database', 'tl-roster',
     ])
+    expect(navItemFor('tl-indicators')?.route).toBe('/lab/indicators')
     expect(navItemFor('tl-database')?.route).toBe('/lab/database')
-    expect(navItemFor('tl-markov')?.route).toBe('/lab/markov')
+  })
+
+  it('keeps Markov Chains reachable inside the Indicators page', () => {
+    // Markov no longer has its own sidebar row; it lives as a tab inside the
+    // Indicators page. Old /lab/markov links still highlight Indicators.
+    expect(sectionForPath('/lab/markov')).toBe('tl-indicators')
+    expect(sectionForPath('/lab/indicators')).toBe('tl-indicators')
   })
 
   it('sits Shadow Accounts in the Book, under Broker Accounts', () => {
@@ -116,8 +123,8 @@ describe('the Code shell', () => {
 
   /**
    * `code` is its own key rather than a second use of `dashboard`: Code's "New"
-   * starts a session at /code, Home's starts a conversation at /dashboard. Same
-   * word, different act — and one key cannot highlight two rows.
+   * starts a session at /code while Home's starts a conversation at /dashboard.
+   * Same word, different act — and one key cannot highlight two rows.
    */
   it('gives Code its own New, distinct from the dashboard', () => {
     expect(navItemFor('code')?.route).toBe('/code')
@@ -198,6 +205,10 @@ describe('sectionForPath', () => {
     expect(sectionForPath('/indicators')).toBe('tl-database')
     expect(sectionForPath('/factors')).toBe('tl-database')
     expect(sectionForPath('/vibe-agent')).toBe('tl-roster')
+  })
+
+  it('highlights the Indicators page for old /lab/markov links', () => {
+    expect(sectionForPath('/lab/markov')).toBe('tl-indicators')
   })
 
   it('falls back to the dashboard for anything unknown', () => {
