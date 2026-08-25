@@ -12,9 +12,9 @@ import { StrategyBuilderPage } from '@/pages/StrategyBuilderPage'
 import { KeycardBuilderPage } from '@/pages/KeycardBuilderPage'
 import { RunsPage } from '@/pages/RunsPage'
 import { MLStudioPage } from '@/pages/MLStudioPage'
+import { IndicatorsPage } from '@/pages/IndicatorsPage'
 import { ChatPage } from '@/pages/ChatPage'
 import { MacroDeskPage } from '@/pages/MacroDeskPage'
-import { MarkovChainPage } from '@/pages/MarkovChainPage'
 import { PortfoliosPage } from '@/pages/PortfoliosPage'
 import { PortfolioDetailPage } from '@/pages/PortfolioDetailPage'
 import { StrategyDetailPage } from '@/pages/StrategyDetailPage'
@@ -89,12 +89,13 @@ export default function App() {
           <Route path="/lab/keycards/new" element={<KeycardBuilderPage />} />
           <Route path="/lab/keycards/:id" element={<KeycardBuilderPage />} />
           <Route path="/lab/ml-studio" element={<MLStudioPage />} />
+          <Route path="/lab/indicators" element={<IndicatorsPage />} />
           {/* The Databank grew into the Database: one destination with a
               sub-tab per collection, over a searchable index of every source.
               The sub-tab lives in `?tab=`, so each folded-in route below
               redirects to the tab that took over its job rather than 404-ing. */}
           <Route path="/lab/database" element={<DatabasePage />} />
-          <Route path="/lab/markov" element={<MarkovChainPage />} />
+          <Route path="/lab/markov" element={<Navigate to="/lab/indicators?tab=markov" replace />} />
           <Route path="/lab/databank" element={<Navigate to="/lab/database?tab=alphas" replace />} />
           <Route path="/lab/alpha-zoo" element={<Navigate to="/lab/database?tab=alphas&source=vibe" replace />} />
           <Route path="/lab/shadow-accounts" element={<ShadowAccountsPage />} />

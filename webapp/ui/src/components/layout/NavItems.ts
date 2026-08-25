@@ -45,7 +45,7 @@ export type SectionKey =
   | 'documents' | 'explorer' | 'corpus'
   | 'book' | 'accounts' | 'investors'
   | 'markets' | 'macro'
-  | 'tl-builder' | 'tl-mlstudio' | 'tl-database' | 'tl-markov' | 'tl-shadow' | 'tl-roster'
+  | 'tl-builder' | 'tl-mlstudio' | 'tl-indicators' | 'tl-database' | 'tl-markov' | 'tl-shadow' | 'tl-roster'
 
 export interface NavItem {
   key: SectionKey
@@ -129,6 +129,9 @@ export const mainNavSections: NavSection[] = [
     items: [
       { key: 'tl-builder', label: 'Strategy Builder', icon: SlidersHorizontal, route: '/lab/keycards/new', built: true },
       { key: 'tl-mlstudio', label: 'ML Studio', icon: Brain, route: '/lab/ml-studio', built: true },
+      {
+        key: 'tl-indicators', label: 'Indicators', icon: GitBranch, route: '/lab/indicators', built: true,
+      },
       // The Databank grew into the Database: one destination with a sub-tab per
       // collection, over a searchable index of every source at once. Three rows
       // folded into it and are gone from this list — Alpha Zoo (the sidecar's
@@ -139,7 +142,8 @@ export const mainNavSections: NavSection[] = [
       // and land on the sub-tab that took the work over; see ROUTE_OWNERS and
       // `tabForLegacyRoute`.
       { key: 'tl-database', label: 'Database', icon: Boxes, route: '/lab/database', built: true },
-      { key: 'tl-markov', label: 'Markov Chains', icon: GitBranch, route: '/lab/markov', built: true },
+      // Markov Chains lives inside the Indicators page as its first tab. Old
+      // /lab/markov links redirect to /lab/indicators?tab=markov.
       // Vibe Agent folded in here rather than into the Database: it is an agent
       // console, not a collection. `/vibe-agent` still resolves and highlights
       // this row, and the roster surfaces it — the sidecar's API forbids
@@ -203,6 +207,8 @@ const ROUTE_OWNERS: Array<[string, SectionKey]> = [
   ['/lab/alpha-zoo', 'tl-database'],
   ['/indicators', 'tl-database'],
   ['/factors', 'tl-database'],
+  // Markov Chains moved into the Indicators page; old links still highlight it.
+  ['/lab/markov', 'tl-indicators'],
   // Folded into Agents & Skills.
   ['/vibe-agent', 'tl-roster'],
 ]
