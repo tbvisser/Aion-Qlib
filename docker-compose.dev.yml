@@ -1,0 +1,141 @@
+# Optional dev overlay: aion-mcp (Phase 1) + hermes-gateway (Phase 2).
+
+#
+
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d aion-mcp hermes-gateway
+
+#
+
+# Default `docker compose up -d api ui` is unchanged — these services are opt-in.
+
+
+
+services:
+
+  aion-mcp:
+
+    image: ${AION_IMAGE:-ghcr.io/tbvisser/aion-qlib:dev}
+
+    container_name: qlib-aion-mcp
+
+    working_dir: /qlib
+
+    user: "${DOCKER_UID:-0}:${DOCKER_GID:-0}"
+
+    extra_hosts:
+
+      - "host.docker.internal:host-gateway"
+
+    env_file:
+
+      - path: webapp/.env
+
+        required: false
+
+    environment:
+
+      HOME: /home/qlib
+
+      AION_MCP_PORT: "8910"
+
+    volumes:
+
+      - .:/qlib
+
+      - ${HOME}/.qlib:/home/qlib/.qlib
+
+    ports:
+
+      - "127.0.0.1:8910:8910"
+
+    command: python -m aion_mcp
+
+    healthcheck:
+
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8910/health')"]
+
+      interval: 30s
+
+      timeout: 10s
+
+      retries: 3
+
+      start_period: 20s
+
+
+
+  hermes-gateway:
+
+    build:
+
+      context: ./hermes
+
+    image: ${AION_HERMES_IMAGE:-aion-hermes:dev}
+
+    container_name: qlib-hermes-gateway
+
+    depends_on:
+
+      aion-mcp:
+
+        condition: service_healthy
+
+    working_dir: /hermes-data/workspace
+
+    extra_hosts:
+
+      - "host.docker.internal:host-gateway"
+
+    env_file:
+
+      - path: hermes/.env
+
+        required: false
+
+      - path: webapp/.env
+
+        required: false
+
+    environment:
+
+      HERMES_HOME: /hermes-data
+
+      HERMES_UID: ${HERMES_UID:-10000}
+
+      HERMES_GID: ${HERMES_GID:-10000}
+
+      # Default api_server bind is loopback; expose on the compose network for /api/hermes/health.
+      API_SERVER_HOST: "0.0.0.0"
+
+      API_SERVER_PORT: "8642"
+
+    volumes:
+
+      - hermes-home:/hermes-data
+
+    ports:
+
+      - "127.0.0.1:8642:8642"
+
+    mem_limit: 2g
+
+    cpus: 2
+
+    healthcheck:
+
+      test: ["CMD", "/opt/aion/healthcheck.sh"]
+
+      interval: 30s
+
+      timeout: 10s
+
+      retries: 5
+
+      start_period: 90s
+
+
+
+volumes:
+
+  hermes-home:
+

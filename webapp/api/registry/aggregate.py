@@ -97,9 +97,9 @@ def _now() -> str:
 
 def _providers() -> tuple[Provider, ...]:
     # Imported lazily: the provider modules import this one for `Provider`.
-    from .providers import PROVIDERS as registered
+    from .providers import providers as registered
 
-    return registered
+    return registered()
 
 
 # Re-exported so callers can enumerate without reaching into `.providers`.

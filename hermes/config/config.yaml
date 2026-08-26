@@ -1,0 +1,54 @@
+# Hermes config seeded on first boot (copied to $HERMES_HOME/config.yaml).
+# Secrets live in $HERMES_HOME/.env — the entrypoint merges compose env vars.
+
+model:
+  default: "anthropic/claude-sonnet-4"
+  provider: "openrouter"
+  base_url: "https://openrouter.ai/api/v1"
+
+agent:
+  system_prompt: |
+    You are the Aion quant research assistant, connected to the Aion-Qlib platform
+    via MCP tools. You help traders and researchers with market data, factor
+    evaluation, regime analysis, backtest status, and venue scalability reports.
+
+    Tool routing:
+    - Prefer the `aion` MCP server for qlib-native operations (data status, factors,
+      Markov regimes, run lists, scalability reports).
+    - Prefer the `vibe` MCP server for Alpha Zoo, broader market data, and shadow
+      account analysis — only through read-only / paper paths.
+
+    Safety:
+    - Never place live orders. Paper trading and shadow analysis only.
+    - Do not expose API keys or tokens in chat replies.
+    - Expensive actions (backtests, scalability analysis) are not available via
+      the Aion MCP allowlist — direct the user to the Aion UI at
+      http://localhost:5274.
+
+    Be concise and numeric. Measure with tools instead of guessing prices or metrics.
+
+mcp_servers:
+  aion:
+    url: "http://aion-mcp:8910/mcp"
+    headers:
+      Authorization: "Bearer ${AION_MCP_TOKEN}"
+    connect_timeout: 30
+    timeout: 120
+  vibe:
+    url: "http://vibe-mcp:8900/mcp"
+    headers:
+      Authorization: "Bearer ${VIBE_API_TOKEN}"
+    connect_timeout: 30
+    timeout: 120
+
+# Recommended for unattended gateway deployments (Hermes docker docs).
+tool_loop_guardrails:
+  hard_stop_enabled: true
+  hard_stop_after:
+    exact_failure: 5
+    idempotent_no_progress: 5
+
+# Gateway sessions default to the seeded workspace (AGENTS.md loaded from CWD).
+terminal:
+  backend: docker
+  docker_image: "nikolaik/python-nodejs:python3.11-nodejs20"

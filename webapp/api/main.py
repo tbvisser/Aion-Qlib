@@ -24,8 +24,10 @@ from . import db, qlib_session
 from .auth import get_principal
 from .config import get_settings
 from .macro_auto_refresh import start_macro_auto_refresh, stop_macro_auto_refresh
-from .routers import (activity, agenda, catalog, chat, data, factors, health, ingest,
+from .routers import (activity, agenda, catalog, chat, data, factors, health, hermes,
+                      hermes_bridge, ingest,
                       keycards, macro, markov, outlook_reports, registry, scalability, scheduled,
+                      mcp_confirmations,
                       vibe, portfolios, projects, runs, workspace)
 from .scheduler import get_scheduler
 
@@ -73,6 +75,9 @@ app.include_router(projects.router, prefix="/api", tags=["projects"], dependenci
 app.include_router(activity.router, prefix="/api", tags=["activity"], dependencies=_authenticated)
 app.include_router(agenda.router, prefix="/api", tags=["agenda"], dependencies=_authenticated)
 app.include_router(vibe.router, prefix="/api", tags=["vibe"], dependencies=_authenticated)
+app.include_router(hermes.router, prefix="/api", tags=["hermes"], dependencies=_authenticated)
+app.include_router(hermes_bridge.router, prefix="/api", tags=["hermes"])
+app.include_router(mcp_confirmations.router, prefix="/api", tags=["mcp"], dependencies=_authenticated)
 app.include_router(catalog.router, prefix="/api", tags=["catalog"], dependencies=_authenticated)
 app.include_router(registry.router, prefix="/api", tags=["registry"], dependencies=_authenticated)
 app.include_router(workspace.router, prefix="/api", tags=["workspace"], dependencies=_authenticated)

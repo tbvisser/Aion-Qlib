@@ -329,6 +329,30 @@ without:
 `webapp/data/strategies/` and `webapp/data/portfolios/` **are** committed — they
 are hand-authored, not generated, so the demo content is there on first boot.
 
+## 11. Optional: Hermes agent sidecar
+
+Phase 1 (**Aion MCP**) exposes qlib tools over MCP. Phase 2 (**Hermes gateway**)
+runs [Hermes Agent](https://github.com/nousresearch/hermes-agent) as an optional
+sidecar that orchestrates Aion MCP + Vibe MCP, with messaging and cron. Phase 3
+wires the gateway into **Agents & Skills** (roster row + console health card).
+
+```bash
+cp hermes/.env.example hermes/.env   # OPENROUTER + tokens matching webapp/.env
+# In webapp/.env when the gateway is running:
+# HERMES_GATEWAY_ENABLED=true
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d aion-mcp hermes-gateway
+curl http://127.0.0.1:8910/health
+docker compose -f docker-compose.yml -f docker-compose.dev.yml exec hermes-gateway hermes gateway status
+```
+
+Browse `/lab/roster?tab=agents` for the Hermes console card and roster row.
+
+**Phase 4:** Tier-1 MCP tools (`run_backtest`, `start_scalability_analysis`) require
+approval on the Agents tab. Mint a user-scoped MCP token via `POST /api/hermes/mcp-token`.
+
+See [`aion_mcp/README.md`](aion_mcp/README.md) and [`hermes/README.md`](hermes/README.md).
+Full plan: [`.agent/plans/1.hermes-agent-integration.md`](.agent/plans/1.hermes-agent-integration.md).
+
 ---
 
 Further reading: [`webapp/README.md`](webapp/README.md) for how the app is put
